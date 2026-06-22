@@ -123,7 +123,7 @@ do { \
     } \
 } while(0)
 
-TokenList tokenize(CGS_DStr src)
+TokenList tokenize(CGS_StrView file_name, CGS_DStr src)
 {
     TokenList ret = TokenList_init();
     
@@ -132,10 +132,11 @@ TokenList tokenize(CGS_DStr src)
     
     CGS_StrView src_walk = cgs_strv(src);
     
+    // TODO should probably cgs_split(src, "\n") so we get lineno on each token
     scan_next_token:
     while(1)
     {
-        CGS_Result(CGS_StrView) res = cgs_next_tok_any(&src_walk, "");
+        CGS_Result(CGS_StrView) res = cgs_next_tok_any(&src_walk, " \f\n\r\t\v");
         
         if(res.err.ec != CGS_OK)
         {
@@ -148,6 +149,8 @@ TokenList tokenize(CGS_DStr src)
         try_scan_token(scan_ident);
         try_scan_token(scan_punct);
         try_scan_token(scan_num);
+        
+        error_at(file_name, 0, 0, cgs_strv(src), cgs_strv("unexpected character"));
     }
     
     return ret;

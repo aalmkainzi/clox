@@ -24,7 +24,7 @@ int main(int argc, char **argv)
 }
 
 
-static void run(CGS_DStr line);
+static void run(CGS_StrView file_name, CGS_DStr line);
 
 static void run_file(const char *file_name)
 {
@@ -38,7 +38,7 @@ static void run_file(const char *file_name)
         cgs_fprintf(stderr, "could not read file %?: %?: %?\n", file_name, err, strerror(errno));
     }
     
-    run(file_data);
+    run(cgs_strv(file_name), file_data);
 }
 
 static void run_prompt()
@@ -48,11 +48,11 @@ static void run_prompt()
     while(!feof(stdin))
     {
         cgs_fread_until(&line, stdin, '\n');
-        run(line);
+        run(cgs_strv("<REPL>"), line);
     }
 }
 
-static void run(CGS_DStr src)
+static void run(CGS_StrView file_name, CGS_DStr src)
 {
-    tokenize(src);
+    tokenize(file_name, src);
 }
