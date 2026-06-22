@@ -54,5 +54,12 @@ static void run_prompt()
 
 static void run(CGS_StrView file_name, CGS_DStr src)
 {
-    tokenize(file_name, src);
+    TokenList tokens = tokenize(file_name, src);
+    
+    for(c_each(tokit, TokenList, tokens))
+    {
+        Token *tok = tokit.ref;
+        
+        cgs_printf("(%?, %?)\n", tok2str[tok->kind], tok->lexeme);
+    }
 }

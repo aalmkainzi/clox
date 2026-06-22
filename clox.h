@@ -62,6 +62,15 @@ typedef enum TokenKind
 
 #undef make_enum_variant
 
+#define make_tok2str_entry(kind, str) \
+[TK_##kind] = (CGS_StrView){.chars = str, .len = sizeof(str) - 1},
+
+static const CGS_StrView tok2str[] = {
+    TOKEN_LIST(make_tok2str_entry)
+};
+
+#undef make_tok2str_entry
+
 struct Token
 {
     TokenKind kind;

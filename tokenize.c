@@ -72,6 +72,8 @@ static bool isnum(char c)
 Token scan_num(const char *tok_start)
 {
     Token ret = {.kind = TK_none};
+    
+    int scanned = 0;
     if(isnum(tok_start[0]))
     {
         int len = 1;
@@ -83,16 +85,16 @@ Token scan_num(const char *tok_start)
         ret.kind = TK_num;
         ret.lexeme = lexeme;
         
-        tok_start += len;
+        scanned = len;
     }
     
-    if(tok_start[0] == '.' && isnum(tok_start[1]))
+    if(tok_start[scanned] == '.' && isnum(tok_start[scanned + 1]))
     {
         int len = 2;
-        while(isnum(tok_start[len]))
+        while(isnum(tok_start[scanned + len]))
             len += 1;
         
-        CGS_StrView lexeme = cgs_strv(tok_start, 0, len);
+        CGS_StrView lexeme = cgs_strv(tok_start, 0, scanned + len);
         
         ret.kind = TK_float;
         ret.lexeme = lexeme;
@@ -115,10 +117,12 @@ Token scan_str(const char *tok_start)
 
 #define try_scan_token(func) \
 do { \
-    Token tok = (func)(tok_start); \
-    if(tok.kind != TK_none) \
+    Token scanned_tok = (func)(tok_start); \
+    if(scanned_tok.kind != TK_none) \
     { \
-        TokenList_push(&ret, tok); \
+        TokenList_push(&ret, scanned_tok); \
+        src_walk.chars -= scanned_tok.lexeme.len; \
+        src_walk.len += scanned_tok.lexeme.len; \
         goto scan_next_token; \
     } \
 } while(0)
@@ -131,27 +135,27 @@ TokenList tokenize(CGS_StrView file_name, CGS_DStr src)
     cgs_append(&src, "        ");
     
     CGS_StrView src_walk = cgs_strv(src);
-    
     // TODO should probably cgs_split(src, "\n") so we get lineno on each token
+    
     scan_next_token:
-    while(1)
+    
+    CGS_Result(CGS_StrView) res = cgs_next_tok_any(&src_walk, " \f\n\r\t\v");
+    
+    if(res.err.ec != CGS_OK)
     {
-        CGS_Result(CGS_StrView) res = cgs_next_tok_any(&src_walk, " \f\n\r\t\v");
-        
-        if(res.err.ec != CGS_OK)
-        {
-            break;
-        }
-        
-        const char *tok_start = res.val.chars;
-        
-        try_scan_token(scan_keyword);
-        try_scan_token(scan_ident);
-        try_scan_token(scan_punct);
-        try_scan_token(scan_num);
-        
-        error_at(file_name, 0, 0, cgs_strv(src), cgs_strv("unexpected character"));
+        if(res.err.ec == CGS_NOT_FOUND)
+            return ret; // empty string remaining, return scanned tokens
     }
+    
+    const char *tok_start = res.val.chars;
+    
+    try_scan_token(scan_keyword);
+    try_scan_token(scan_ident);
+    try_scan_token(scan_punct);
+    try_scan_token(scan_num);
+    
+    error:
+    error_at(file_name, 0, 0, cgs_strv(src), cgs_strv("unexpected character"));
     
     return ret;
 }
