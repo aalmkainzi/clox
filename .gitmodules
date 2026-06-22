@@ -1,0 +1,6 @@
+[submodule "external/cgs"]
+	path = external/cgs
+	url = https://github.com/aalmkainzi/CGS
+[submodule "external/STC"]
+	path = external/STC
+	url = https://github.com/stclib/STC
