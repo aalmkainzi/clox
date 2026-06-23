@@ -7,26 +7,34 @@
 typedef struct Token Token;
 declare_vec(TokenList, Token);
 
-#define PUNCT_TOKEN_LIST(macro) \
+#define ONE_CHAR_PUNCT_TOKEN_LIST(macro) \
 macro(comma       , "," ) \
 macro(dot         , "." ) \
 macro(semicolon   , ";" ) \
 macro(lt          , "<" ) \
 macro(gt          , ">" ) \
-macro(lte         , "<=") \
-macro(gte         , ">=") \
 macro(plus        , "+" ) \
 macro(minus       , "-" ) \
 macro(equal       , "=" ) \
 macro(star        , "*" ) \
 macro(slash       , "/" ) \
-macro(exclamation , "!" ) \
+macro(not         , "!" ) \
 macro(open_paren  , "(" ) \
 macro(close_paren , ")" ) \
 macro(open_square , "[" ) \
 macro(close_square, "]" ) \
 macro(open_curly  , "{" ) \
 macro(close_curly , "}" )
+
+#define TWO_CHAR_PUNCT_TOKEN_LIST(macro) \
+macro(lte, "<=")         \
+macro(gte, ">=")         \
+macro(not_equal  , "!=") \
+macro(equal_equal, "==")
+
+#define PUNCT_TOKEN_LIST(macro)  \
+ONE_CHAR_PUNCT_TOKEN_LIST(macro) \
+TWO_CHAR_PUNCT_TOKEN_LIST(macro)
 
 #define KEYWORD_TOKEN_LIST(macro) \
 macro(if      , "if"   ) \
@@ -43,7 +51,7 @@ macro(class   , "class")
 #define LITERAL_TOKEN_LIST(macro) \
 macro(str  , "string literal"  )  \
 macro(num  , "number literal"  )  \
-macro(float, "floating literal")  \
+macro(float, "float literal")  \
 
 #define TOKEN_LIST(macro)  \
 macro(ident, "identifier") \
@@ -79,7 +87,7 @@ struct Token
     union
     {
         uint64_t integer;
-        double floating;
+        double dbl;
         CGS_DStr string;
     } data;
 };
@@ -89,6 +97,6 @@ struct Token
 #include "stc/vec.h"
 
 TokenList tokenize(CGS_StrView file_name, CGS_DStr src);
-void error_at(CGS_StrView file_name, int lineno, int offset, CGS_StrView src, CGS_StrView message);
+void error_at(CGS_StrView file_name, CGS_StrView src, const CGS_StrView error_loc, CGS_StrView message);
 
 #endif

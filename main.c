@@ -60,6 +60,6 @@ static void run(CGS_StrView file_name, CGS_DStr src)
     {
         Token *tok = tokit.ref;
         
-        cgs_printf("(%?, %?)\n", tok2str[tok->kind], tok->lexeme);
+        cgs_printf("(%?, %?, %?)\n", tok2str[tok->kind], tok->lexeme, tok->kind == TK_float ? tok->data.dbl : 0.0);
     }
 }
