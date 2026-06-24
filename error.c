@@ -32,9 +32,17 @@ void error_at(CGS_StrView file_name, CGS_StrView src, CGS_StrView error_loc, CGS
     CGS_StrView line = cgs_strv(src, line_begin_in_src, line_end_in_src);
     unsigned int offset = error_loc.chars - line.chars;
     
-    cgs_fprintf(stderr, "%?:%?:%?: error: %?\n", file_name, lineno, offset, message);
-    cgs_fprintf(stderr, "%? | %?\n", lineno, line);
-    cgs_fprintf(stderr, "%?\n", cgs_alignfmt("^", CGS_ALIGN_RIGHT, offset));
+    unsigned int count = 0;
+    CGS_ChainWriter writer = cgs_chain_writer(stderr, &count);
+    
+    const char *color_reset = "\x1b[0m";
+    
+    const char *red_begin = "\x1b[31m";
+    const char *cyan_begin = "\x1b[36m";
+    
+    cgs_appendf(stderr, "%?:%?:%?: %?error: %?%?\n", file_name, lineno, offset, red_begin, message, color_reset);
+    cgs_appendf(&writer, "%? | ", lineno);
+    cgs_appendf(stderr, "%?\n%?%?%?\n", line, cyan_begin, cgs_alignfmt("^", CGS_ALIGN_RIGHT, offset + count + 1), color_reset);
     
     exit(EXIT_FAILURE);
 }
