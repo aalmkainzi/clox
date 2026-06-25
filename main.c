@@ -1,8 +1,8 @@
-#include "clox.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include "clox.h"
 
 static void run_file(const char *file_name);
 static void run_prompt();
@@ -23,7 +23,6 @@ int main(int argc, char **argv)
         run_prompt();
     }
 }
-
 
 static void run(CGS_StrView file_name, CGS_DStr line);
 

@@ -33,7 +33,7 @@ void error_at(CGS_StrView file_name, CGS_StrView src, CGS_StrView error_loc, CGS
     unsigned int offset = error_loc.chars - line.chars;
     
     unsigned int count = 0;
-    CGS_ChainWriter writer = cgs_chain_writer(stderr, &count);
+    CGS_ChainWriter writer = cgs_writer(stderr, &count);
     
     const char *color_reset = "\x1b[0m";
     
