@@ -1,10 +1,10 @@
 #include "clox.h"
 #include <stdlib.h>
 
-void error_at(CGS_StrView file_name, CGS_StrView src, CGS_StrView error_loc, CGS_StrView message)
+void report_error(CGS_StrView file_name, CGS_StrView src, CGS_StrView error_loc, CGS_StrView message)
 {
     CGS_StrView up_to_error_loc = cgs_strv(src, 0, error_loc.chars - src.chars);
-    int lineno = cgs_count(up_to_error_loc, "\n");
+    int lineno = cgs_count(up_to_error_loc, "\n") + 1;
     
     CGS_StrView after_error_loc = cgs_strv(src, error_loc.chars - src.chars);
     
@@ -40,7 +40,7 @@ void error_at(CGS_StrView file_name, CGS_StrView src, CGS_StrView error_loc, CGS
     const char *red_begin = "\x1b[31m";
     const char *cyan_begin = "\x1b[36m";
     
-    cgs_appendf(stderr, "%?:%?:%?: %?error: %?%?\n", file_name, lineno, offset, red_begin, message, color_reset);
+    cgs_appendf(stderr, "%?:%?:%?: %?error:%? %?\n", file_name, lineno, offset, red_begin, color_reset, message);
     cgs_appendf(&writer, "%? | ", lineno);
     cgs_appendf(stderr, "%?\n%?%?%?\n", line, cyan_begin, cgs_alignfmt("^", CGS_ALIGN_RIGHT, offset + count + 1), color_reset);
     

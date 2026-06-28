@@ -1,6 +1,8 @@
 #ifndef EXPR_H
 #define EXPR_H
 
+#include "cgs/cgs.h"
+
 typedef enum ExprKind
 {
     EXPR_UNARY,
@@ -32,11 +34,11 @@ typedef struct Expr
             struct Expr *expr;
         } grouping;
         
-        struct
-        {
-            void *literal;
-        };
+        void *literal;
     };
 } Expr;
+
+void pretty_print(CGS_Writer *sink, Expr *expr);
+void rpn_print(CGS_Writer *sink, Expr *expr);
 
 #endif

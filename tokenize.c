@@ -2,8 +2,8 @@
 #include <ctype.h>
 #include <math.h>
 
-#define error_here(tok_start, msg) \
-error_at(ctx->file_name, ctx->src, cgs_strv(tok_start, 0, 1), cgs_strv(msg))
+#define error_at(tok_start, msg) \
+report_error(ctx->file_name, ctx->src, cgs_strv(tok_start, 0, 1), cgs_strv(msg))
 
 typedef struct TokenizeCtx
 {
@@ -12,12 +12,17 @@ typedef struct TokenizeCtx
     int lineno;
 } TokenizeCtx;
 
-Token scan_keyword(TokenizeCtx *ctx, const char *tok_start)
+static bool is_ident_char(char c)
+{
+    return isalnum(c) || c == '_';
+}
+
+static Token scan_keyword(TokenizeCtx *ctx, const char *tok_start)
 {
     Token ret = {.kind = TK_none};
     
 #define else_if_is_kw(name, str) \
-    else if(memcmp(tok_start, str, strlen(str)) == 0 && !isalnum(tok_start[strlen(str)])) \
+    else if(memcmp(tok_start, str, strlen(str)) == 0 && !(is_ident_char(tok_start[strlen(str)]))) \
     { \
         ret.kind = TK_##name; \
         ret.lexeme = cgs_strv(tok_start, 0, strlen(str)); \
@@ -34,14 +39,14 @@ Token scan_keyword(TokenizeCtx *ctx, const char *tok_start)
     return ret;
 }
 
-Token scan_ident(TokenizeCtx *ctx, const char *tok_start)
+static Token scan_ident(TokenizeCtx *ctx, const char *tok_start)
 {
     Token ret = {.kind = TK_none};
     
     if(isalpha(tok_start[0]) || tok_start[0] == '_')
     {
         int len = 1;
-        while(isalnum((unsigned char) tok_start[len]) || tok_start[len] == '_')
+        while(is_ident_char(tok_start[len]))
             len += 1;
         
         CGS_StrView lexeme = cgs_strv(tok_start, 0, len);
@@ -53,7 +58,7 @@ Token scan_ident(TokenizeCtx *ctx, const char *tok_start)
     return ret;
 }
 
-Token scan_punct(TokenizeCtx *ctx, const char *tok_start)
+static Token scan_punct(TokenizeCtx *ctx, const char *tok_start)
 {
     Token ret = {.kind = TK_none};
     
@@ -81,7 +86,7 @@ static bool isnum(char c)
     return c >= '0' && c <= '9';
 }
 
-Token scan_num(TokenizeCtx *ctx, const char *tok_start)
+static Token scan_num(TokenizeCtx *ctx, const char *tok_start)
 {
     Token ret = {.kind = TK_none};
     
@@ -134,7 +139,7 @@ Token scan_num(TokenizeCtx *ctx, const char *tok_start)
     return ret;
 }
 
-Token scan_str(TokenizeCtx *ctx, const char *tok_start)
+static Token scan_str(TokenizeCtx *ctx, const char *tok_start)
 {
     Token ret = {.kind = TK_none};
     
@@ -145,7 +150,7 @@ Token scan_str(TokenizeCtx *ctx, const char *tok_start)
         {
             if(tok_start[len - 1] == '\0')
             {
-                error_here(tok_start, "unterminated string literal");
+                error_at(tok_start, "unterminated string literal");
             }
             len += 1;
         }
@@ -158,64 +163,73 @@ Token scan_str(TokenizeCtx *ctx, const char *tok_start)
     return ret;
 }
 
-#define try_scan_token(func)                               \
-do {                                                       \
-    Token scanned_tok = (func)(ctx, tok_start);            \
-    if(scanned_tok.kind != TK_none)                        \
-    {                                                      \
-        TokenList_push(&ret, scanned_tok);                 \
-        src_walk.chars += scanned_tok.lexeme.len;          \
-        src_walk.len   -= scanned_tok.lexeme.len;          \
-        if((func) == scan_str)                             \
-        {                                                  \
-            lineno += cgs_count(scanned_tok.lexeme, "\n"); \
-        }                                                  \
-        goto scan_next_token;                              \
-    }                                                      \
+#define try_scan_token(func)                                    \
+do {                                                            \
+    Token scanned_tok = (func)(ctx, tok_start);                 \
+    if(scanned_tok.kind != TK_none)                             \
+    {                                                           \
+        if((func) == scan_str)                                  \
+        {                                                       \
+            ctx->lineno += cgs_count(scanned_tok.lexeme, "\n"); \
+        }                                                       \
+        return scanned_tok;                                     \
+    }                                                           \
 } while(0)
 
-TokenList tokenize(CGS_StrView file_name, CGS_DStr src)
+Token scan_one_token(TokenizeCtx *ctx, const char *tok_start)
 {
-    TokenList ret = TokenList_init();
-    
-    cgs_append(&src, "        ");
-    TokenizeCtx *ctx = &(TokenizeCtx){
-        .file_name = file_name,
-        .src = cgs_strv(src)
-    };
-    
-    // appending empty space in case we try to scan a long keyword
-    
-    CGS_StrView src_walk = cgs_strv(src);
-    
-    int lineno = 1;
-    
-    scan_next_token:
-    
-    while(src_walk.len > 0 && isspace(src_walk.chars[0]))
-    {
-        if(src_walk.chars[0] == '\n')
-            lineno += 1;
-        
-        src_walk.chars += 1;
-        src_walk.len -= 1;
-    }
-    
-    if(src_walk.len == 0)
-    {
-        return ret;
-    }
-    
-    const char *tok_start = src_walk.chars;
-    
     try_scan_token(scan_keyword);
     try_scan_token(scan_ident);
     try_scan_token(scan_punct);
     try_scan_token(scan_num);
     try_scan_token(scan_str);
     
-    error:
-    error_at(file_name, cgs_strv(src), cgs_strv(src_walk, 0, 1), cgs_strv("unexpected character"));
+    return (Token){.kind = TK_none};
+}
+
+TokenList tokenize(CGS_StrView file_name, CGS_DStr src)
+{
+    TokenList ret = TokenList_init();
     
-    return ret;
+    // appending empty space in case we try to scan a long keyword
+    cgs_append(&src, "        ");
+    
+    TokenizeCtx *ctx = &(TokenizeCtx){
+        .file_name = file_name,
+        .src = cgs_strv(src),
+        .lineno = 1,
+    };
+    
+    CGS_StrView src_walk = cgs_strv(src);
+    
+    while(true)
+    {
+        while(src_walk.len > 0 && isspace(src_walk.chars[0]))
+        {
+            if(src_walk.chars[0] == '\n')
+                ctx->lineno += 1;
+            
+            src_walk.chars += 1;
+            src_walk.len -= 1;
+        }
+        
+        if(src_walk.len == 0)
+        {
+            return ret;
+        }
+        
+        const char *tok_start = src_walk.chars;
+        
+        Token scanned_tok = scan_one_token(ctx, tok_start);
+        
+        if(scanned_tok.kind == TK_none)
+        {
+            error_at(src_walk, "unexpected character");
+        }
+        
+        TokenList_push(&ret, scanned_tok);
+        
+        src_walk.chars += scanned_tok.lexeme.len;
+        src_walk.len   -= scanned_tok.lexeme.len;
+    }
 }

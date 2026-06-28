@@ -3,12 +3,50 @@
 #include <string.h>
 #include <errno.h>
 #include "clox.h"
+#include "expr.h"
+#include "tokenize.h"
+
+// #define local_ref(x) \
+// &(typeof((void)0,x)[]){x}
 
 static void run_file(const char *file_name);
 static void run_prompt();
 
 int main(int argc, char **argv)
 {
+    Expr expr = {
+        .kind = EXPR_BINARY,
+        .binary = {
+            .op = &(Token){.kind = TK_star, .lexeme = cgs_strv("*")},
+            .left = &(Expr){
+                .kind = EXPR_GROUPING,
+                .grouping.expr = &(Expr){
+                    .kind = EXPR_BINARY,
+                    .binary = {
+                        .op = &(Token){.kind = TK_plus, .lexeme = cgs_strv("+")},
+                        .left = &(Expr){.kind = EXPR_LITERAL, .literal = &(double){1}},
+                        .right = &(Expr){.kind = EXPR_LITERAL, .literal = &(double){2}}
+                    }
+                }
+            },
+            .right = &(Expr){
+                .kind = EXPR_GROUPING,
+                .grouping.expr = &(Expr){
+                    .kind = EXPR_BINARY,
+                    .binary = {
+                        .op = &(Token){.kind = TK_minus, .lexeme = cgs_strv("-")},
+                        .left = &(Expr){.kind = EXPR_LITERAL, .literal = &(double){4}},
+                        .right = &(Expr){.kind = EXPR_LITERAL, .literal = &(double){3}}
+                    }
+                }
+            }
+        }
+    };
+    
+    rpn_print(cgs_writer_ptr(stdout), &expr);
+    
+    return 0;
+    
     if(argc > 2)
     {
         fprintf(stderr, "usage: clox [script]");
