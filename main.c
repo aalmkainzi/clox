@@ -4,7 +4,7 @@
 #include <errno.h>
 #include "clox.h"
 #include "expr.h"
-#include "tokenize.h"
+#include "token.h"
 
 // #define local_ref(x) \
 // &(typeof((void)0,x)[]){x}
@@ -14,39 +14,6 @@ static void run_prompt();
 
 int main(int argc, char **argv)
 {
-    Expr expr = {
-        .kind = EXPR_BINARY,
-        .binary = {
-            .op = &(Token){.kind = TK_star, .lexeme = cgs_strv("*")},
-            .left = &(Expr){
-                .kind = EXPR_GROUPING,
-                .grouping.expr = &(Expr){
-                    .kind = EXPR_BINARY,
-                    .binary = {
-                        .op = &(Token){.kind = TK_plus, .lexeme = cgs_strv("+")},
-                        .left = &(Expr){.kind = EXPR_LITERAL, .literal = &(double){1}},
-                        .right = &(Expr){.kind = EXPR_LITERAL, .literal = &(double){2}}
-                    }
-                }
-            },
-            .right = &(Expr){
-                .kind = EXPR_GROUPING,
-                .grouping.expr = &(Expr){
-                    .kind = EXPR_BINARY,
-                    .binary = {
-                        .op = &(Token){.kind = TK_minus, .lexeme = cgs_strv("-")},
-                        .left = &(Expr){.kind = EXPR_LITERAL, .literal = &(double){4}},
-                        .right = &(Expr){.kind = EXPR_LITERAL, .literal = &(double){3}}
-                    }
-                }
-            }
-        }
-    };
-    
-    rpn_print(cgs_writer_ptr(stdout), &expr);
-    
-    return 0;
-    
     if(argc > 2)
     {
         fprintf(stderr, "usage: clox [script]");
@@ -92,12 +59,28 @@ static void run_prompt()
 
 static void run(CGS_StrView file_name, CGS_DStr src)
 {
-    TokenList tokens = tokenize(file_name, src);
+    // appending empty spaces in cases we try to match a long keyword
+    cgs_append(&src, "        ");
     
-    for(c_each(tokit, TokenList, tokens))
-    {
-        Token *tok = tokit.ref;
-        
-        cgs_printf("(%?, %?, %?)\n", tok2str[tok->kind], tok->lexeme, tok->kind == TK_float ? tok->data.dbl : 0.0);
-    }
+    Ctx *ctx = &(Ctx){
+        .lineno = 1,
+        .file_name = file_name,
+        .src = cgs_strv(src),
+    };
+    
+    tokenize(ctx);
+    
+//     for(c_each(tokit, TokenList, tokens))
+//     {
+//         Token *tok = tokit.ref;
+//         
+//         cgs_printf("(%?, %?, %?)\n", tok2str[tok->kind], tok->lexeme, tok->kind == TK_float ? tok->data.dbl : 0.0);
+//     }
+    
+    Expr *expr = parse_expr(ctx);
+    
+    pretty_print(cgs_writer_ptr(stdout), expr);
+    cgs_writeln("");
+    rpn_print(cgs_writer_ptr(stdout), expr);
+    cgs_writeln("");
 }

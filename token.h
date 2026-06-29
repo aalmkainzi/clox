@@ -58,7 +58,8 @@ macro(float, "float literal")  \
 macro(ident, "identifier") \
 LITERAL_TOKEN_LIST(macro)  \
 KEYWORD_TOKEN_LIST(macro)  \
-PUNCT_TOKEN_LIST  (macro)
+PUNCT_TOKEN_LIST  (macro)  \
+macro(eof, "EOF")
 
 #define make_enum_variant(kind, str) TK_##kind,
 
@@ -92,6 +93,22 @@ struct Token
         CGS_DStr string;
     } data;
 };
+
+static inline CGS_Error write_token(CGS_Writer *writer, Token tok)
+{
+    return cgs_append(writer, tok.lexeme);
+}
+
+static inline CGS_Error write_token_ptr(CGS_Writer *writer, Token *tok)
+{
+    return cgs_append(writer, tok->lexeme);
+}
+
+#define ADD_TOSTR (Token, write_token)
+#include "cgs/cgs.h"
+
+#define ADD_TOSTR (Token*, write_token_ptr)
+#include "cgs/cgs.h"
 
 #define i_declared
 #define T TokenList, Token

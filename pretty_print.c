@@ -1,5 +1,5 @@
 #include "expr.h"
-#include "tokenize.h"
+#include "token.h"
 
 void pretty_print(CGS_Writer *sink, Expr *expr)
 {
@@ -19,7 +19,7 @@ void pretty_print(CGS_Writer *sink, Expr *expr)
             pretty_print(sink, expr->binary.right);
         break;
         case EXPR_LITERAL:
-            cgs_appendf(sink, "%?", *(double*) expr->literal);
+            cgs_appendf(sink, "%?", expr->literal.tok);
         break;
         case EXPR_GROUPING:
             cgs_append(sink, "group ");
@@ -46,7 +46,7 @@ void rpn_print(CGS_Writer *sink, Expr *expr)
             cgs_appendf(sink, " %?", expr->binary.op->lexeme);
         break;
         case EXPR_LITERAL:
-            cgs_appendf(sink, "%?", *(double*) expr->literal);
+            cgs_appendf(sink, "%?", expr->literal.tok);
         break;
         case EXPR_GROUPING:
             rpn_print(sink, expr->grouping.expr);

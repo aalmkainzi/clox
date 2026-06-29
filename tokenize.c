@@ -2,22 +2,12 @@
 #include <ctype.h>
 #include <math.h>
 
-#define error_at(tok_start, msg) \
-report_error(ctx->file_name, ctx->src, cgs_strv(tok_start, 0, 1), cgs_strv(msg))
-
-typedef struct TokenizeCtx
-{
-    CGS_StrView file_name;
-    CGS_StrView src;
-    int lineno;
-} TokenizeCtx;
-
 static bool is_ident_char(char c)
 {
     return isalnum(c) || c == '_';
 }
 
-static Token scan_keyword(TokenizeCtx *ctx, const char *tok_start)
+static Token scan_keyword(Ctx *ctx, const char *tok_start)
 {
     Token ret = {.kind = TK_none};
     
@@ -39,7 +29,7 @@ static Token scan_keyword(TokenizeCtx *ctx, const char *tok_start)
     return ret;
 }
 
-static Token scan_ident(TokenizeCtx *ctx, const char *tok_start)
+static Token scan_ident(Ctx *ctx, const char *tok_start)
 {
     Token ret = {.kind = TK_none};
     
@@ -58,7 +48,7 @@ static Token scan_ident(TokenizeCtx *ctx, const char *tok_start)
     return ret;
 }
 
-static Token scan_punct(TokenizeCtx *ctx, const char *tok_start)
+static Token scan_punct(Ctx *ctx, const char *tok_start)
 {
     Token ret = {.kind = TK_none};
     
@@ -86,7 +76,7 @@ static bool isnum(char c)
     return c >= '0' && c <= '9';
 }
 
-static Token scan_num(TokenizeCtx *ctx, const char *tok_start)
+static Token scan_num(Ctx *ctx, const char *tok_start)
 {
     Token ret = {.kind = TK_none};
     
@@ -139,7 +129,7 @@ static Token scan_num(TokenizeCtx *ctx, const char *tok_start)
     return ret;
 }
 
-static Token scan_str(TokenizeCtx *ctx, const char *tok_start)
+static Token scan_str(Ctx *ctx, const char *tok_start)
 {
     Token ret = {.kind = TK_none};
     
@@ -176,7 +166,7 @@ do {                                                            \
     }                                                           \
 } while(0)
 
-Token scan_one_token(TokenizeCtx *ctx, const char *tok_start)
+Token scan_one_token(Ctx *ctx, const char *tok_start)
 {
     try_scan_token(scan_keyword);
     try_scan_token(scan_ident);
@@ -187,20 +177,12 @@ Token scan_one_token(TokenizeCtx *ctx, const char *tok_start)
     return (Token){.kind = TK_none};
 }
 
-TokenList tokenize(CGS_StrView file_name, CGS_DStr src)
+void tokenize(Ctx *ctx)
 {
-    TokenList ret = TokenList_init();
+    ctx->toks = TokenList_init();
+    TokenList *toks = &ctx->toks;
     
-    // appending empty space in case we try to scan a long keyword
-    cgs_append(&src, "        ");
-    
-    TokenizeCtx *ctx = &(TokenizeCtx){
-        .file_name = file_name,
-        .src = cgs_strv(src),
-        .lineno = 1,
-    };
-    
-    CGS_StrView src_walk = cgs_strv(src);
+    CGS_StrView src_walk = cgs_strv(ctx->src);
     
     while(true)
     {
@@ -215,7 +197,8 @@ TokenList tokenize(CGS_StrView file_name, CGS_DStr src)
         
         if(src_walk.len == 0)
         {
-            return ret;
+            TokenList_push(toks, (Token){.kind = TK_eof});
+            return;
         }
         
         const char *tok_start = src_walk.chars;
@@ -227,9 +210,36 @@ TokenList tokenize(CGS_StrView file_name, CGS_DStr src)
             error_at(src_walk, "unexpected character");
         }
         
-        TokenList_push(&ret, scanned_tok);
+        TokenList_push(toks, scanned_tok);
         
         src_walk.chars += scanned_tok.lexeme.len;
         src_walk.len   -= scanned_tok.lexeme.len;
     }
+}
+
+// utils
+
+void skip_(Ctx *ctx, TokenKind kind)
+{
+    if(ctx->cur->kind != kind)
+        error_at(ctx->cur->lexeme, "expected");
+    
+    ctx->cur += 1;
+}
+
+bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds)
+{
+    for(int i = 0 ; i < n_kinds ; i++)
+    {
+        if(ctx->cur->kind == kinds[i])
+            return true;
+    }
+    return false;
+}
+
+Token *advance_(Ctx *ctx)
+{
+    Token *ret = ctx->cur;
+    ctx->cur += 1;
+    return ret;
 }
