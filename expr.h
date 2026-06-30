@@ -7,6 +7,7 @@ typedef enum ExprKind
 {
     EXPR_UNARY,
     EXPR_BINARY,
+    EXPR_TERNARY,
     EXPR_GROUPING,
     EXPR_LITERAL
 } ExprKind;
@@ -40,6 +41,14 @@ typedef struct Expr
         
         struct
         {
+            struct Token *op;
+            struct Expr *cond;
+            struct Expr *true_exp;
+            struct Expr *false_exp;
+        } ternary;
+        
+        struct
+        {
             struct Expr *expr;
         } grouping;
         
@@ -57,6 +66,7 @@ void pretty_print(CGS_Writer *sink, Expr *expr);
 void rpn_print(CGS_Writer *sink, Expr *expr);
 
 Expr *new_binary(Expr *left, Expr *right, Token *op);
+Expr *new_ternary(Expr *cond, Expr *true_expr, Expr *false_expr);
 Expr *new_unary(Expr *left, Token *op);
 Expr *new_grouping(Expr *inside);
 Expr *new_literal(Token *tok);

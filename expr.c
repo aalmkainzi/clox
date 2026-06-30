@@ -1,6 +1,17 @@
 #include "expr.h"
 #include "clox.h"
 
+Expr *new_ternary(Expr *cond, Expr *true_expr, Expr *false_expr)
+{
+    Expr *ret = malloc(sizeof(Expr));
+    ret->kind = EXPR_TERNARY;
+    ret->ternary.cond = cond;
+    ret->ternary.true_exp = true_expr;
+    ret->ternary.false_exp = false_expr;
+    
+    return ret;
+}
+
 Expr *new_binary(Expr *left, Expr *right, Token *op)
 {
     Expr *ret = malloc(sizeof(Expr));
@@ -42,16 +53,23 @@ Expr *new_literal(Token *tok)
         case  TK_nil  :
             ret->literal.kind = LIT_NIL;
         break;
+        
         case  TK_str  :
             ret->literal.kind = LIT_STR;
         break;
+        
         case  TK_num  :
         case  TK_float :
             ret->literal.kind = LIT_NUM;
         break;
+        
         case  TK_true :
         case  TK_false:
             ret->literal.kind = LIT_BOOL;
+        break;
+        
+        case TK_ident:
+            ret->literal.kind = LIT_IDENT;
         break;
         
         default:
@@ -73,6 +91,12 @@ void free_expr(Expr *expr)
         case EXPR_BINARY:
             free_expr(expr->binary.left);
             free_expr(expr->binary.right);
+            free(expr);
+        break;
+        case EXPR_TERNARY:
+            free_expr(expr->ternary.cond);
+            free_expr(expr->ternary.true_exp);
+            free_expr(expr->ternary.false_exp);
             free(expr);
         break;
         case EXPR_GROUPING:

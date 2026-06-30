@@ -1,12 +1,12 @@
 #include "clox.h"
 #include <stdlib.h>
 
-void report_error(CGS_StrView file_name, CGS_StrView src, CGS_StrView error_loc, CGS_StrView message)
+void report_error(CGS_StrView file_name, CGS_StrView src, CGS_StrView error_loc, CGS_DStr message)
 {
     CGS_StrView src_up_to_error = cgs_strv(src, 0, error_loc.chars - src.chars);
     int lineno = cgs_count(src_up_to_error, "\n") + 1;
     
-    int line_end = error_loc.chars - src.chars;
+    unsigned int line_end = error_loc.chars - src.chars;
     for( ; line_end < src.len ; line_end++)
     {
         if(src.chars[line_end] == '\n')
@@ -15,7 +15,7 @@ void report_error(CGS_StrView file_name, CGS_StrView src, CGS_StrView error_loc,
         }
     }
     
-    int line_start = error_loc.chars - src.chars;
+    long long line_start = error_loc.chars - src.chars;
     for( ; line_start >= 0 ; line_start--)
     {
         if(src.chars[line_start] == '\n')
@@ -43,10 +43,11 @@ void report_error(CGS_StrView file_name, CGS_StrView src, CGS_StrView error_loc,
     cgs_appendf(stderr, "%?\n", line);
     cgs_appendf(stderr, "%?%?%?%?\n" , cgs_alignfmt("| ", RIGHT, lineno_vertical_bar_length), cyan_begin, cgs_alignfmt("^", RIGHT, offset), color_reset);
     
-    exit(EXIT_FAILURE);
+    cgs_dstr_deinit(&message);
+    // exit(EXIT_FAILURE);
 }
 
-void report_tok_error(CGS_StrView file_name, CGS_StrView src, Token *tok, CGS_StrView message)
+void report_tok_error(CGS_StrView file_name, CGS_StrView src, Token *tok, CGS_DStr message)
 {
     if(tok->kind == TK_eof)
     {

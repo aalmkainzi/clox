@@ -11,6 +11,7 @@ declare_vec(TokenList, Token);
 macro(comma       , "," ) \
 macro(dot         , "." ) \
 macro(semicolon   , ";" ) \
+macro(colon       , ":")  \
 macro(lt          , "<" ) \
 macro(gt          , ">" ) \
 macro(plus        , "+" ) \
@@ -24,7 +25,8 @@ macro(close_paren , ")" ) \
 macro(open_square , "[" ) \
 macro(close_square, "]" ) \
 macro(open_curly  , "{" ) \
-macro(close_curly , "}" )
+macro(close_curly , "}" ) \
+macro(qmark       , "?")
 
 #define TWO_CHAR_PUNCT_TOKEN_LIST(macro) \
 macro(lte, "<=")         \

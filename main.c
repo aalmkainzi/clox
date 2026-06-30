@@ -6,9 +6,6 @@
 #include "expr.h"
 #include "token.h"
 
-// #define local_ref(x) \
-// &(typeof((void)0,x)[]){x}
-
 static void run_file(const char *file_name);
 static void run_prompt();
 
@@ -78,6 +75,14 @@ static void run(CGS_StrView file_name, CGS_DStr src)
 //     }
     
     Expr *expr = parse(ctx);
+    
+    if(ctx->error)
+    {
+        cgs_dstr_deinit(&src);
+        free_expr(expr);
+        free_tokens(&ctx->toks);
+        exit(EXIT_FAILURE);
+    }
     
     pretty_print(cgs_writer_ptr(stdout), expr);
     cgs_writeln("");

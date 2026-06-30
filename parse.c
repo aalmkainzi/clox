@@ -3,6 +3,8 @@
 #include "token.h"
 
 Expr *expression(Ctx *ctx);
+Expr *comma(Ctx *ctx);
+Expr *ternary(Ctx *ctx);
 Expr *equality(Ctx *ctx);
 Expr *comparison(Ctx *ctx);
 Expr *additive(Ctx *ctx);
@@ -20,7 +22,37 @@ Expr *parse(Ctx *ctx)
 
 Expr *expression(Ctx *ctx)
 {
-    return equality(ctx);
+    return comma(ctx);
+}
+
+Expr *comma(Ctx *ctx)
+{
+    Expr *expr = ternary(ctx);
+    
+    while(check_any(TK_comma))
+    {
+        Token *op = advance();
+        Expr *right = ternary(ctx);
+        expr = new_binary(expr, right, op);
+    }
+    
+    return expr;
+}
+
+Expr *ternary(Ctx *ctx)
+{
+    Expr *expr = equality(ctx);
+    
+    if(check_any(TK_qmark))
+    {
+        advance();
+        Expr *true_expr = expression(ctx);
+        skip(TK_colon);
+        Expr *false_expr = ternary(ctx);
+        expr = new_ternary(expr, true_expr, false_expr);
+    }
+    
+    return expr;
 }
 
 Expr *equality(Ctx *ctx)
@@ -85,11 +117,18 @@ Expr *multitive(Ctx *ctx)
 
 Expr *unary(Ctx *ctx)
 {
+    if(check_any(TK_plus, TK_star, TK_slash, TK_comma))
+    {
+        error_at_tok(ctx->cur, "missing left operand of %?\n", tok2str[ctx->cur->kind]);
+        advance();
+        return unary(ctx);
+    }
+    
     if(check_any(TK_not, TK_minus))
     {
         Token *op = advance();
-        Expr *exp = unary(ctx);
-        Expr *new = new_unary(exp, op);
+        Expr *expr = unary(ctx);
+        Expr *new = new_unary(expr, op);
         return new;
     }
     else

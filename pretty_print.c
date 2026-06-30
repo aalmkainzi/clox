@@ -18,6 +18,14 @@ void pretty_print(CGS_Writer *sink, Expr *expr)
             cgs_putc(sink, ' ');
             pretty_print(sink, expr->binary.right);
         break;
+        case EXPR_TERNARY:
+            cgs_append(sink, "?: ");
+            pretty_print(sink, expr->ternary.cond);
+            cgs_putc(sink, ' ');
+            pretty_print(sink, expr->ternary.true_exp);
+            cgs_putc(sink, ' ');
+            pretty_print(sink, expr->ternary.false_exp);
+        break;
         case EXPR_LITERAL:
             cgs_appendf(sink, "%?", expr->literal.tok);
         break;
@@ -44,6 +52,14 @@ void rpn_print(CGS_Writer *sink, Expr *expr)
             cgs_append(sink, " ");
             rpn_print(sink, expr->binary.right);
             cgs_appendf(sink, " %?", expr->binary.op->lexeme);
+        break;
+        case EXPR_TERNARY:
+            rpn_print(sink, expr->ternary.cond);
+            cgs_putc(sink, ' ');
+            rpn_print(sink, expr->ternary.true_exp);
+            cgs_putc(sink, ' ');
+            rpn_print(sink, expr->ternary.false_exp);
+            cgs_append(sink, " ?:");
         break;
         case EXPR_LITERAL:
             cgs_appendf(sink, "%?", expr->literal.tok);
