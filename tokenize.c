@@ -197,7 +197,7 @@ void tokenize(Ctx *ctx)
         
         if(src_walk.len == 0)
         {
-            TokenList_push(toks, (Token){.kind = TK_eof});
+            TokenList_push(toks, (Token){.kind = TK_eof, .lexeme = src_walk});
             return;
         }
         
@@ -222,7 +222,12 @@ void tokenize(Ctx *ctx)
 void skip_(Ctx *ctx, TokenKind kind)
 {
     if(ctx->cur->kind != kind)
-        error_at(ctx->cur->lexeme, "expected");
+    {
+        char msg[64];
+        cgs_fmt(msg, "expected %?, but got %?", tok2str[kind], tok2str[ctx->cur->kind]);
+        
+        error_at_tok(ctx->cur, msg);
+    }
     
     ctx->cur += 1;
 }
@@ -242,4 +247,17 @@ Token *advance_(Ctx *ctx)
     Token *ret = ctx->cur;
     ctx->cur += 1;
     return ret;
+}
+
+void free_tokens(TokenList *toks)
+{
+    for(ptrdiff_t i = 0 ; i < toks->size ; i++)
+    {
+        Token *tok = &toks->data[i];
+        if(tok->kind == TK_str)
+        {
+            cgs_dstr_deinit(&tok->data.string);
+        }
+    }
+    TokenList_drop(toks);
 }

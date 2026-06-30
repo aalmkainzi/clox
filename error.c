@@ -45,3 +45,17 @@ void report_error(CGS_StrView file_name, CGS_StrView src, CGS_StrView error_loc,
     
     exit(EXIT_FAILURE);
 }
+
+void report_tok_error(CGS_StrView file_name, CGS_StrView src, Token *tok, CGS_StrView message)
+{
+    if(tok->kind == TK_eof)
+    {
+        Token *prev_tok = tok - 1;
+        char *eof_loc = prev_tok->lexeme.chars + prev_tok->lexeme.len;
+        report_error(file_name, src, (CGS_StrView){.chars = eof_loc, .len = 1}, message);
+    }
+    else
+    {
+        report_error(file_name, src, tok->lexeme, message);
+    }
+}

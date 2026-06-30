@@ -10,11 +10,11 @@ Expr *multitive(Ctx *ctx);
 Expr *unary(Ctx *ctx);
 Expr *primary(Ctx *ctx);
 
-Expr *parse_expr(Ctx *ctx)
+Expr *parse(Ctx *ctx)
 {
     ctx->cur = ctx->toks.data;
     
-    Expr *ret = equality(ctx);
+    Expr *ret = expression(ctx);
     return ret;
 }
 
@@ -102,7 +102,7 @@ Expr *primary(Ctx *ctx)
 {
     if(ctx->cur->kind == TK_open_paren)
     {
-        skip(TK_open_paren);
+        advance();
         Expr *inside = expression(ctx);
         skip(TK_close_paren);
         return inside;
@@ -112,8 +112,10 @@ Expr *primary(Ctx *ctx)
     
     if(expr == NULL)
     {
-        CGS_DStr msg = cgs_asprintf("unexpected %?", tok2str[ctx->cur->kind]);
-        error_at(ctx->cur->lexeme, msg);
+        char msg[64];
+        cgs_fmt(msg, "unexpected %?", tok2str[ctx->cur->kind]);
+        
+        error_at_tok(ctx->cur, msg);
     }
     
     advance();

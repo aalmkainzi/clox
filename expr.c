@@ -1,3 +1,4 @@
+#include "expr.h"
 #include "clox.h"
 
 Expr *new_binary(Expr *left, Expr *right, Token *op)
@@ -59,4 +60,26 @@ Expr *new_literal(Token *tok)
     }
     
     return ret;
+}
+
+void free_expr(Expr *expr)
+{
+    switch(expr->kind)
+    {
+        case EXPR_UNARY:
+            free_expr(expr->unary.expr);
+            free(expr);
+        break;
+        case EXPR_BINARY:
+            free_expr(expr->binary.left);
+            free_expr(expr->binary.right);
+            free(expr);
+        break;
+        case EXPR_GROUPING:
+            free_expr(expr->grouping.expr);
+        break;
+        case EXPR_LITERAL:
+            free(expr);
+        break;
+    }
 }

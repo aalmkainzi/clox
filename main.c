@@ -77,10 +77,14 @@ static void run(CGS_StrView file_name, CGS_DStr src)
 //         cgs_printf("(%?, %?, %?)\n", tok2str[tok->kind], tok->lexeme, tok->kind == TK_float ? tok->data.dbl : 0.0);
 //     }
     
-    Expr *expr = parse_expr(ctx);
+    Expr *expr = parse(ctx);
     
     pretty_print(cgs_writer_ptr(stdout), expr);
     cgs_writeln("");
     rpn_print(cgs_writer_ptr(stdout), expr);
     cgs_writeln("");
+    
+    cgs_dstr_deinit(&src);
+    free_expr(expr);
+    free_tokens(&ctx->toks);
 }
