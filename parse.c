@@ -155,9 +155,17 @@ Expr *primary(Ctx *ctx)
         cgs_fmt(msg, "unexpected %?", tok2str[ctx->cur->kind]);
         
         error_at_tok(ctx->cur, msg);
+        
+        expr = calloc(1, sizeof(Expr));
+        expr->kind = EXPR_LITERAL;
+        expr->literal.kind = LIT_NIL;
+        expr->literal.tok = ctx->cur;
+    }
+    else
+    {
+        advance();
     }
     
-    advance();
     
     return expr;
 }

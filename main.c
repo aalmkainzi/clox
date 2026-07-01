@@ -79,7 +79,10 @@ static void run(CGS_StrView file_name, CGS_DStr src)
     if(ctx->error)
     {
         cgs_dstr_deinit(&src);
-        free_expr(expr);
+        
+        if(expr)
+            free_expr(expr);
+        
         free_tokens(&ctx->toks);
         exit(EXIT_FAILURE);
     }

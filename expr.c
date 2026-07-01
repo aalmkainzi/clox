@@ -73,6 +73,7 @@ Expr *new_literal(Token *tok)
         break;
         
         default:
+            free(ret);
             return NULL;
         break;
     }
