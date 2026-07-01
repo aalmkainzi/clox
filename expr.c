@@ -40,18 +40,18 @@ Expr *new_literal(Token *tok)
     switch(tok->kind)
     {
         case  TK_nil  :
-            ret->literal.kind = LIT_NIL;
+            ret->literal.kind = LIT_nil;
         break;
         case  TK_str  :
-            ret->literal.kind = LIT_STR;
+            ret->literal.kind = LIT_str;
         break;
         case  TK_num  :
         case  TK_float :
-            ret->literal.kind = LIT_NUM;
+            ret->literal.kind = LIT_num;
         break;
         case  TK_true :
         case  TK_false:
-            ret->literal.kind = LIT_BOOL;
+            ret->literal.kind = LIT_bool;
         break;
         
         default:
