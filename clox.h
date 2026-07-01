@@ -17,6 +17,8 @@ typedef struct Ctx
 
 void tokenize(Ctx *ctx);
 Expr *parse(Ctx *ctx);
+double eval(Expr *expr);
+
 void free_expr(Expr *expr);
 void free_tokens(TokenList *toks);
 

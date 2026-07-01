@@ -4,7 +4,7 @@
 Expr *new_binary(Expr *left, Expr *right, Token *op)
 {
     Expr *ret = malloc(sizeof(Expr));
-    ret->kind = EXPR_BINARY;
+    ret->kind = EXPR_binary;
     ret->binary.left = left;
     ret->binary.right = right;
     ret->binary.op = op;
@@ -15,7 +15,7 @@ Expr *new_binary(Expr *left, Expr *right, Token *op)
 Expr *new_unary(Expr *left, Token *op)
 {
     Expr *ret = malloc(sizeof(Expr));
-    ret->kind = EXPR_UNARY;
+    ret->kind = EXPR_unary;
     ret->unary.expr = left;
     ret->unary.op = op;
     
@@ -25,7 +25,7 @@ Expr *new_unary(Expr *left, Token *op)
 Expr *new_grouping(Expr *inside)
 {
     Expr *ret = malloc(sizeof(Expr));
-    ret->kind = EXPR_GROUPING;
+    ret->kind = EXPR_grouping;
     ret->grouping.expr = inside;
     
     return ret;
@@ -34,7 +34,7 @@ Expr *new_grouping(Expr *inside)
 Expr *new_literal(Token *tok)
 {
     Expr *ret = malloc(sizeof(Expr));
-    ret->kind = EXPR_LITERAL;
+    ret->kind = EXPR_literal;
     ret->literal.tok = tok;
     
     switch(tok->kind)
@@ -55,6 +55,7 @@ Expr *new_literal(Token *tok)
         break;
         
         default:
+            free(ret);
             return NULL;
         break;
     }
@@ -66,20 +67,23 @@ void free_expr(Expr *expr)
 {
     switch(expr->kind)
     {
-        case EXPR_UNARY:
+        case EXPR_unary:
             free_expr(expr->unary.expr);
             free(expr);
         break;
-        case EXPR_BINARY:
+        case EXPR_binary:
             free_expr(expr->binary.left);
             free_expr(expr->binary.right);
             free(expr);
         break;
-        case EXPR_GROUPING:
+        case EXPR_grouping:
             free_expr(expr->grouping.expr);
         break;
-        case EXPR_LITERAL:
+        case EXPR_literal:
             free(expr);
+        break;
+        
+        case EXPR_ident:
         break;
     }
 }

@@ -79,6 +79,8 @@ static void run(CGS_StrView file_name, CGS_DStr src)
     
     Expr *expr = parse(ctx);
     
+    cgs_printf("%?\n", eval(expr));
+    
     pretty_print(cgs_writer_ptr(stdout), expr);
     cgs_writeln("");
     rpn_print(cgs_writer_ptr(stdout), expr);

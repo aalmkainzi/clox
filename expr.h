@@ -5,20 +5,27 @@
 
 typedef enum ExprKind
 {
-    EXPR_UNARY,
-    EXPR_BINARY,
-    EXPR_GROUPING,
-    EXPR_LITERAL
+    EXPR_unary,
+    EXPR_binary,
+    EXPR_grouping,
+    EXPR_literal,
+    EXPR_ident
 } ExprKind;
 
 typedef enum LiteralKind
 {
-    LIT_STR,
-    LIT_NUM,
-    LIT_BOOL,
-    LIT_IDENT,
-    LIT_NIL,
+    LIT_str,
+    LIT_num,
+    LIT_bool,
+    LIT_nil,
 } LiteralKind;
+
+typedef enum TypeKind
+{
+    T_bool,
+    T_num,
+    T_str,
+} TypeKind;
 
 typedef struct Expr
 {
@@ -48,8 +55,17 @@ typedef struct Expr
             LiteralKind kind;
             struct Token *tok;
         } literal;
+        
+        struct Token *ident;
     };
 } Expr;
+
+
+
+typedef struct EvalResult
+{
+    
+} EvalResult;
 
 typedef struct Token Token;
 
