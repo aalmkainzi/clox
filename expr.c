@@ -87,3 +87,22 @@ void free_expr(Expr *expr)
         break;
     }
 }
+
+Token *expr_tok(Expr *expr)
+{
+    switch(expr->kind)
+    {
+        case EXPR_unary:
+            return expr->unary.op;
+        case EXPR_binary:
+            return expr->binary.op;
+        case EXPR_grouping:
+            return expr_tok(expr->grouping.expr);
+        case EXPR_literal:
+            return expr->literal.tok;
+        case EXPR_ident:
+            return expr->ident;
+        default:
+            __builtin_unreachable();
+    }
+}

@@ -43,7 +43,7 @@ void report_error(CGS_StrView file_name, CGS_StrView src, CGS_StrView error_loc,
     cgs_appendf(stderr, "%?\n", line);
     cgs_appendf(stderr, "%?%?%?%?\n" , cgs_alignfmt("| ", RIGHT, lineno_vertical_bar_length), cyan_begin, cgs_alignfmt("^", RIGHT, offset), color_reset);
     
-    exit(EXIT_FAILURE);
+    // exit(EXIT_FAILURE);
 }
 
 void report_tok_error(CGS_StrView file_name, CGS_StrView src, Token *tok, CGS_StrView message)

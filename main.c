@@ -79,12 +79,12 @@ static void run(CGS_StrView file_name, CGS_DStr src)
     
     Expr *expr = parse(ctx);
     
-    cgs_printf("%?\n", eval(expr));
+    cgs_printf("%?\n", eval(ctx, expr));
     
-    pretty_print(cgs_writer_ptr(stdout), expr);
-    cgs_writeln("");
-    rpn_print(cgs_writer_ptr(stdout), expr);
-    cgs_writeln("");
+    // pretty_print(cgs_writer_ptr(stdout), expr);
+    // cgs_writeln("");
+    // rpn_print(cgs_writer_ptr(stdout), expr);
+    // cgs_writeln("");
     
     cgs_dstr_deinit(&src);
     free_expr(expr);

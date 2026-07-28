@@ -13,17 +13,21 @@ typedef struct Ctx
     int lineno;
     
     Token *cur;
+    
+    bool error;
 } Ctx;
+
+Token *copy_token(Ctx *ctx, Token *token);
 
 void tokenize(Ctx *ctx);
 Expr *parse(Ctx *ctx);
-double eval(Expr *expr);
+Literal eval(Ctx *ctx, Expr *expr);
 
 void free_expr(Expr *expr);
 void free_tokens(TokenList *toks);
 
-void report_error(CGS_StrView file_name, CGS_StrView src, const CGS_StrView error_loc, CGS_StrView message);
-void report_tok_error(CGS_StrView file_name, CGS_StrView src, Token *tok, CGS_StrView message);
+void report_error(Ctx *ctx, const CGS_StrView error_loc, CGS_StrView message);
+void report_tok_error(Ctx *ctx, Token *tok, CGS_StrView message);
 
 void skip_(Ctx *ctx, TokenKind kind); // skip `kind` token
 Token *advance_(Ctx *ctx); // returns cur, advances cur
@@ -43,5 +47,10 @@ advance_(ctx)
 
 #define check_any(...) \
 check_any_(ctx, (TokenKind[]){__VA_ARGS__}, sizeof((TokenKind[]){__VA_ARGS__})/sizeof(TokenKind))
+
+CGS_Error stringify_literal(CGS_Writer *writer, Literal lit);
+
+#define ADD_TOSTR (Literal, stringify_literal)
+#include "cgs/cgs.h"
 
 #endif

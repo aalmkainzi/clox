@@ -1,4 +1,5 @@
 #include "clox.h"
+#include "token.h"
 #include <ctype.h>
 #include <math.h>
 
@@ -25,6 +26,11 @@ static Token scan_keyword(Ctx *ctx, const char *tok_start)
     KEYWORD_TOKEN_LIST(else_if_is_kw)
     
 #undef else_if_is_kw
+    
+    if(ret.kind == TK_true || ret.kind == TK_false)
+    {
+        ret.data.boolean = ret.kind == TK_true;
+    }
     
     return ret;
 }
@@ -93,7 +99,8 @@ static Token scan_num(Ctx *ctx, const char *tok_start)
         ret.lexeme = lexeme;
         
         char *end;
-        ret.data.integer = strtoull(tok_start, &end, 10);
+        unsigned long long ull = strtoull(tok_start, &end, 10);
+        ret.data.dbl = ull;
         
         assert(end == lexeme.chars + lexeme.len);
         
@@ -105,7 +112,7 @@ static Token scan_num(Ctx *ctx, const char *tok_start)
         uint64_t integer = 0;
         if(ret.kind == TK_num)
         {
-            integer = ret.data.integer;
+            integer = ret.data.dbl;
         }
         
         int len = 2;
@@ -260,4 +267,17 @@ void free_tokens(TokenList *toks)
         }
     }
     TokenList_drop(toks);
+}
+
+Token *copy_token(Ctx *ctx, Token *token)
+{
+    Token *copy = malloc(sizeof(Token));
+    *copy = *token;
+    
+    if(copy->kind == TK_str)
+    {
+        copy->data.string = cgs_dup(copy->data.string);
+    }
+    
+    return copy;
 }

@@ -3,6 +3,8 @@
 #include "token.h"
 
 Expr *expression(Ctx *ctx);
+Expr *or_expr(Ctx *ctx);
+Expr *and_expr(Ctx *ctx);
 Expr *equality(Ctx *ctx);
 Expr *comparison(Ctx *ctx);
 Expr *additive(Ctx *ctx);
@@ -14,8 +16,38 @@ Expr *parse(Ctx *ctx)
 {
     ctx->cur = ctx->toks.data;
     
-    Expr *ret = expression(ctx);
+    Expr *ret = or_expr(ctx);
     return ret;
+}
+
+Expr *or_expr(Ctx *ctx)
+{
+    Expr *expr = and_expr(ctx);
+    
+    while(check_any(TK_or))
+    {
+        Token *op = advance();
+        Expr *right = and_expr(ctx);
+        
+        expr = new_binary(expr, right, op);
+    }
+    
+    return expr;
+}
+
+Expr *and_expr(Ctx *ctx)
+{
+    Expr *expr = equality(ctx);
+    
+    while(check_any(TK_and))
+    {
+        Token *op = advance();
+        Expr *right = equality(ctx);
+        
+        expr = new_binary(expr, right, op);
+    }
+    
+    return expr;
 }
 
 Expr *expression(Ctx *ctx)

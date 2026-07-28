@@ -50,9 +50,9 @@ macro(class   , "class") \
 macro(nil     , "nil"  )
 
 #define LITERAL_TOKEN_LIST(macro) \
-macro(str  , "string literal"  )  \
-macro(num  , "number literal"  )  \
-macro(float, "float literal")  \
+macro(str  , "string literal"  ) \
+macro(num  , "number literal"  ) \
+macro(float, "float literal"   ) \
 
 #define TOKEN_LIST(macro)  \
 macro(ident, "identifier") \
@@ -81,17 +81,19 @@ static const CGS_StrView tok2str[] = {
 
 #undef make_tok2str_entry
 
+typedef union TokenData
+{
+    bool boolean;
+    double dbl;
+    CGS_DStr string;
+} TokenData;
+
 struct Token
 {
     TokenKind kind;
     CGS_StrView lexeme;
     
-    union
-    {
-        uint64_t integer;
-        double dbl;
-        CGS_DStr string;
-    } data;
+    TokenData data;
 };
 
 static inline CGS_Error write_token(CGS_Writer *writer, Token tok)
@@ -103,6 +105,7 @@ static inline CGS_Error write_token_ptr(CGS_Writer *writer, Token *tok)
 {
     return cgs_append(writer, tok->lexeme);
 }
+
 
 #define ADD_TOSTR (Token, write_token)
 #include "cgs/cgs.h"

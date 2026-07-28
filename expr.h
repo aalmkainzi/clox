@@ -2,6 +2,7 @@
 #define EXPR_H
 
 #include "cgs/cgs.h"
+#include "token.h"
 
 typedef enum ExprKind
 {
@@ -20,6 +21,12 @@ typedef enum LiteralKind
     LIT_nil,
 } LiteralKind;
 
+typedef struct Literal
+{
+    LiteralKind kind;
+    Token *tok;
+} Literal;
+
 typedef enum TypeKind
 {
     T_bool,
@@ -34,13 +41,13 @@ typedef struct Expr
     union {
         struct
         {
-            struct Token *op;
+            Token *op;
             struct Expr *expr;
         } unary;
         
         struct
         {
-            struct Token *op;
+            Token *op;
             struct Expr *left;
             struct Expr *right;
         } binary;
@@ -50,24 +57,11 @@ typedef struct Expr
             struct Expr *expr;
         } grouping;
         
-        struct
-        {
-            LiteralKind kind;
-            struct Token *tok;
-        } literal;
+        Literal literal;
         
-        struct Token *ident;
+        Token *ident;
     };
 } Expr;
-
-
-
-typedef struct EvalResult
-{
-    
-} EvalResult;
-
-typedef struct Token Token;
 
 void pretty_print(CGS_Writer *sink, Expr *expr);
 void rpn_print(CGS_Writer *sink, Expr *expr);
@@ -76,5 +70,6 @@ Expr *new_binary(Expr *left, Expr *right, Token *op);
 Expr *new_unary(Expr *left, Token *op);
 Expr *new_grouping(Expr *inside);
 Expr *new_literal(Token *tok);
+Token *expr_tok(Expr *expr);
 
 #endif
