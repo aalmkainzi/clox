@@ -31,40 +31,39 @@ Expr *new_grouping(Expr *inside)
     return ret;
 }
 
-Expr *new_literal(Token *tok)
+Expr *alloc_literal_expr(LiteralKind litKind, Token *tok)
 {
     Expr *ret = malloc(sizeof(Expr));
     ret->kind = EXPR_literal;
     ret->literal.tok = tok;
-    
+    ret->literal.kind = litKind;
+    return ret;
+}
+
+Expr *new_literal(Token *tok)
+{
     switch(tok->kind)
     {
         case  TK_nil  :
-            ret->literal.kind = LIT_nil;
-        break;
+            return alloc_literal_expr(LIT_nil, tok);
         case  TK_str  :
-            ret->literal.kind = LIT_str;
-        break;
+            return alloc_literal_expr(LIT_str, tok);
         case  TK_num  :
-        case  TK_float :
-            ret->literal.kind = LIT_num;
-        break;
+        case  TK_float:
+            return alloc_literal_expr(LIT_num, tok);
         case  TK_true :
         case  TK_false:
-            ret->literal.kind = LIT_bool;
-        break;
-        
+            return alloc_literal_expr(LIT_bool, tok);
         default:
-            free(ret);
             return NULL;
-        break;
     }
-    
-    return ret;
 }
 
 void free_expr(Expr *expr)
 {
+    if (expr == NULL)
+        return;
+
     switch(expr->kind)
     {
         case EXPR_unary:

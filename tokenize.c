@@ -147,7 +147,7 @@ static Token scan_str(Ctx *ctx, const char *tok_start)
         {
             if(tok_start[len - 1] == '\0')
             {
-                error_at(tok_start, "unterminated string literal");
+                report_error(ctx, tok_start, "unterminated string literal");
             }
             len += 1;
         }
@@ -214,27 +214,26 @@ void tokenize(Ctx *ctx)
         
         if(scanned_tok.kind == TK_none)
         {
-            error_at(src_walk, "unexpected character");
+            report_error(ctx, src_walk, "unexpected character %?", src_walk.chars[0]);
+            src_walk.chars += 1;
+            src_walk.len -= 1;
         }
-        
-        TokenList_push(toks, scanned_tok);
-        
-        src_walk.chars += scanned_tok.lexeme.len;
-        src_walk.len   -= scanned_tok.lexeme.len;
+        else
+        {
+            TokenList_push(toks, scanned_tok);
+            
+            src_walk.chars += scanned_tok.lexeme.len;
+            src_walk.len   -= scanned_tok.lexeme.len;
+        }
     }
 }
 
 // utils
 
-void skip_(Ctx *ctx, TokenKind kind)
+void skip_tok(Ctx *ctx, TokenKind kind)
 {
     if(ctx->cur->kind != kind)
-    {
-        char msg[64];
-        cgs_fmt(msg, "expected %?, but got %?", tok2str[kind], tok2str[ctx->cur->kind]);
-        
-        error_at_tok(ctx->cur, msg);
-    }
+        report_tok_error(ctx, ctx->cur, "expected %?, but got %?", tok2str[kind], tok2str[ctx->cur->kind]);
     
     ctx->cur += 1;
 }
@@ -249,7 +248,7 @@ bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds)
     return false;
 }
 
-Token *advance_(Ctx *ctx)
+Token *advance(Ctx *ctx)
 {
     Token *ret = ctx->cur;
     ctx->cur += 1;
@@ -280,4 +279,23 @@ Token *copy_token(Ctx *ctx, Token *token)
     }
     
     return copy;
+}
+
+// only usable with tokens from copy_token
+void free_token(Token *tok)
+{
+    if(tok->kind == TK_str)
+    {
+        cgs_dstr_deinit(&tok->data.string);
+    }
+    free(tok);
+}
+
+// "a" "bcdefg" "h"
+// -> "abcdefgh"
+CGS_StrView range_view(CGS_StrView left, CGS_StrView right)
+{
+    CGS_StrView ret = left;
+    ret.len += (right.chars - left.chars) + right.len;
+    return ret;
 }

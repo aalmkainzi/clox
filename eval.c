@@ -8,6 +8,8 @@ Literal eval_binary(Ctx *ctx, Expr *expr);
 void expect_number(Ctx *ctx, Literal obj);
 void expect_string(Ctx *ctx, Literal obj);
 void expect_boolean(Ctx *ctx, Literal obj);
+Literal copy_literal(Ctx *ctx, Literal from);
+void free_literal(Literal lit);
 
 Literal eval(Ctx *ctx, Expr *expr)
 {
@@ -44,13 +46,15 @@ Literal eval_unary(Ctx *ctx, Expr *expr)
         {
             if(obj.kind != LIT_num)
             {
-                error_at(expr_tok(expr)->lexeme, "expected number");
+                report_tok_error(ctx, expr_tok(expr->unary.expr), "expected number");
             }
             else
             {
-                obj.tok = copy_token(ctx, obj.tok);
-                obj.tok->data.dbl *= -1;
-                return obj;
+                Literal result = copy_literal(ctx, obj);
+                result.tok->data.dbl *= -1;
+
+                free_literal(obj);
+                return result;
             }
         }
         break;
@@ -58,13 +62,15 @@ Literal eval_unary(Ctx *ctx, Expr *expr)
         {
             if(!(obj.kind == LIT_bool || obj.kind == LIT_nil))
             {
-                error_at(expr_tok(expr)->lexeme, "expected boolean");
+                report_tok_error(ctx, expr_tok(expr->unary.expr), "expected boolean");
             }
             else
             {
-                obj.tok = copy_token(ctx, obj.tok);
-                obj.tok->data.boolean = !obj.tok->data.boolean;
-                return obj;
+                Literal result = copy_literal(ctx, obj);
+                result.tok->data.boolean = !obj.tok->data.boolean;
+
+                free_literal(obj);
+                return result;
             }
         }
         break;
@@ -81,6 +87,9 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
     Literal left = eval(ctx, expr->binary.left);
     Literal right = eval(ctx, expr->binary.right);
     
+    Literal result = copy_literal(ctx, left);
+    result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
+    
     switch(expr->binary.op->kind)
     {
         case TK_minus:
@@ -88,11 +97,11 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
             expect_number(ctx, left);
             expect_number(ctx, right);
             
-            Literal res = left;
-            res.tok = copy_token(ctx, res.tok);
-            res.tok->data.dbl -= right.tok->data.dbl;
-            
-            return res;
+            result.tok->data.dbl -= right.tok->data.dbl;
+
+            free_literal(left);
+            free_literal(right);
+            return result;
         }
         break;
         
@@ -102,25 +111,28 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
             {
                 expect_number(ctx, right);
                 
-                Literal res = left;
-                res.tok = copy_token(ctx, res.tok);
-                res.tok->data.dbl += right.tok->data.dbl;
+                result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
+                result.tok->data.dbl += right.tok->data.dbl;
                 
-                return res;
+                free_literal(left);
+                free_literal(right);
+                
+                return result;
             }
             else if(left.kind == LIT_str)
             {
                 expect_string(ctx, right);
                 
-                Literal res = left;
-                res.tok = copy_token(ctx, res.tok);
-                cgs_append(&res.tok->data.string, right.tok->data.string);
+                cgs_append(&result.tok->data.string, right.tok->data.string);
                 
-                return res;
+                free_literal(left);
+                free_literal(right);
+                
+                return result;
             }
             else
             {
-                error_at(left.tok->lexeme, "operands of '+' must be numbers or strings");
+                report_tok_error(ctx, left.tok, "operands of '+' must be numbers or strings");
             }
         }
         break;
@@ -130,11 +142,12 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
             expect_number(ctx, left);
             expect_number(ctx, right);
             
-            Literal res = left;
-            res.tok = copy_token(ctx, res.tok);
-            res.tok->data.dbl *= right.tok->data.dbl;
+            result.tok->data.dbl *= right.tok->data.dbl;
             
-            return res;
+            free_literal(left);
+            free_literal(right);
+            
+            return result;
         }
         break;
         
@@ -143,11 +156,12 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
             expect_number(ctx, left);
             expect_number(ctx, right);
             
-            Literal res = left;
-            res.tok = copy_token(ctx, res.tok);
-            res.tok->data.dbl /= right.tok->data.dbl;
+            result.tok->data.dbl /= right.tok->data.dbl;
             
-            return res;
+            free_literal(left);
+            free_literal(right);
+            
+            return result;
         }
         break;
         
@@ -156,11 +170,12 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
             expect_boolean(ctx, left);
             expect_boolean(ctx, right);
             
-            Literal res = left;
-            res.tok = copy_token(ctx, res.tok);
-            res.tok->data.boolean = left.tok->data.boolean || right.tok->data.boolean;
+            result.tok->data.boolean = left.tok->data.boolean || right.tok->data.boolean;
             
-            return res;
+            free_literal(left);
+            free_literal(right);
+            
+            return result;
         }
         break;
         
@@ -169,16 +184,19 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
             expect_boolean(ctx, left);
             expect_boolean(ctx, right);
             
-            Literal res = left;
-            res.tok = copy_token(ctx, res.tok);
-            res.tok->data.boolean = left.tok->data.boolean && right.tok->data.boolean;
+            result.tok->data.boolean = left.tok->data.boolean && right.tok->data.boolean;
             
-            return res;
+            free_literal(left);
+            free_literal(right);
+            
+            return result;
         }
         break;
         
         default:
-            __builtin_unreachable();
+            report_tok_range_error(ctx, left.tok, right.tok, "operator %? not yet implemented", tok2str[expr->binary.op->kind]);
+            free_literal(left);
+            free_literal(right);
     }
     
     return left;
@@ -188,7 +206,7 @@ void expect_number(Ctx *ctx, Literal obj)
 {
     if(obj.kind != LIT_num)
     {
-        error_at(obj.tok->lexeme, "expected number");
+        report_tok_error(ctx, obj.tok, "expected number");
     }
 }
 
@@ -196,7 +214,7 @@ void expect_string(Ctx *ctx, Literal obj)
 {
     if(obj.kind != LIT_str)
     {
-        error_at(obj.tok->lexeme, "expected string");
+        report_tok_error(ctx, obj.tok, "expected string");
     }
 }
 
@@ -204,7 +222,7 @@ void expect_boolean(Ctx *ctx, Literal obj)
 {
     if(obj.kind != LIT_bool)
     {
-        error_at(obj.tok->lexeme, "expected boolean");
+        report_tok_error(ctx, obj.tok, "expected boolean");
     }
 }
 
@@ -229,3 +247,24 @@ CGS_Error stringify_literal(CGS_Writer *writer, Literal lit)
             __builtin_unreachable();
     }
 }
+
+static Token *new_eval_token(Ctx *ctx, Token *tok)
+{
+    Token *new_tok = copy_token(ctx, tok);
+    new_tok->eval = true;
+    return new_tok;
+}
+
+Literal copy_literal(Ctx *ctx, Literal from)
+{
+    Literal ret = from;
+    ret.tok = new_eval_token(ctx, from.tok);
+    return ret;
+}
+
+void free_literal(Literal lit)
+{
+    if (lit.tok->eval)
+        free_token(lit.tok);
+}
+

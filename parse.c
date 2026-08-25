@@ -24,9 +24,9 @@ Expr *or_expr(Ctx *ctx)
 {
     Expr *expr = and_expr(ctx);
     
-    while(check_any(TK_or))
+    while(check_any(ctx, TK_or))
     {
-        Token *op = advance();
+        Token *op = advance(ctx);
         Expr *right = and_expr(ctx);
         
         expr = new_binary(expr, right, op);
@@ -39,9 +39,9 @@ Expr *and_expr(Ctx *ctx)
 {
     Expr *expr = equality(ctx);
     
-    while(check_any(TK_and))
+    while(check_any(ctx, TK_and))
     {
-        Token *op = advance();
+        Token *op = advance(ctx);
         Expr *right = equality(ctx);
         
         expr = new_binary(expr, right, op);
@@ -59,9 +59,9 @@ Expr *equality(Ctx *ctx)
 {
     Expr *expr = comparison(ctx);
     
-    while(check_any(TK_equal_equal, TK_not_equal))
+    while(check_any(ctx, TK_equal_equal, TK_not_equal))
     {
-        Token *op = advance();
+        Token *op = advance(ctx);
         Expr *right = comparison(ctx);
         
         expr = new_binary(expr, right, op);
@@ -74,9 +74,9 @@ Expr *comparison(Ctx *ctx)
 {
     Expr *expr = additive(ctx);
     
-    while(check_any(TK_lt, TK_lte, TK_gt, TK_gte))
+    while(check_any(ctx, TK_lt, TK_lte, TK_gt, TK_gte))
     {
-        Token *op = advance();
+        Token *op = advance(ctx);
         Expr *right = additive(ctx);
         
         expr = new_binary(expr, right, op);
@@ -89,9 +89,9 @@ Expr *additive(Ctx *ctx)
 {
     Expr *expr = multitive(ctx);
     
-    while(check_any(TK_plus, TK_minus))
+    while(check_any(ctx, TK_plus, TK_minus))
     {
-        Token *op = advance();
+        Token *op = advance(ctx);
         Expr *right = multitive(ctx);
         
         expr = new_binary(expr, right, op);
@@ -104,9 +104,9 @@ Expr *multitive(Ctx *ctx)
 {
     Expr *expr = unary(ctx);
     
-    while(check_any(TK_star, TK_slash))
+    while(check_any(ctx, TK_star, TK_slash))
     {
-        Token *op = advance();
+        Token *op = advance(ctx);
         Expr *right = unary(ctx);
         
         expr = new_binary(expr, right, op);
@@ -117,9 +117,9 @@ Expr *multitive(Ctx *ctx)
 
 Expr *unary(Ctx *ctx)
 {
-    if(check_any(TK_not, TK_minus))
+    if(check_any(ctx, TK_not, TK_minus))
     {
-        Token *op = advance();
+        Token *op = advance(ctx);
         Expr *exp = unary(ctx);
         Expr *new = new_unary(exp, op);
         return new;
@@ -134,23 +134,26 @@ Expr *primary(Ctx *ctx)
 {
     if(ctx->cur->kind == TK_open_paren)
     {
-        advance();
+        advance(ctx);
         Expr *inside = expression(ctx);
-        skip(TK_close_paren);
+        skip_tok(ctx, TK_close_paren);
         return inside;
     }
     
-    Expr *expr = new_literal(ctx->cur);
-    
-    if(expr == NULL)
+    Expr *expr = NULL;
+
+    if (ctx->cur->kind == TK_ident)
     {
-        char msg[64];
-        cgs_fmt(msg, "unexpected %?", tok2str[ctx->cur->kind]);
+        report_tok_error(ctx, ctx->cur, "identifiers not supported in this context", tok2str[ctx->cur->kind]);
+    }
+    else
+    {
+        expr = new_literal(ctx->cur);
         
-        error_at_tok(ctx->cur, msg);
+        if(expr == NULL)
+            report_tok_error(ctx, ctx->cur, "unexpected %?", tok2str[ctx->cur->kind]);
     }
     
-    advance();
-    
+    advance(ctx);
     return expr;
 }
