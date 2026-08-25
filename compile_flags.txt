@@ -1,2 +1,3 @@
 -Iexternal
 -Iexternal/STC/include
+-Iinclude

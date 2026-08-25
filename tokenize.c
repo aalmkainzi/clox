@@ -1,7 +1,7 @@
-#include "clox.h"
-#include "token.h"
 #include <ctype.h>
 #include <math.h>
+#include "clox.h"
+#include "token.h"
 
 static bool is_ident_char(char c)
 {
