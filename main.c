@@ -58,7 +58,6 @@ static int run_prompt()
         CGS_Error err = cgs_fread_until(&line, stdin, '\n');
         if (err.ec == CGS_OK)
         {
-            line.len -= 1; // no need for newline
             run(cgs_strv("<repl>"), line);
         }
     }
@@ -68,8 +67,6 @@ static int run_prompt()
 
 static int run(CGS_StrView file_name, CGS_DStr src)
 {
-    if (src.len == 0)
-        return 0;
     // appending empty spaces in cases we try to match a long keyword
     cgs_append(&src, "        ");
 
@@ -80,6 +77,8 @@ static int run(CGS_StrView file_name, CGS_DStr src)
     };
 
     tokenize(ctx);
+    if (ctx->toks.size <= 1)
+        goto done;
 
     Expr *expr = parse(ctx);
 
@@ -94,6 +93,7 @@ static int run(CGS_StrView file_name, CGS_DStr src)
         free_literal(result);
     }
 
+    done:
     free_expr(expr);
     free_tokens(&ctx->toks);
 

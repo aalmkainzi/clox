@@ -67,7 +67,7 @@ void report_error_(Ctx *ctx, const CGS_StrView error_loc, CGS_DStr message)
 
 void report_tok_error_(Ctx *ctx, Token *tok, CGS_DStr message)
 {
-    if (tok->kind == TK_eof)
+    if (tok->kind == TK_eof && tok != ctx->toks.data)
     {
         Token *prev_tok = tok - 1;
         char *eof_loc   = prev_tok->lexeme.chars + prev_tok->lexeme.len;
