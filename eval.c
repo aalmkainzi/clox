@@ -7,41 +7,39 @@ Value eval_literal(Ctx *ctx, Expr *expr);
 Value eval_unary(Ctx *ctx, Expr *expr);
 Value eval_binary(Ctx *ctx, Expr *expr);
 
-bool expect_number(Ctx *ctx,  Value obj);
-bool expect_string(Ctx *ctx,  Value obj);
+bool expect_number(Ctx *ctx, Value obj);
+bool expect_string(Ctx *ctx, Value obj);
 bool expect_boolean(Ctx *ctx, Value obj);
 Value copy_value(Ctx *ctx, Value from);
-void free_value(Value val);
 
 Value eval(Ctx *ctx, Expr *expr)
 {
     switch (expr->kind)
     {
-        case EXPR_unary:
-            return eval_unary(ctx, expr);
+    case EXPR_unary:
+        return eval_unary(ctx, expr);
 
-        case EXPR_binary:
-            return eval_binary(ctx, expr);
+    case EXPR_binary:
+        return eval_binary(ctx, expr);
 
-        case EXPR_literal:
-            return eval_literal(ctx, expr);
+    case EXPR_literal:
+        return eval_literal(ctx, expr);
 
-        default:
-            __builtin_unreachable();
+    default:
+        __builtin_unreachable();
     }
 }
 
 Value eval_literal(Ctx *ctx, Expr *expr)
 {
-    TypeKind map[] =
-    {
+    TypeKind map[] = {
         [LIT_bool] = T_bool,
-        [LIT_num ] = T_num,
-        [LIT_str ] = T_str,
-        [LIT_nil ] = T_nil,
+        [LIT_num]  = T_num,
+        [LIT_str]  = T_str,
+        [LIT_nil]  = T_nil,
     };
 
-    return (Value){.type = map[expr->literal.kind], .original = expr->literal.tok};
+    return (Value) {.type = map[expr->literal.kind], .original = expr->literal.tok};
 }
 
 Value eval_unary(Ctx *ctx, Expr *expr)
@@ -68,16 +66,16 @@ Value eval_unary(Ctx *ctx, Expr *expr)
     break;
     case TK_not:
     {
-        if (!(obj.kind == LIT_bool || obj.kind == LIT_nil))
+        if (!(obj.type == T_bool || obj.type == T_nil))
         {
             report_tok_error(ctx, expr_tok(expr->unary.expr), "expected boolean");
         }
         else
         {
-            Literal result           = copy_literal(ctx, obj);
-            result.tok->data.boolean = !obj.tok->data.boolean;
+            Value result   = copy_value(ctx, obj);
+            result.boolean = !result.boolean;
 
-            free_literal(obj);
+            free_value(obj);
             return result;
         }
     }
@@ -90,13 +88,13 @@ Value eval_unary(Ctx *ctx, Expr *expr)
     return obj;
 }
 
-Literal eval_binary(Ctx *ctx, Expr *expr)
+Value eval_binary(Ctx *ctx, Expr *expr)
 {
     Value left  = eval(ctx, expr->binary.left);
     Value right = eval(ctx, expr->binary.right);
 
-    Value result     = copy_value(ctx, left);
-    result.original->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
+    Value result            = copy_value(ctx, left);
+    result.original->lexeme = range_view(left.original->lexeme, right.original->lexeme);
 
     switch (expr->binary.op->kind)
     {
@@ -105,29 +103,29 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
         if (!expect_number(ctx, left) || !expect_number(ctx, right))
             break;
 
-        result.tok->data.dbl -= right.tok->data.dbl;
+        result.number -= right.number;
     }
     break;
 
     case TK_plus:
     {
-        if (left.kind == LIT_num)
+        if (left.type == T_num)
         {
             if (!expect_number(ctx, right))
                 break;
 
-            result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
-            result.tok->data.dbl += right.tok->data.dbl;
+            result.original->lexeme = range_view(left.original->lexeme, right.original->lexeme);
+            result.number += right.number;
         }
-        else if (left.kind == LIT_str)
+        else if (left.type == T_str)
         {
             expect_string(ctx, right);
 
-            cgs_append(&result.tok->data.string, right.tok->data.string);
+            cgs_append(&result.string, right.string);
         }
         else
         {
-            report_tok_error(ctx, left.tok, "operands of '+' must be numbers or strings");
+            report_tok_error(ctx, left.original, "operands of '+' must be numbers or strings");
         }
     }
     break;
@@ -137,7 +135,7 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
         if (!expect_number(ctx, left) || !expect_number(ctx, right))
             break;
 
-        result.tok->data.dbl *= right.tok->data.dbl;
+        result.number *= right.number;
     }
     break;
 
@@ -146,7 +144,7 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
         if (!expect_number(ctx, left) || !expect_number(ctx, right))
             break;
 
-        result.tok->data.dbl /= right.tok->data.dbl;
+        result.number /= right.number;
     }
     break;
 
@@ -155,7 +153,7 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
         if (!expect_boolean(ctx, left) || !expect_boolean(ctx, right))
             break;
 
-        result.tok->data.boolean = left.tok->data.boolean || right.tok->data.boolean;
+        result.boolean = left.boolean || right.boolean;
     }
     break;
 
@@ -164,7 +162,7 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
         if (!expect_boolean(ctx, left) || !expect_boolean(ctx, right))
             break;
 
-        result.tok->data.boolean = left.tok->data.boolean && right.tok->data.boolean;
+        result.boolean = left.boolean && right.boolean;
     }
     break;
 
@@ -173,8 +171,8 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
         if (!expect_number(ctx, left) || !expect_number(ctx, right))
             break;
 
-        result.kind              = LIT_bool;
-        result.tok->data.boolean = left.tok->data.dbl > right.tok->data.dbl;
+        result.type    = T_bool;
+        result.boolean = left.number > right.number;
     }
     break;
 
@@ -183,8 +181,8 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
         if (!expect_number(ctx, left) || !expect_number(ctx, right))
             break;
 
-        result.kind              = LIT_bool;
-        result.tok->data.boolean = left.tok->data.dbl < right.tok->data.dbl;
+        result.type    = T_bool;
+        result.boolean = left.number < right.number;
     }
     break;
 
@@ -193,8 +191,8 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
         if (!expect_number(ctx, left) || !expect_number(ctx, right))
             break;
 
-        result.kind              = LIT_bool;
-        result.tok->data.boolean = left.tok->data.dbl >= right.tok->data.dbl;
+        result.type              = T_bool;
+        result.boolean = left.number >= right.number;
     }
     break;
 
@@ -203,8 +201,8 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
         if (!expect_number(ctx, left) || !expect_number(ctx, right))
             break;
 
-        result.kind              = LIT_bool;
-        result.tok->data.boolean = left.tok->data.dbl <= right.tok->data.dbl;
+        result.type              = T_bool;
+        result.boolean = left.number <= right.number;
     }
     break;
 
@@ -213,8 +211,8 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
         if (!expect_number(ctx, left) || !expect_number(ctx, right))
             break;
 
-        result.kind              = LIT_bool;
-        result.tok->data.boolean = left.tok->data.dbl == right.tok->data.dbl;
+        result.type              = T_bool;
+        result.boolean = left.number == right.number;
     }
     break;
 
@@ -222,39 +220,61 @@ Literal eval_binary(Ctx *ctx, Expr *expr)
         report_tok_error(ctx, expr->binary.op, "operator %? not yet implemented", tok2str[expr->binary.op->kind]);
     }
 
-    free_literal(left);
-    free_literal(right);
+    free_value(left);
+    free_value(right);
     return result;
 }
 
-bool expect_number(Ctx *ctx, Literal obj)
+bool expect_number(Ctx *ctx, Value obj)
 {
-    if (obj.kind != LIT_num)
+    if (obj.type != T_num)
     {
-        report_tok_error(ctx, obj.tok, "expected number");
+        report_tok_error(ctx, obj.original, "expected number");
         return false;
     }
     return true;
 }
 
-bool expect_string(Ctx *ctx, Literal obj)
+bool expect_string(Ctx *ctx, Value obj)
 {
-    if (obj.kind != LIT_str)
+    if (obj.type != T_str)
     {
-        report_tok_error(ctx, obj.tok, "expected string");
+        report_tok_error(ctx, obj.original, "expected string");
         return false;
     }
     return true;
 }
 
-bool expect_boolean(Ctx *ctx, Literal obj)
+bool expect_boolean(Ctx *ctx, Value obj)
 {
-    if (obj.kind != LIT_bool)
+    if (obj.type != T_bool)
     {
-        report_tok_error(ctx, obj.tok, "expected boolean");
+        report_tok_error(ctx, obj.original, "expected boolean");
         return false;
     }
     return true;
+}
+
+CGS_Error stringify_value(CGS_Writer *writer, Value val)
+{
+    switch (val.type)
+    {
+    case T_str:
+        return cgs_append(writer, val.string);
+        break;
+    case T_num:
+        return cgs_append_tostr(writer, val.number);
+        break;
+    case T_bool:
+        return cgs_append_tostr(writer, val.boolean);
+        break;
+    case T_nil:
+        return cgs_append(writer, "nil");
+        break;
+
+    default:
+        __builtin_unreachable();
+    }
 }
 
 CGS_Error stringify_literal(CGS_Writer *writer, Literal lit)
@@ -288,13 +308,13 @@ static Token *new_eval_token(Ctx *ctx, Token *tok)
 
 Value copy_value(Ctx *ctx, Value from)
 {
-    Literal ret = from;
-    ret.tok     = new_eval_token(ctx, from.tok);
+    Value ret = from;
+    ret.original = new_eval_token(ctx, from.original);
     return ret;
 }
 
 void free_value(Value val)
 {
-    if (lit.original->eval)
-        free_token(lit.tok);
+    if (val.original->eval)
+        free_token(val.original);
 }

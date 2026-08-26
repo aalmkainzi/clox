@@ -2,7 +2,7 @@
 SRC := $(wildcard *.c) external/cgs/cgs.c
 OBJ := $(patsubst %.c,build/obj/%.o,$(SRC))
 OBJDIRS := $(sort $(dir $(OBJ)))
-CFLAGS := -Iinclude -Iexternal -Iexternal/STC/include -ggdb -fsanitize=address,undefined
+CFLAGS := -Wall -Wextra -Iinclude -Iexternal -Iexternal/STC/include -ggdb -fsanitize=address,undefined
 LDFLAGS := -lm
 
 all: clox

@@ -88,9 +88,9 @@ static int run(CGS_StrView file_name, CGS_DStr src)
         puts("");
         pretty_print(cgs_writer_ptr(stdout), expr);
         puts("");
-        Literal result = eval(ctx, expr);
+        Value result = eval(ctx, expr);
         cgs_printfln("%?", result);
-        free_literal(result);
+        free_value(result);
     }
 
 done:
