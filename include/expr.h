@@ -14,9 +14,9 @@ typedef enum ExprKind
 
 typedef enum LiteralKind
 {
-    LIT_str,
-    LIT_num,
     LIT_bool,
+    LIT_num,
+    LIT_str,
     LIT_nil,
 } LiteralKind;
 
@@ -31,7 +31,20 @@ typedef enum TypeKind
     T_bool,
     T_num,
     T_str,
+    T_nil,
 } TypeKind;
+
+typedef struct Value
+{
+    TypeKind type;
+    union
+    {
+        CGS_DStr string;
+        double number;
+        Token *original;
+        bool boolean;
+    };
+} Value;
 
 typedef struct Expr
 {
@@ -52,11 +65,6 @@ typedef struct Expr
             struct Expr *right;
         } binary;
 
-        struct
-        {
-            struct Expr *expr;
-        } grouping;
-
         Literal literal;
 
         Token *ident;
@@ -72,6 +80,9 @@ Expr *new_grouping(Expr *inside);
 Expr *new_literal(Token *tok);
 Token *expr_tok(Expr *expr);
 void free_literal(Literal lit);
+
+struct Ctx;
+Value eval(struct Ctx *ctx, Expr *expr);
 
 CGS_Error stringify_literal(CGS_Writer *writer, Literal lit);
 

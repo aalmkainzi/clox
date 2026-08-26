@@ -24,7 +24,6 @@ CGS_StrView range_view(CGS_StrView left, CGS_StrView right);
 
 void tokenize(Ctx *ctx);
 Expr *parse(Ctx *ctx);
-Literal eval(Ctx *ctx, Expr *expr);
 
 void free_expr(Expr *expr);
 void free_tokens(TokenList *toks);

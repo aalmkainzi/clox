@@ -3,54 +3,65 @@
 #include "token.h"
 #include <stdlib.h>
 
-Literal eval_unary(Ctx *ctx, Expr *expr);
-Literal eval_binary(Ctx *ctx, Expr *expr);
+Value eval_literal(Ctx *ctx, Expr *expr);
+Value eval_unary(Ctx *ctx, Expr *expr);
+Value eval_binary(Ctx *ctx, Expr *expr);
 
-bool expect_number(Ctx *ctx, Literal obj);
-bool expect_string(Ctx *ctx, Literal obj);
-bool expect_boolean(Ctx *ctx, Literal obj);
-Literal copy_literal(Ctx *ctx, Literal from);
-void free_literal(Literal lit);
+bool expect_number(Ctx *ctx,  Value obj);
+bool expect_string(Ctx *ctx,  Value obj);
+bool expect_boolean(Ctx *ctx, Value obj);
+Value copy_value(Ctx *ctx, Value from);
+void free_value(Value val);
 
-Literal eval(Ctx *ctx, Expr *expr)
+Value eval(Ctx *ctx, Expr *expr)
 {
     switch (expr->kind)
     {
-    case EXPR_unary:
-        return eval_unary(ctx, expr);
-        break;
+        case EXPR_unary:
+            return eval_unary(ctx, expr);
 
-    case EXPR_binary:
-        return eval_binary(ctx, expr);
-        break;
+        case EXPR_binary:
+            return eval_binary(ctx, expr);
 
-    case EXPR_literal:
-        return expr->literal;
-        break;
+        case EXPR_literal:
+            return eval_literal(ctx, expr);
 
-    default:
-        __builtin_unreachable();
+        default:
+            __builtin_unreachable();
     }
 }
 
-Literal eval_unary(Ctx *ctx, Expr *expr)
+Value eval_literal(Ctx *ctx, Expr *expr)
 {
-    Literal obj = eval(ctx, expr->unary.expr);
+    TypeKind map[] =
+    {
+        [LIT_bool] = T_bool,
+        [LIT_num ] = T_num,
+        [LIT_str ] = T_str,
+        [LIT_nil ] = T_nil,
+    };
+
+    return (Value){.type = map[expr->literal.kind], .original = expr->literal.tok};
+}
+
+Value eval_unary(Ctx *ctx, Expr *expr)
+{
+    Value obj = eval(ctx, expr->unary.expr);
 
     switch (expr->unary.op->kind)
     {
     case TK_minus:
     {
-        if (obj.kind != LIT_num)
+        if (obj.type != T_num)
         {
             report_tok_error(ctx, expr_tok(expr->unary.expr), "expected number");
         }
         else
         {
-            Literal result = copy_literal(ctx, obj);
-            result.tok->data.dbl *= -1;
+            Value result = copy_value(ctx, obj);
+            result.number *= -1;
 
-            free_literal(obj);
+            free_value(obj);
             return result;
         }
     }
@@ -81,11 +92,11 @@ Literal eval_unary(Ctx *ctx, Expr *expr)
 
 Literal eval_binary(Ctx *ctx, Expr *expr)
 {
-    Literal left  = eval(ctx, expr->binary.left);
-    Literal right = eval(ctx, expr->binary.right);
+    Value left  = eval(ctx, expr->binary.left);
+    Value right = eval(ctx, expr->binary.right);
 
-    Literal result     = copy_literal(ctx, left);
-    result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
+    Value result     = copy_value(ctx, left);
+    result.original->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
 
     switch (expr->binary.op->kind)
     {
@@ -275,15 +286,15 @@ static Token *new_eval_token(Ctx *ctx, Token *tok)
     return new_tok;
 }
 
-Literal copy_literal(Ctx *ctx, Literal from)
+Value copy_value(Ctx *ctx, Value from)
 {
     Literal ret = from;
     ret.tok     = new_eval_token(ctx, from.tok);
     return ret;
 }
 
-void free_literal(Literal lit)
+void free_value(Value val)
 {
-    if (lit.tok->eval)
+    if (lit.original->eval)
         free_token(lit.tok);
 }
