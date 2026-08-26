@@ -93,7 +93,7 @@ static int run(CGS_StrView file_name, CGS_DStr src)
         free_literal(result);
     }
 
-    done:
+done:
     free_expr(expr);
     free_tokens(&ctx->toks);
 
