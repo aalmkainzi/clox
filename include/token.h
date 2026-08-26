@@ -8,28 +8,28 @@ typedef struct Token Token;
 declare_vec(TokenList, Token);
 
 #define ONE_CHAR_PUNCT_TOKEN_LIST(macro) \
-macro(comma       , "," ) \
-macro(dot         , "." ) \
-macro(semicolon   , ";" ) \
-macro(lt          , "<" ) \
-macro(gt          , ">" ) \
-macro(plus        , "+" ) \
-macro(minus       , "-" ) \
-macro(equal       , "=" ) \
-macro(star        , "*" ) \
-macro(slash       , "/" ) \
-macro(not         , "!" ) \
-macro(open_paren  , "(" ) \
-macro(close_paren , ")" ) \
-macro(open_square , "[" ) \
-macro(close_square, "]" ) \
-macro(open_curly  , "{" ) \
-macro(close_curly , "}" )
+macro(comma      , "," )                 \
+macro(dot        , "." )                 \
+macro(semicolon  , ";" )                 \
+macro(plus       , "+" )                 \
+macro(minus      , "-" )                 \
+macro(equal      , "=" )                 \
+macro(star       , "*" )                 \
+macro(slash      , "/" )                 \
+macro(not        , "!" )                 \
+macro(lparen     , "(" )                 \
+macro(rparen     , ")" )                 \
+macro(lsquare    , "[" )                 \
+macro(rsquare    , "]" )                 \
+macro(lcurly     , "{" )                 \
+macro(rcurly     , "}" )                 \
+macro(lt         , "<" )                 \
+macro(gt         , ">" )
 
 #define TWO_CHAR_PUNCT_TOKEN_LIST(macro) \
-macro(lte, "<=")         \
-macro(gte, ">=")         \
-macro(not_equal  , "!=") \
+macro(lte        , "<=")                 \
+macro(gte        , ">=")                 \
+macro(not_equal  , "!=")                 \
 macro(equal_equal, "==")
 
 #define PUNCT_TOKEN_LIST(macro)  \
@@ -37,28 +37,28 @@ ONE_CHAR_PUNCT_TOKEN_LIST(macro) \
 TWO_CHAR_PUNCT_TOKEN_LIST(macro)
 
 #define KEYWORD_TOKEN_LIST(macro) \
-macro(if      , "if"   ) \
-macro(while   , "while") \
-macro(for     , "for"  ) \
-macro(and     , "and"  ) \
-macro(or      , "or"   ) \
-macro(true    , "true" ) \
-macro(false   , "false") \
-macro(function, "fun"  ) \
-macro(variable, "var"  ) \
-macro(class   , "class") \
+macro(if      , "if"   )          \
+macro(while   , "while")          \
+macro(for     , "for"  )          \
+macro(and     , "and"  )          \
+macro(or      , "or"   )          \
+macro(true    , "true" )          \
+macro(false   , "false")          \
+macro(function, "fun"  )          \
+macro(variable, "var"  )          \
+macro(class   , "class")          \
 macro(nil     , "nil"  )
 
 #define LITERAL_TOKEN_LIST(macro) \
-macro(str  , "string literal"  ) \
-macro(num  , "number literal"  ) \
-macro(float, "float literal"   ) \
+macro(str  , "string literal"  )  \
+macro(num  , "number literal"  )  \
+macro(float, "float literal"   )  \
 
 #define TOKEN_LIST(macro)  \
 macro(ident, "identifier") \
 LITERAL_TOKEN_LIST(macro)  \
 KEYWORD_TOKEN_LIST(macro)  \
-PUNCT_TOKEN_LIST  (macro)  \
+PUNCT_TOKEN_LIST(macro)    \
 macro(eof, "EOF")
 
 #define make_enum_variant(kind, str) TK_##kind,

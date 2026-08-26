@@ -8,7 +8,6 @@ typedef enum ExprKind
 {
     EXPR_unary,
     EXPR_binary,
-    EXPR_grouping,
     EXPR_literal,
     EXPR_ident
 } ExprKind;
@@ -37,28 +36,29 @@ typedef enum TypeKind
 typedef struct Expr
 {
     ExprKind kind;
-    
-    union {
+
+    union
+    {
         struct
         {
             Token *op;
             struct Expr *expr;
         } unary;
-        
+
         struct
         {
             Token *op;
             struct Expr *left;
             struct Expr *right;
         } binary;
-        
+
         struct
         {
             struct Expr *expr;
         } grouping;
-        
+
         Literal literal;
-        
+
         Token *ident;
     };
 } Expr;
@@ -72,5 +72,10 @@ Expr *new_grouping(Expr *inside);
 Expr *new_literal(Token *tok);
 Token *expr_tok(Expr *expr);
 void free_literal(Literal lit);
+
+CGS_Error stringify_literal(CGS_Writer *writer, Literal lit);
+
+#define ADD_TOSTR (Literal, stringify_literal)
+#include "cgs/cgs.h"
 
 #endif
