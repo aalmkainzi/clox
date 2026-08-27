@@ -8,8 +8,7 @@ typedef enum ExprKind
 {
     EXPR_unary,
     EXPR_binary,
-    EXPR_literal,
-    EXPR_ident
+    EXPR_value
 } ExprKind;
 
 typedef enum LiteralKind
@@ -37,11 +36,11 @@ typedef enum TypeKind
 typedef struct Value
 {
     TypeKind type;
+    Token *original;
     union
     {
         CGS_DStr string;
         double number;
-        Token *original;
         bool boolean;
     };
 } Value;
@@ -65,7 +64,7 @@ typedef struct Expr
             struct Expr *right;
         } binary;
 
-        Literal literal;
+        Value value;
 
         Token *ident;
     };

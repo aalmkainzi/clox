@@ -17,7 +17,7 @@ typedef struct Ctx
     bool error;
 } Ctx;
 
-Token *copy_token(Ctx *ctx, Token *token);
+Token *copy_token(Token *token);
 void free_token(Token *tok);
 
 CGS_StrView range_view(CGS_StrView left, CGS_StrView right);

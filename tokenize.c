@@ -10,6 +10,8 @@ static bool is_ident_char(char c)
 
 static Token scan_keyword(Ctx *ctx, const char *tok_start)
 {
+    (void)ctx;
+
     Token ret = {.kind = TK_none};
 
 #define else_if_is_kw(name, str)                                                                   \
@@ -37,6 +39,8 @@ static Token scan_keyword(Ctx *ctx, const char *tok_start)
 
 static Token scan_ident(Ctx *ctx, const char *tok_start)
 {
+    (void)ctx;
+
     Token ret = {.kind = TK_none};
 
     if (isalpha(tok_start[0]) || tok_start[0] == '_')
@@ -56,6 +60,8 @@ static Token scan_ident(Ctx *ctx, const char *tok_start)
 
 static Token scan_punct(Ctx *ctx, const char *tok_start)
 {
+    (void)ctx;
+
     Token ret = {.kind = TK_none};
 
 #define else_if_is_punct(tok_kind, str)                   \
@@ -84,6 +90,8 @@ static bool isnum(char c)
 
 static Token scan_num(Ctx *ctx, const char *tok_start)
 {
+    (void)ctx;
+
     Token ret = {.kind = TK_none};
 
     int scanned = 0;
@@ -279,7 +287,7 @@ void free_tokens(TokenList *toks)
     TokenList_drop(toks);
 }
 
-Token *copy_token(Ctx *ctx, Token *token)
+Token *copy_token(Token *token)
 {
     Token *copy = malloc(sizeof(Token));
     *copy       = *token;

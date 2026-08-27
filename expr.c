@@ -24,30 +24,43 @@ Expr *new_unary(Expr *left, Token *op)
 
 Expr *alloc_literal_expr(LiteralKind litKind, Token *tok)
 {
-    Expr *ret         = malloc(sizeof(Expr));
-    ret->kind         = EXPR_literal;
-    ret->literal.tok  = tok;
-    ret->literal.kind = litKind;
+    TypeKind map[] = {
+        [LIT_bool] = T_bool,
+        [LIT_num]  = T_num,
+        [LIT_str]  = T_str,
+        [LIT_nil]  = T_nil,
+    };
+
+    TypeKind type = map[litKind];
+    
+    Expr *ret           = malloc(sizeof(Expr));
+    ret->kind           = EXPR_value;
+    ret->value.original = tok;
+    ret->value.type     = type;
+    
+    switch(type)
+    {
+        case T_bool: ret->value.boolean = tok->data.boolean; break;
+        case T_num : ret->value.number  = tok->data.dbl;     break;
+        case T_str : ret->value.string  = tok->data.string;  break;
+        case T_nil :                                         break;
+    }
+
     return ret;
 }
 
 Expr *new_literal(Token *tok)
 {
-    switch (tok->kind)
-    {
-    case TK_nil:
-        return alloc_literal_expr(LIT_nil, tok);
-    case TK_str:
-        return alloc_literal_expr(LIT_str, tok);
-    case TK_num:
-    case TK_float:
-        return alloc_literal_expr(LIT_num, tok);
-    case TK_true:
-    case TK_false:
-        return alloc_literal_expr(LIT_bool, tok);
-    default:
-        return NULL;
-    }
+    LiteralKind map[] = {
+        [TK_nil]   = LIT_nil,
+        [TK_str]   = LIT_str,
+        [TK_num]   = LIT_num,
+        [TK_float] = LIT_num,
+        [TK_true]  = LIT_bool,
+        [TK_false] = LIT_bool,
+    };
+
+    return alloc_literal_expr(map[tok->kind], tok);
 }
 
 void free_expr(Expr *expr)
@@ -66,11 +79,8 @@ void free_expr(Expr *expr)
         free_expr(expr->binary.right);
         free(expr);
         break;
-    case EXPR_literal:
+    case EXPR_value:
         free(expr);
-        break;
-
-    case EXPR_ident:
         break;
     }
 }
@@ -83,10 +93,8 @@ Token *expr_tok(Expr *expr)
         return expr->unary.op;
     case EXPR_binary:
         return expr->binary.op;
-    case EXPR_literal:
-        return expr->literal.tok;
-    case EXPR_ident:
-        return expr->ident;
+    case EXPR_value:
+        return expr->value.original;
     default:
         __builtin_unreachable();
     }

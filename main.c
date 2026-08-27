@@ -6,9 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// #define local_ref(x) \
-// &(typeof((void)0,x)[]){x}
-
 static int run_file(const char *file_name);
 static int run_prompt();
 

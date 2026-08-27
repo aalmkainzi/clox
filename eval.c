@@ -1,7 +1,7 @@
+#include <stdlib.h>
 #include "clox.h"
 #include "expr.h"
 #include "token.h"
-#include <stdlib.h>
 
 Value eval_literal(Ctx *ctx, Expr *expr);
 Value eval_unary(Ctx *ctx, Expr *expr);
@@ -10,7 +10,7 @@ Value eval_binary(Ctx *ctx, Expr *expr);
 bool expect_number(Ctx *ctx, Value obj);
 bool expect_string(Ctx *ctx, Value obj);
 bool expect_boolean(Ctx *ctx, Value obj);
-Value copy_value(Ctx *ctx, Value from);
+Value copy_value(Value from);
 
 Value eval(Ctx *ctx, Expr *expr)
 {
@@ -22,24 +22,12 @@ Value eval(Ctx *ctx, Expr *expr)
     case EXPR_binary:
         return eval_binary(ctx, expr);
 
-    case EXPR_literal:
-        return eval_literal(ctx, expr);
+    case EXPR_value:
+        return expr->value;
 
     default:
         __builtin_unreachable();
     }
-}
-
-Value eval_literal(Ctx *ctx, Expr *expr)
-{
-    TypeKind map[] = {
-        [LIT_bool] = T_bool,
-        [LIT_num]  = T_num,
-        [LIT_str]  = T_str,
-        [LIT_nil]  = T_nil,
-    };
-
-    return (Value) {.type = map[expr->literal.kind], .original = expr->literal.tok};
 }
 
 Value eval_unary(Ctx *ctx, Expr *expr)
@@ -56,7 +44,7 @@ Value eval_unary(Ctx *ctx, Expr *expr)
         }
         else
         {
-            Value result = copy_value(ctx, obj);
+            Value result = copy_value(obj);
             result.number *= -1;
 
             free_value(obj);
@@ -72,7 +60,7 @@ Value eval_unary(Ctx *ctx, Expr *expr)
         }
         else
         {
-            Value result   = copy_value(ctx, obj);
+            Value result   = copy_value(obj);
             result.boolean = !result.boolean;
 
             free_value(obj);
@@ -93,7 +81,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
     Value left  = eval(ctx, expr->binary.left);
     Value right = eval(ctx, expr->binary.right);
 
-    Value result            = copy_value(ctx, left);
+    Value result            = copy_value(left);
     result.original->lexeme = range_view(left.original->lexeme, right.original->lexeme);
 
     switch (expr->binary.op->kind)
@@ -299,17 +287,17 @@ CGS_Error stringify_literal(CGS_Writer *writer, Literal lit)
     }
 }
 
-static Token *new_eval_token(Ctx *ctx, Token *tok)
+static Token *new_eval_token(Token *tok)
 {
-    Token *new_tok = copy_token(ctx, tok);
+    Token *new_tok = copy_token(tok);
     new_tok->eval  = true;
     return new_tok;
 }
 
-Value copy_value(Ctx *ctx, Value from)
+Value copy_value(Value from)
 {
     Value ret = from;
-    ret.original = new_eval_token(ctx, from.original);
+    ret.original = new_eval_token(from.original);
     return ret;
 }
 

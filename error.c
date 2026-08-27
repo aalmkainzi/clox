@@ -19,7 +19,7 @@ void report_error_(Ctx *ctx, const CGS_StrView error_loc, CGS_DStr message)
     CGS_StrView src_up_to_error = cgs_strv(ctx->src, 0, error_loc.chars - ctx->src.chars);
     int lineno                  = cgs_count(src_up_to_error, "\n") + 1;
 
-    int line_end = error_loc.chars - ctx->src.chars;
+    unsigned int line_end = error_loc.chars - ctx->src.chars;
     for (; line_end < ctx->src.len; line_end++)
     {
         if (ctx->src.chars[line_end] == '\n')

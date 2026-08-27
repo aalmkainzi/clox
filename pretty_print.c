@@ -3,7 +3,7 @@
 
 void pretty_print(CGS_Writer *sink, Expr *expr)
 {
-    if (expr->kind != EXPR_literal)
+    if (expr->kind != EXPR_value)
         cgs_append(sink, "(");
 
     switch (expr->kind)
@@ -18,12 +18,12 @@ void pretty_print(CGS_Writer *sink, Expr *expr)
         cgs_putc(sink, ' ');
         pretty_print(sink, expr->binary.right);
         break;
-    case EXPR_literal:
-        cgs_appendf(sink, "%?", expr->literal);
+    case EXPR_value:
+        cgs_appendf(sink, "%?", expr->value);
         break;
     }
 
-    if (expr->kind != EXPR_literal)
+    if (expr->kind != EXPR_value)
         cgs_append(sink, ")");
 }
 
@@ -41,8 +41,8 @@ void rpn_print(CGS_Writer *sink, Expr *expr)
         rpn_print(sink, expr->binary.right);
         cgs_appendf(sink, " %?", expr->binary.op->lexeme);
         break;
-    case EXPR_literal:
-        cgs_appendf(sink, "%?", expr->literal);
+    case EXPR_value:
+        cgs_appendf(sink, "%?", expr->value);
         break;
 
     default:;
