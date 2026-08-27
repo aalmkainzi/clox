@@ -97,23 +97,51 @@ Value eval_binary(Ctx *ctx, Expr *expr)
 
     case TK_plus:
     {
-        if (left.type == T_num)
+        if (left.type == T_str)
         {
-            if (!expect_number(ctx, right))
+            switch (right.type)
+            {
+            case T_bool:
+                cgs_append_tostr(&result.string, right.boolean);
+                break;
+            case T_num:
+                cgs_append_tostr(&result.string, right.number);
+                break;
+            case T_str:
+                cgs_append_tostr(&result.string, right.string);
+                break;
+            case T_nil:
+                cgs_append_tostr(&result.string, "nil");
+                break;
+            }
+        }
+        else if (right.type == T_str)
+        {
+            result.type = T_str;
+            switch (left.type)
+            {
+            case T_bool:
+                result.string = cgs_asprintf("%?%?", left.boolean, right.string);
+                break;
+            case T_num:
+                result.string = cgs_asprintf("%?%?", left.number, right.string);
+                break;
+            case T_str:
+                // not actually possible, previous branch wouldve caught it
+                result.string = cgs_asprintf("%?%?", left.string, right.string);
+                break;
+            case T_nil:
+                result.string = cgs_asprintf("%?%?", "nil", right.string);
+                break;
+            }
+        }
+        else
+        {
+            if (!expect_number(ctx, right) || !expect_number(ctx, left))
                 break;
 
             result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
             result.number += right.number;
-        }
-        else if (left.type == T_str)
-        {
-            expect_string(ctx, right);
-
-            cgs_append(&result.string, right.string);
-        }
-        else
-        {
-            report_tok_error(ctx, left.tok, "operands of '+' must be numbers or strings");
         }
     }
     break;

@@ -144,26 +144,64 @@ static Token scan_num(Ctx *ctx, const char *tok_start)
     return ret;
 }
 
+static char handle_escape_sequence(char c)
+{
+    switch (c)
+    {
+    case 'f':
+        return '\f';
+    case 'n':
+        return '\n';
+    case 'r':
+        return '\r';
+    case 't':
+        return '\t';
+    case 'v':
+        return '\v';
+    case '\"':
+        return '\"';
+    }
+    return -1;
+}
+
 static Token scan_str(Ctx *ctx, const char *tok_start)
 {
     Token ret = {.kind = TK_none};
 
-    if (tok_start[0] == '\"')
+    if (tok_start[0] != '\"')
     {
-        int len = 2;
-        while (tok_start[len - 1] != '\"')
+        return ret;
+    }
+
+    CGS_DStr string_data = cgs_dstr_init();
+    int it               = 2;
+
+    while (tok_start[it - 1] != '\"')
+    {
+        if (tok_start[it - 1] == '\0')
         {
-            if (tok_start[len - 1] == '\0')
-            {
-                report_error(ctx, tok_start, "unterminated string literal");
-            }
-            len += 1;
+            report_error(ctx, tok_start, "unterminated string literal");
         }
 
-        ret.lexeme      = cgs_strv(tok_start, 0, len);
-        ret.kind        = TK_str;
-        ret.data.string = cgs_dstr_init_from(cgs_strv(ret.lexeme, 1, ret.lexeme.len - 1));
+        if (tok_start[it - 1] == '\\')
+        {
+            it += 1;
+            char esc_code = handle_escape_sequence(tok_start[it - 1]);
+            if (esc_code != -1)
+            {
+                cgs_putc(&string_data, esc_code);
+                it += 1;
+                continue;
+            }
+        }
+
+        cgs_putc(&string_data, tok_start[it - 1]);
+        it += 1;
     }
+
+    ret.lexeme      = cgs_strv(tok_start, 0, it);
+    ret.kind        = TK_str;
+    ret.data.string = string_data;
 
     return ret;
 }
