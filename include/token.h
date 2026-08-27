@@ -1,11 +1,13 @@
 #ifndef TOKENS_H
 #define TOKENS_H
 
-#include "stc/types.h"
 #include "cgs/cgs.h"
+#include "stc/types.h"
 
 typedef struct Token Token;
 declare_vec(TokenList, Token);
+
+// clang-format off
 
 #define ONE_CHAR_PUNCT_TOKEN_LIST(macro) \
 macro(comma      , "," )                 \
@@ -62,36 +64,38 @@ KEYWORD_TOKEN_LIST(macro)  \
 PUNCT_TOKEN_LIST(macro)    \
 macro(eof, "EOF")
 
+// clang-format on
+
 #define make_enum_variant(kind, str) TK_##kind,
 
 typedef enum TokenKind
 {
     TK_none = 0,
     TK_ident,
-    
+
     TK_LIT_BEGIN,
-    LITERAL_TOKEN_LIST(make_enum_variant)
-    TK_LIT_END,
-    
+    LITERAL_TOKEN_LIST(make_enum_variant) TK_LIT_END,
+
     TK_KW_BEGIN,
-    KEYWORD_TOKEN_LIST(make_enum_variant)
-    TK_KW_END,
-    
+    KEYWORD_TOKEN_LIST(make_enum_variant) TK_KW_END,
+
     TK_PUNCT_BEGIN,
-    PUNCT_TOKEN_LIST(make_enum_variant)
-    TK_PUNCT_END,
-    
+    PUNCT_TOKEN_LIST(make_enum_variant) TK_PUNCT_END,
+
     TK_eof,
 } TokenKind;
 
 #undef make_enum_variant
 
 #define make_tok2str_entry(kind, str) \
-[TK_##kind] = (CGS_StrView){.chars = str, .len = sizeof(str) - 1},
+    [TK_##kind] = (CGS_StrView) {.chars = str, .len = sizeof(str) - 1},
 
-static const CGS_StrView tok2str[] = {
+static const CGS_StrView tok2str[] =
+{
     TOKEN_LIST(make_tok2str_entry)
 };
+
+// clang-format off
 
 #undef make_tok2str_entry
 
@@ -124,7 +128,7 @@ static inline CGS_Error write_token_ptr(CGS_Writer *writer, Token *tok)
 #define ADD_TOSTR (Token, write_token)
 #include "cgs/cgs.h"
 
-#define ADD_TOSTR (Token*, write_token_ptr)
+#define ADD_TOSTR (Token *, write_token_ptr)
 #include "cgs/cgs.h"
 
 #define i_declared

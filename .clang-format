@@ -1,26 +1,31 @@
 ---
 BasedOnStyle: LLVM
-
 Language: C
-
 BreakBeforeBraces: Allman
-
 IndentWidth: 4
 UseTab: Never
 ColumnLimit: 175
-
 AlignEscapedNewlines: Left
-
 AlignConsecutiveAssignments: Consecutive
-
 SpaceAroundPointerQualifiers: Before
-
 IndentPPDirectives: BeforeHash
-
 AllowShortFunctionsOnASingleLine: None
-
-# Cpp11BracedListStyle: true
-# AlignAfterOpenBracket: Align
 SpaceBeforeCpp11BracedList: true
 AlignAfterOpenBracket: BlockIndent
 BinPackArguments: false
+---
+Language: ObjC
+BasedOnStyle: LLVM
+BreakBeforeBraces: Allman
+IndentWidth: 4
+UseTab: Never
+ColumnLimit: 175
+AlignEscapedNewlines: Left
+AlignConsecutiveAssignments: Consecutive
+SpaceAroundPointerQualifiers: Before
+IndentPPDirectives: BeforeHash
+AllowShortFunctionsOnASingleLine: None
+SpaceBeforeCpp11BracedList: true
+AlignAfterOpenBracket: BlockIndent
+BinPackArguments: false
+...
