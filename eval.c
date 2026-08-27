@@ -2,6 +2,8 @@
 #include "expr.h"
 #include "token.h"
 #include <stdlib.h>
+#include <float.h>
+#include <math.h>
 
 Value eval_literal(Ctx *ctx, Expr *expr);
 Value eval_unary(Ctx *ctx, Expr *expr);
@@ -160,7 +162,15 @@ Value eval_binary(Ctx *ctx, Expr *expr)
         if (!expect_number(ctx, left) || !expect_number(ctx, right))
             break;
 
-        result.number /= right.number;
+        if (right.number == 0)
+        {
+            report_tok_error(ctx, right.tok, "division by zero");
+            result.number = INFINITY;
+        }
+        else
+        {
+            result.number /= right.number;
+        }
     }
     break;
 
