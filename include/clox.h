@@ -4,6 +4,7 @@
 #include "cgs/cgs.h"
 #include "expr.h"
 #include "token.h"
+#include "stmt.h"
 
 typedef struct Ctx
 {
@@ -23,7 +24,7 @@ void free_token(Token *tok);
 CGS_StrView range_view(CGS_StrView left, CGS_StrView right);
 
 void tokenize(Ctx *ctx);
-Expr *parse(Ctx *ctx);
+StmtList parse(Ctx *ctx);
 
 void free_expr(Expr *expr);
 void free_tokens(TokenList *toks);

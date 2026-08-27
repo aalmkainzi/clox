@@ -283,7 +283,8 @@ void skip_tok(Ctx *ctx, TokenKind kind)
     if (ctx->cur->kind != kind)
         report_tok_error(ctx, ctx->cur, "expected %?, but got %?", tok2str[kind], tok2str[ctx->cur->kind]);
 
-    ctx->cur += 1;
+    if (ctx->cur->kind != TK_eof)
+        ctx->cur += 1;
 }
 
 bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds)

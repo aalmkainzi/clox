@@ -47,12 +47,13 @@ macro(false   , "false")          \
 macro(function, "fun"  )          \
 macro(variable, "var"  )          \
 macro(class   , "class")          \
+macro(print   , "print")          \
 macro(nil     , "nil"  )
 
 #define LITERAL_TOKEN_LIST(macro) \
-macro(str  , "string literal"  )  \
-macro(num  , "number literal"  )  \
-macro(float, "float literal"   )  \
+macro(str  , "string literal")    \
+macro(num  , "number literal")    \
+macro(float, "float literal" )    \
 
 #define TOKEN_LIST(macro)  \
 macro(ident, "identifier") \

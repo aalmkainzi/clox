@@ -1,26 +1,66 @@
 #include "clox.h"
 #include "expr.h"
+#include "stmt.h"
 #include "token.h"
 
-Expr *expression(Ctx *ctx);
-Expr *or_expr(Ctx *ctx);
-Expr *and_expr(Ctx *ctx);
-Expr *equality(Ctx *ctx);
-Expr *comparison(Ctx *ctx);
-Expr *additive(Ctx *ctx);
-Expr *multitive(Ctx *ctx);
-Expr *unary(Ctx *ctx);
-Expr *primary(Ctx *ctx);
+static Expr *expression(Ctx *ctx);
+static Expr *or_expr(Ctx *ctx);
+static Expr *and_expr(Ctx *ctx);
+static Expr *equality(Ctx *ctx);
+static Expr *comparison(Ctx *ctx);
+static Expr *additive(Ctx *ctx);
+static Expr *multitive(Ctx *ctx);
+static Expr *unary(Ctx *ctx);
+static Expr *primary(Ctx *ctx);
+static Stmt print_stmt(Ctx *ctx);
+static Stmt expr_stmt(Ctx *ctx);
 
-Expr *parse(Ctx *ctx)
+StmtList parse(Ctx *ctx)
 {
-    ctx->cur = ctx->toks.data;
+    StmtList stmts = StmtList_init();
+    ctx->cur       = ctx->toks.data;
 
-    Expr *ret = or_expr(ctx);
-    return ret;
+    while (ctx->cur && ctx->cur->kind != TK_eof)
+    {
+        switch (ctx->cur->kind)
+        {
+        case TK_print:
+            StmtList_push(&stmts, print_stmt(ctx));
+            break;
+        default:
+            StmtList_push(&stmts, expr_stmt(ctx));
+            break;
+        }
+    }
+
+    return stmts;
 }
 
-Expr *or_expr(Ctx *ctx)
+static Stmt expr_stmt(Ctx *ctx)
+{
+    Stmt stmt = {.kind = STMT_expr, .begin = ctx->cur};
+
+    stmt.expr = or_expr(ctx);
+    stmt.end  = ctx->cur;
+
+    skip_tok(ctx, TK_semicolon);
+
+    return stmt;
+}
+
+static Stmt print_stmt(Ctx *ctx)
+{
+    Stmt stmt = {.kind = STMT_print, .begin = ctx->cur};
+    skip_tok(ctx, TK_print);
+
+    stmt.print_expr = or_expr(ctx);
+    stmt.end        = ctx->cur;
+
+    skip_tok(ctx, TK_semicolon);
+    return stmt;
+}
+
+static Expr *or_expr(Ctx *ctx)
 {
     Expr *expr = and_expr(ctx);
 
@@ -35,7 +75,7 @@ Expr *or_expr(Ctx *ctx)
     return expr;
 }
 
-Expr *and_expr(Ctx *ctx)
+static Expr *and_expr(Ctx *ctx)
 {
     Expr *expr = equality(ctx);
 
@@ -50,12 +90,12 @@ Expr *and_expr(Ctx *ctx)
     return expr;
 }
 
-Expr *expression(Ctx *ctx)
+static Expr *expression(Ctx *ctx)
 {
     return equality(ctx);
 }
 
-Expr *equality(Ctx *ctx)
+static Expr *equality(Ctx *ctx)
 {
     Expr *expr = comparison(ctx);
 
@@ -70,7 +110,7 @@ Expr *equality(Ctx *ctx)
     return expr;
 }
 
-Expr *comparison(Ctx *ctx)
+static Expr *comparison(Ctx *ctx)
 {
     Expr *expr = additive(ctx);
 
@@ -85,7 +125,7 @@ Expr *comparison(Ctx *ctx)
     return expr;
 }
 
-Expr *additive(Ctx *ctx)
+static Expr *additive(Ctx *ctx)
 {
     Expr *expr = multitive(ctx);
 
@@ -100,7 +140,7 @@ Expr *additive(Ctx *ctx)
     return expr;
 }
 
-Expr *multitive(Ctx *ctx)
+static Expr *multitive(Ctx *ctx)
 {
     Expr *expr = unary(ctx);
 
@@ -115,7 +155,7 @@ Expr *multitive(Ctx *ctx)
     return expr;
 }
 
-Expr *unary(Ctx *ctx)
+static Expr *unary(Ctx *ctx)
 {
     if (check_any(ctx, TK_not, TK_minus))
     {
@@ -130,7 +170,7 @@ Expr *unary(Ctx *ctx)
     }
 }
 
-Expr *primary(Ctx *ctx)
+static Expr *primary(Ctx *ctx)
 {
     if (ctx->cur->kind == TK_lparen)
     {

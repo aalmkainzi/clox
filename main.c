@@ -1,10 +1,11 @@
-#include "clox.h"
-#include "expr.h"
-#include "token.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "clox.h"
+#include "expr.h"
+#include "token.h"
+#include "stmt.h"
 
 static int run_file(const char *file_name);
 static int run_prompt();
@@ -62,6 +63,8 @@ static int run_prompt()
     return 0;
 }
 
+static void process_stmts(Ctx *ctx, StmtList *stmts);
+
 static int run(CGS_StrView file_name, CGS_DStr src)
 {
     // appending empty spaces in cases we try to match a long keyword
@@ -77,23 +80,33 @@ static int run(CGS_StrView file_name, CGS_DStr src)
     if (ctx->toks.size <= 1)
         goto done;
 
-    Expr *expr = parse(ctx);
+    StmtList stmts = parse(ctx);
 
-    if (!ctx->error)
-    {
-        rpn_print(cgs_writer_ptr(stdout), expr);
-        pretty_print(cgs_writer_ptr(stdout), expr);
-        Value result = eval(ctx, expr);
-        cgs_printfln("%?", result);
-        free_value(result);
-    }
-
+    process_stmts(ctx, &stmts);
 done:
-    free_expr(expr);
+    free_stmtlist(&stmts);
     free_tokens(&ctx->toks);
 
     if (ctx->error)
         return 1;
     else
         return 0;
+}
+
+static void process_stmts(Ctx *ctx, StmtList *stmts)
+{
+    for(c_each(it, StmtList, *stmts))
+    {
+        Stmt stmt = *it.ref;
+        switch (stmt.kind)
+        {
+            case STMT_print:
+                Value val = eval(ctx, stmt.expr);
+                cgs_printfln("%?", val);
+                free_value(val);
+                break;
+            case STMT_expr:
+                break;
+        }
+    }
 }
