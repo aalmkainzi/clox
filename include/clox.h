@@ -3,8 +3,8 @@
 
 #include "cgs/cgs.h"
 #include "expr.h"
-#include "token.h"
 #include "stmt.h"
+#include "token.h"
 
 typedef struct Ctx
 {

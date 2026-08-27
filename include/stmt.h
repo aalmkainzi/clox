@@ -1,8 +1,8 @@
 #ifndef STMT_H
 #define STMT_H
 
-#include "token.h"
 #include "expr.h"
+#include "token.h"
 
 typedef enum StmtKind
 {
@@ -15,7 +15,7 @@ typedef struct Stmt
     StmtKind kind;
     Token *begin;
     Token *end;
-    
+
     union
     {
         Expr *print_expr;
