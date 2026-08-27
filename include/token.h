@@ -66,8 +66,21 @@ macro(eof, "EOF")
 typedef enum TokenKind
 {
     TK_none = 0,
+    TK_ident,
     
-    TOKEN_LIST(make_enum_variant)
+    TK_LIT_BEGIN,
+    LITERAL_TOKEN_LIST(make_enum_variant)
+    TK_LIT_END,
+    
+    TK_KW_BEGIN,
+    KEYWORD_TOKEN_LIST(make_enum_variant)
+    TK_KW_END,
+    
+    TK_PUNCT_BEGIN,
+    PUNCT_TOKEN_LIST(make_enum_variant)
+    TK_PUNCT_END,
+    
+    TK_eof,
 } TokenKind;
 
 #undef make_enum_variant
