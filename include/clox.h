@@ -16,6 +16,7 @@ typedef struct Ctx
     Token *cur;
 
     bool error;
+    bool repl;
 } Ctx;
 
 Token *copy_token(Token *token);

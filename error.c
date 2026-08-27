@@ -54,7 +54,11 @@ void report_error_(Ctx *ctx, const CGS_StrView error_loc)
         cyan_begin  = "\x1b[36m";
     }
 
-    cgs_appendf(stderr, "%?:%?:%?: %?error:%? %?\n", ctx->file_name, lineno, offset, red_begin, color_reset, error_message_buf);
+    if (!ctx->repl)
+    {
+        cgs_appendf(stderr, "%?:%?:%?: ", ctx->file_name, lineno, offset);
+    }
+    cgs_appendf(stderr, "%?error:%? %?\n", red_begin, color_reset, error_message_buf);
     cgs_appendf(&stderr_writer_and_len_counter, "%?| ", cgs_alignfmt(lineno, LEFT, 3));
     cgs_appendf(stderr, "%?\n", line);
     cgs_appendf(

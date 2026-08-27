@@ -1,11 +1,11 @@
+#include "clox.h"
+#include "expr.h"
+#include "stmt.h"
+#include "token.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "clox.h"
-#include "expr.h"
-#include "token.h"
-#include "stmt.h"
 
 static int run_file(const char *file_name);
 static int run_prompt();
@@ -27,7 +27,7 @@ int main(int argc, char **argv)
     }
 }
 
-static int run(CGS_StrView file_name, CGS_DStr line);
+static int run(CGS_StrView file_name, CGS_DStr line, bool repl);
 
 static int run_file(const char *file_name)
 {
@@ -41,7 +41,7 @@ static int run_file(const char *file_name)
         cgs_fprintf(stderr, "could not read file %?: %?: %?\n", file_name, err, strerror(errno));
     }
 
-    int return_err = run(cgs_strv(file_name), file_data);
+    int return_err = run(cgs_strv(file_name), file_data, false);
     cgs_dstr_deinit(&file_data);
     return return_err;
 }
@@ -56,16 +56,16 @@ static int run_prompt()
         CGS_Error err = cgs_fread_until(&line, stdin, '\n');
         if (err.ec == CGS_OK)
         {
-            run(cgs_strv("<repl>"), line);
+            run(cgs_strv("<repl>"), line, true);
         }
     }
     cgs_dstr_deinit(&line);
     return 0;
 }
 
-static void process_stmts(Ctx *ctx, StmtList *stmts);
+static void execute_stmts(Ctx *ctx, StmtList *stmts);
 
-static int run(CGS_StrView file_name, CGS_DStr src)
+static int run(CGS_StrView file_name, CGS_DStr src, bool repl)
 {
     // appending empty spaces in cases we try to match a long keyword
     cgs_append(&src, "        ");
@@ -74,6 +74,7 @@ static int run(CGS_StrView file_name, CGS_DStr src)
         .lineno    = 1,
         .file_name = file_name,
         .src       = cgs_strv(src),
+        .repl      = repl,
     };
 
     tokenize(ctx);
@@ -82,7 +83,7 @@ static int run(CGS_StrView file_name, CGS_DStr src)
 
     StmtList stmts = parse(ctx);
 
-    process_stmts(ctx, &stmts);
+    execute_stmts(ctx, &stmts);
 done:
     free_stmtlist(&stmts);
     free_tokens(&ctx->toks);
@@ -93,20 +94,20 @@ done:
         return 0;
 }
 
-static void process_stmts(Ctx *ctx, StmtList *stmts)
+static void execute_stmts(Ctx *ctx, StmtList *stmts)
 {
-    for(c_each(it, StmtList, *stmts))
+    for (c_each(it, StmtList, *stmts))
     {
         Stmt stmt = *it.ref;
         switch (stmt.kind)
         {
-            case STMT_print:
-                Value val = eval(ctx, stmt.expr);
-                cgs_printfln("%?", val);
-                free_value(val);
-                break;
-            case STMT_expr:
-                break;
+        case STMT_print:
+            Value val = eval(ctx, stmt.expr);
+            cgs_printfln("%?", val);
+            free_value(val);
+            break;
+        case STMT_expr:
+            break;
         }
     }
 }

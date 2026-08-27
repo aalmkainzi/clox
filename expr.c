@@ -24,7 +24,7 @@ Expr *new_unary(Expr *left, Token *op)
 
 Expr *alloc_literal_expr(LiteralKind litKind, Token *tok)
 {
-    TypeKind map[] = {
+    static const TypeKind map[] = {
         [LIT_bool] = T_bool,
         [LIT_num]  = T_num,
         [LIT_str]  = T_str,
@@ -58,16 +58,23 @@ Expr *alloc_literal_expr(LiteralKind litKind, Token *tok)
 
 Expr *new_literal(Token *tok)
 {
-    LiteralKind map[] = {
-        [TK_nil]   = LIT_nil,
-        [TK_str]   = LIT_str,
-        [TK_num]   = LIT_num,
-        [TK_float] = LIT_num,
-        [TK_true]  = LIT_bool,
-        [TK_false] = LIT_bool,
-    };
-
-    return alloc_literal_expr(map[tok->kind], tok);
+    switch (tok->kind)
+    {
+    case TK_nil:
+        return alloc_literal_expr(LIT_nil, tok);
+    case TK_str:
+        return alloc_literal_expr(LIT_str, tok);
+    case TK_num:
+        return alloc_literal_expr(LIT_num, tok);
+    case TK_float:
+        return alloc_literal_expr(LIT_num, tok);
+    case TK_true:
+        return alloc_literal_expr(LIT_bool, tok);
+    case TK_false:
+        return alloc_literal_expr(LIT_bool, tok);
+    default:
+        return NULL;
+    }
 }
 
 void free_expr(Expr *expr)
