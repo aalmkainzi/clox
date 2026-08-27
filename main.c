@@ -8,7 +8,7 @@
 #include <string.h>
 
 static int run_file(const char *file_name);
-static int run_prompt();
+static int run_repl();
 
 int main(int argc, char **argv)
 {
@@ -23,7 +23,7 @@ int main(int argc, char **argv)
     }
     else // just `clox`, run REPL
     {
-        return run_prompt();
+        return run_repl();
     }
 }
 
@@ -46,7 +46,7 @@ static int run_file(const char *file_name)
     return return_err;
 }
 
-static int run_prompt()
+static int run_repl()
 {
     CGS_DStr line = cgs_dstr_init();
 
@@ -56,6 +56,7 @@ static int run_prompt()
         CGS_Error err = cgs_fread_until(&line, stdin, '\n');
         if (err.ec == CGS_OK)
         {
+            line.len -= 1;
             run(cgs_strv("<repl>"), line, true);
         }
     }
@@ -98,6 +99,8 @@ static void execute_stmts(Ctx *ctx, StmtList *stmts)
 {
     for (c_each(it, StmtList, *stmts))
     {
+        if (ctx->error)
+            return;
         Stmt stmt = *it.ref;
         switch (stmt.kind)
         {
