@@ -32,18 +32,25 @@ Expr *alloc_literal_expr(LiteralKind litKind, Token *tok)
     };
 
     TypeKind type = map[litKind];
-    
+
     Expr *ret           = malloc(sizeof(Expr));
     ret->kind           = EXPR_value;
     ret->value.original = tok;
     ret->value.type     = type;
-    
-    switch(type)
+
+    switch (type)
     {
-        case T_bool: ret->value.boolean = tok->data.boolean; break;
-        case T_num : ret->value.number  = tok->data.dbl;     break;
-        case T_str : ret->value.string  = tok->data.string;  break;
-        case T_nil :                                         break;
+    case T_bool:
+        ret->value.boolean = tok->data.boolean;
+        break;
+    case T_num:
+        ret->value.number = tok->data.dbl;
+        break;
+    case T_str:
+        ret->value.string = tok->data.string;
+        break;
+    case T_nil:
+        break;
     }
 
     return ret;

@@ -1,7 +1,7 @@
-#include <stdlib.h>
 #include "clox.h"
 #include "expr.h"
 #include "token.h"
+#include <stdlib.h>
 
 Value eval_literal(Ctx *ctx, Expr *expr);
 Value eval_unary(Ctx *ctx, Expr *expr);
@@ -179,7 +179,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
         if (!expect_number(ctx, left) || !expect_number(ctx, right))
             break;
 
-        result.type              = T_bool;
+        result.type    = T_bool;
         result.boolean = left.number >= right.number;
     }
     break;
@@ -189,7 +189,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
         if (!expect_number(ctx, left) || !expect_number(ctx, right))
             break;
 
-        result.type              = T_bool;
+        result.type    = T_bool;
         result.boolean = left.number <= right.number;
     }
     break;
@@ -199,7 +199,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
         if (!expect_number(ctx, left) || !expect_number(ctx, right))
             break;
 
-        result.type              = T_bool;
+        result.type    = T_bool;
         result.boolean = left.number == right.number;
     }
     break;
@@ -296,7 +296,7 @@ static Token *new_eval_token(Token *tok)
 
 Value copy_value(Value from)
 {
-    Value ret = from;
+    Value ret    = from;
     ret.original = new_eval_token(from.original);
     return ret;
 }

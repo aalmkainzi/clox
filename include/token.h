@@ -107,7 +107,6 @@ static inline CGS_Error write_token_ptr(CGS_Writer *writer, Token *tok)
     return cgs_append(writer, tok->lexeme);
 }
 
-
 #define ADD_TOSTR (Token, write_token)
 #include "cgs/cgs.h"
 
