@@ -1,9 +1,9 @@
 #include "clox.h"
 #include "expr.h"
 #include "token.h"
-#include <stdlib.h>
 #include <float.h>
 #include <math.h>
+#include <stdlib.h>
 
 Value eval_literal(Ctx *ctx, Expr *expr);
 Value eval_unary(Ctx *ctx, Expr *expr);

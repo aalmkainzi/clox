@@ -174,7 +174,8 @@ static Token scan_str(Ctx *ctx, const char *tok_start)
     }
 
     CGS_DStr string_data = cgs_dstr_init();
-    int it               = 2;
+
+    int it = 2;
 
     while (tok_start[it - 1] != '\"')
     {
