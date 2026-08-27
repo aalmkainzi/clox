@@ -105,7 +105,7 @@ struct Token
 {
     TokenKind kind;
     CGS_StrView lexeme;
-    bool eval : 1;
+    bool seperate : 1;
 
     TokenData data;
 };

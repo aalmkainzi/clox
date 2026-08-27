@@ -36,7 +36,7 @@ typedef enum TypeKind
 typedef struct Value
 {
     TypeKind type;
-    Token *original;
+    Token *tok;
     union
     {
         CGS_DStr string;

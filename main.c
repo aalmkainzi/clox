@@ -82,9 +82,7 @@ static int run(CGS_StrView file_name, CGS_DStr src)
     if (!ctx->error)
     {
         rpn_print(cgs_writer_ptr(stdout), expr);
-        puts("");
         pretty_print(cgs_writer_ptr(stdout), expr);
-        puts("");
         Value result = eval(ctx, expr);
         cgs_printfln("%?", result);
         free_value(result);

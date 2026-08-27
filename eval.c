@@ -81,8 +81,8 @@ Value eval_binary(Ctx *ctx, Expr *expr)
     Value left  = eval(ctx, expr->binary.left);
     Value right = eval(ctx, expr->binary.right);
 
-    Value result            = copy_value(left);
-    result.original->lexeme = range_view(left.original->lexeme, right.original->lexeme);
+    Value result       = copy_value(left);
+    result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
 
     switch (expr->binary.op->kind)
     {
@@ -102,7 +102,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
             if (!expect_number(ctx, right))
                 break;
 
-            result.original->lexeme = range_view(left.original->lexeme, right.original->lexeme);
+            result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
             result.number += right.number;
         }
         else if (left.type == T_str)
@@ -113,7 +113,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
         }
         else
         {
-            report_tok_error(ctx, left.original, "operands of '+' must be numbers or strings");
+            report_tok_error(ctx, left.tok, "operands of '+' must be numbers or strings");
         }
     }
     break;
@@ -217,7 +217,7 @@ bool expect_number(Ctx *ctx, Value obj)
 {
     if (obj.type != T_num)
     {
-        report_tok_error(ctx, obj.original, "expected number");
+        report_tok_error(ctx, obj.tok, "expected number");
         return false;
     }
     return true;
@@ -227,7 +227,7 @@ bool expect_string(Ctx *ctx, Value obj)
 {
     if (obj.type != T_str)
     {
-        report_tok_error(ctx, obj.original, "expected string");
+        report_tok_error(ctx, obj.tok, "expected string");
         return false;
     }
     return true;
@@ -237,7 +237,7 @@ bool expect_boolean(Ctx *ctx, Value obj)
 {
     if (obj.type != T_bool)
     {
-        report_tok_error(ctx, obj.original, "expected boolean");
+        report_tok_error(ctx, obj.tok, "expected boolean");
         return false;
     }
     return true;
@@ -289,20 +289,20 @@ CGS_Error stringify_literal(CGS_Writer *writer, Literal lit)
 
 static Token *new_eval_token(Token *tok)
 {
-    Token *new_tok = copy_token(tok);
-    new_tok->eval  = true;
+    Token *new_tok    = copy_token(tok);
+    new_tok->seperate = true;
     return new_tok;
 }
 
 Value copy_value(Value from)
 {
-    Value ret    = from;
-    ret.original = new_eval_token(from.original);
+    Value ret = from;
+    ret.tok   = new_eval_token(from.tok);
     return ret;
 }
 
 void free_value(Value val)
 {
-    if (val.original->eval)
-        free_token(val.original);
+    if (val.tok->seperate)
+        free_token(val.tok);
 }

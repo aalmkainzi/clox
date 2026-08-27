@@ -33,10 +33,10 @@ Expr *alloc_literal_expr(LiteralKind litKind, Token *tok)
 
     TypeKind type = map[litKind];
 
-    Expr *ret           = malloc(sizeof(Expr));
-    ret->kind           = EXPR_value;
-    ret->value.original = tok;
-    ret->value.type     = type;
+    Expr *ret       = malloc(sizeof(Expr));
+    ret->kind       = EXPR_value;
+    ret->value.tok  = tok;
+    ret->value.type = type;
 
     switch (type)
     {
@@ -101,7 +101,7 @@ Token *expr_tok(Expr *expr)
     case EXPR_binary:
         return expr->binary.op;
     case EXPR_value:
-        return expr->value.original;
+        return expr->value.tok;
     default:
         __builtin_unreachable();
     }
