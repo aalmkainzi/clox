@@ -8,7 +8,7 @@
 #include <string.h>
 
 static int run_file(const char *file_name);
-static int run_repl();
+static int repl_loop();
 
 int main(int argc, char **argv)
 {
@@ -23,11 +23,11 @@ int main(int argc, char **argv)
     }
     else // just `clox`, run REPL
     {
-        return run_repl();
+        return repl_loop();
     }
 }
 
-static int run(CGS_StrView file_name, CGS_DStr line, bool repl);
+static int run(CGS_StrView file_name, CGS_DStr *line);
 
 static int run_file(const char *file_name)
 {
@@ -41,76 +41,93 @@ static int run_file(const char *file_name)
         cgs_fprintf(stderr, "could not read file %?: %?: %?\n", file_name, err, strerror(errno));
     }
 
-    int return_err = run(cgs_strv(file_name), file_data, false);
+    int return_err = run(cgs_strv(file_name), &file_data);
     cgs_dstr_deinit(&file_data);
     return return_err;
 }
 
-static int run_repl()
+static bool tokens_empty(Ctx *ctx)
 {
-    CGS_DStr line = cgs_dstr_init();
-
-    while (!feof(stdin))
-    {
-        cgs_printf("> ");
-        CGS_Error err = cgs_fread_until(&line, stdin, '\n');
-        if (err.ec == CGS_OK)
-        {
-            line.len -= 1;
-            run(cgs_strv("<repl>"), line, true);
-        }
-    }
-    cgs_dstr_deinit(&line);
-    return 0;
+    return TokensChain_back(&ctx->toks)->size <= 1;
 }
 
-static void execute_stmts(Ctx *ctx, StmtList *stmts);
-
-static int run(CGS_StrView file_name, CGS_DStr src, bool repl)
+static int run_repl_line(Ctx *ctx)
 {
-    // appending empty spaces in cases we try to match a long keyword
-    cgs_append(&src, "        ");
-
-    Ctx *ctx = &(Ctx) {
-        .lineno    = 1,
-        .file_name = file_name,
-        .src       = cgs_strv(src),
-        .repl      = repl,
-    };
+    ctx->error = false;
 
     tokenize(ctx);
-    if (ctx->toks.size <= 1)
-        goto done;
 
-    StmtList stmts = parse(ctx);
+    if (tokens_empty(ctx))
+        return 0;
 
-    execute_stmts(ctx, &stmts);
-done:
-    free_stmtlist(&stmts);
-    free_tokens(&ctx->toks);
-
+    parse(ctx);
+    execute_stmts(ctx);
+    StmtList_drop(&ctx->stmts);
+    
+    ctx->lineno += 1;
     if (ctx->error)
         return 1;
     else
         return 0;
 }
 
-static void execute_stmts(Ctx *ctx, StmtList *stmts)
+#define T Lines, CGS_DStr
+#include "stc/vec.h"
+
+static int repl_loop()
 {
-    for (c_each(it, StmtList, *stmts))
+    Lines lines = Lines_init();
+
+    Ctx *ctx = &(Ctx) {.lineno = 1, .file_name = cgs_strv("<repl>"), .repl = true, .vars = VarMap_init()};
+
+    while (!feof(stdin))
     {
-        if (ctx->error)
-            return;
-        Stmt stmt = *it.ref;
-        switch (stmt.kind)
+        cgs_printf("> ");
+        CGS_DStr *line = Lines_push(&lines, cgs_dstr_init());
+        CGS_Error err  = cgs_fread_until(line, stdin, '\n');
+        if (err.ec == CGS_OK)
         {
-        case STMT_print:
-            Value val = eval(ctx, stmt.expr);
-            cgs_printfln("%?", val);
-            free_value(val);
-            break;
-        case STMT_expr:
-            break;
+            line->len -= 1;
+            cgs_append(line, "        ");
+            ctx->src = cgs_strv(line);
+            run_repl_line(ctx);
         }
     }
+
+    for (c_each(line_it, Lines, lines))
+    {
+        CGS_DStr *line = line_it.ref;
+        cgs_dstr_deinit(line);
+    }
+
+    Lines_drop(&lines);
+    TokensChain_drop(&ctx->toks);
+    VarMap_drop(&ctx->vars);
+
+    return 0;
+}
+
+static int run(CGS_StrView file_name, CGS_DStr *src)
+{
+    // appending empty spaces in cases we try to match a long keyword
+    cgs_append(src, "        ");
+
+    Ctx *ctx = &(Ctx) {.lineno = 1, .file_name = file_name, .src = cgs_strv(src), .repl = false, .vars = VarMap_init()};
+
+    tokenize(ctx);
+    if (tokens_empty(ctx))
+        goto done;
+
+    parse(ctx);
+    execute_stmts(ctx);
+
+done:
+    StmtList_drop(&ctx->stmts);
+    TokensChain_drop(&ctx->toks);
+    VarMap_drop(&ctx->vars);
+
+    if (ctx->error)
+        return 1;
+    else
+        return 0;
 }

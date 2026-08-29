@@ -21,6 +21,9 @@ void pretty_print_(CGS_Writer *sink, Expr *expr)
     case EXPR_value:
         cgs_appendf(sink, "%?", expr->value);
         break;
+    case EXPR_var:
+        cgs_appendf(sink, "%?", expr->ident);
+        break;
     }
 
     if (expr->kind != EXPR_value)

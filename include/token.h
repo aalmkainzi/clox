@@ -2,10 +2,6 @@
 #define TOKENS_H
 
 #include "cgs/cgs.h"
-#include "stc/types.h"
-
-typedef struct Token Token;
-declare_vec(TokenList, Token);
 
 // clang-format off
 
@@ -47,7 +43,7 @@ macro(or      , "or"   )          \
 macro(true    , "true" )          \
 macro(false   , "false")          \
 macro(function, "fun"  )          \
-macro(variable, "var"  )          \
+macro(var     , "var"  )          \
 macro(class   , "class")          \
 macro(print   , "print")          \
 macro(nil     , "nil"  )
@@ -87,13 +83,9 @@ typedef enum TokenKind
 
 #undef make_enum_variant
 
-#define make_tok2str_entry(kind, str) \
-    [TK_##kind] = (CGS_StrView) {.chars = str, .len = sizeof(str) - 1},
+#define make_tok2str_entry(kind, str) [TK_##kind] = (CGS_StrView) {.chars = str, .len = sizeof(str) - 1},
 
-static const CGS_StrView tok2str[] =
-{
-    TOKEN_LIST(make_tok2str_entry)
-};
+static const CGS_StrView tok2str[] = {TOKEN_LIST(make_tok2str_entry)};
 
 // clang-format off
 
@@ -106,15 +98,19 @@ typedef union TokenData
     CGS_DStr string;
 } TokenData;
 
-struct Token
+typedef struct Token
 {
     TokenKind kind;
     CGS_StrView lexeme;
     bool seperate : 1;
 
     TokenData data;
-};
+} Token;
 
+Token *copy_token(Token *token);
+void free_token(Token *tok);
+
+// write functions so Token can be printable
 static inline CGS_Error write_token(CGS_Writer *writer, Token tok)
 {
     return cgs_append(writer, tok.lexeme);
@@ -131,8 +127,14 @@ static inline CGS_Error write_token_ptr(CGS_Writer *writer, Token *tok)
 #define ADD_TOSTR (Token *, write_token_ptr)
 #include "cgs/cgs.h"
 
-#define i_declared
+#define i_no_clone
+#define i_keydrop free_token
 #define T TokenList, Token
 #include "stc/vec.h"
+
+#define i_no_clone
+#define i_keydrop TokenList_drop
+#define T TokensChain, TokenList
+#include "stc/list.h"
 
 #endif

@@ -47,10 +47,12 @@ Expr *alloc_literal_expr(LiteralKind litKind, Token *tok)
         ret->value.number = tok->data.dbl;
         break;
     case T_str:
-        ret->value.string = tok->data.string;
+        ret->value.string = cgs_dup(tok->data.string);
         break;
     case T_nil:
         break;
+    case T_none:
+        unreachable();
     }
 
     return ret;
@@ -77,6 +79,14 @@ Expr *new_literal(Token *tok)
     }
 }
 
+Expr *new_var(Token *tok)
+{
+    Expr *ret  = malloc(sizeof(Expr));
+    ret->kind  = EXPR_var;
+    ret->ident = tok;
+    return ret;
+}
+
 void free_expr(Expr *expr)
 {
     if (expr == NULL)
@@ -94,8 +104,8 @@ void free_expr(Expr *expr)
         free(expr);
         break;
     case EXPR_value:
+    case EXPR_var:
         free(expr);
-        break;
     }
 }
 
@@ -109,7 +119,8 @@ Token *expr_tok(Expr *expr)
         return expr->binary.op;
     case EXPR_value:
         return expr->value.tok;
-    default:
-        __builtin_unreachable();
+    case EXPR_var:
+        return expr->ident;
     }
+    unreachable();
 }

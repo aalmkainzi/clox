@@ -5,13 +5,17 @@
 #include "expr.h"
 #include "stmt.h"
 #include "token.h"
+#include "var.h"
 
 typedef struct Ctx
 {
-    TokenList toks;
     CGS_StrView file_name;
     CGS_StrView src;
     int lineno;
+
+    TokensChain toks;
+    StmtList stmts;
+    VarMap vars;
 
     Token *cur;
 
@@ -19,13 +23,12 @@ typedef struct Ctx
     bool repl;
 } Ctx;
 
-Token *copy_token(Token *token);
-void free_token(Token *tok);
-
-CGS_StrView range_view(CGS_StrView left, CGS_StrView right);
+// "abc" ... "h"
+// -> "abcdefgh"
+CGS_StrView range_view(CGS_StrView begin, CGS_StrView end);
 
 void tokenize(Ctx *ctx);
-StmtList parse(Ctx *ctx);
+void parse(Ctx *ctx);
 
 void free_expr(Expr *expr);
 void free_tokens(TokenList *toks);

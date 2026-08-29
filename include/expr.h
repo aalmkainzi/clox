@@ -8,7 +8,8 @@ typedef enum ExprKind
 {
     EXPR_unary,
     EXPR_binary,
-    EXPR_value
+    EXPR_value,
+    EXPR_var
 } ExprKind;
 
 typedef enum LiteralKind
@@ -27,6 +28,7 @@ typedef struct Literal
 
 typedef enum TypeKind
 {
+    T_none = 0,
     T_bool,
     T_num,
     T_str,
@@ -77,6 +79,7 @@ Expr *new_binary(Expr *left, Expr *right, Token *op);
 Expr *new_unary(Expr *left, Token *op);
 Expr *new_grouping(Expr *inside);
 Expr *new_literal(Token *tok);
+Expr *new_var(Token *tok);
 Token *expr_tok(Expr *expr);
 void free_value(Value value);
 

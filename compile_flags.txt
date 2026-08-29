@@ -1,3 +1,4 @@
 -Iexternal
 -Iexternal/STC/include
 -Iinclude
+-std=c23

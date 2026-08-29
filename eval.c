@@ -5,7 +5,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-Value eval_literal(Ctx *ctx, Expr *expr);
 Value eval_unary(Ctx *ctx, Expr *expr);
 Value eval_binary(Ctx *ctx, Expr *expr);
 
@@ -27,9 +26,16 @@ Value eval(Ctx *ctx, Expr *expr)
     case EXPR_value:
         return expr->value;
 
-    default:
-        __builtin_unreachable();
+    case EXPR_var:
+        const VarMap_value *mapped = VarMap_get(&ctx->vars, expr->ident->lexeme);
+        if (mapped == NULL)
+        {
+            report_tok_error(ctx, expr_tok(expr), "undefined variable '%?'", expr->ident->lexeme);
+            return (Value) {.type = T_none};
+        }
+        return mapped->second;
     }
+    unreachable();
 }
 
 Value eval_unary(Ctx *ctx, Expr *expr)
@@ -72,7 +78,7 @@ Value eval_unary(Ctx *ctx, Expr *expr)
     break;
 
     default:
-        __builtin_unreachable();
+        unreachable();
     }
 
     return obj;
@@ -115,6 +121,8 @@ Value eval_binary(Ctx *ctx, Expr *expr)
             case T_nil:
                 cgs_append_tostr(&result.string, "nil");
                 break;
+            case T_none:
+                unreachable();
             }
         }
         else if (right.type == T_str)
@@ -135,6 +143,8 @@ Value eval_binary(Ctx *ctx, Expr *expr)
             case T_nil:
                 result.string = cgs_asprintf("%?%?", "nil", right.string);
                 break;
+            case T_none:
+                unreachable();
             }
         }
         else
@@ -299,7 +309,7 @@ CGS_Error stringify_value(CGS_Writer *writer, Value val)
         break;
 
     default:
-        __builtin_unreachable();
+        unreachable();
     }
 }
 
@@ -321,7 +331,7 @@ CGS_Error stringify_literal(CGS_Writer *writer, Literal lit)
         break;
 
     default:
-        __builtin_unreachable();
+        unreachable();
     }
 }
 
@@ -336,11 +346,15 @@ Value copy_value(Value from)
 {
     Value ret = from;
     ret.tok   = new_eval_token(from.tok);
+    if (from.type == T_str)
+        ret.string = cgs_dup(ret.string);
     return ret;
 }
 
 void free_value(Value val)
 {
     if (val.tok->seperate)
-        free_token(val.tok);
+        free(val.tok);
+    if (val.type == T_str)
+        cgs_dstr_deinit(&val.string);
 }

@@ -234,8 +234,7 @@ Token scan_one_token(Ctx *ctx, const char *tok_start)
 
 void tokenize(Ctx *ctx)
 {
-    ctx->toks       = TokenList_init();
-    TokenList *toks = &ctx->toks;
+    TokenList *toks = TokensChain_push(&ctx->toks, TokenList_init());
 
     CGS_StrView src_walk = cgs_strv(ctx->src);
 
@@ -314,17 +313,13 @@ bool consume_any_(Ctx *ctx, TokenKind *kinds, int n_kinds)
     return false;
 }
 
-void free_tokens(TokenList *toks)
+void free_token(Token *tok)
 {
-    for (ptrdiff_t i = 0; i < toks->size; i++)
+    assert(!tok->seperate);
+    if (tok->kind == TK_str)
     {
-        Token *tok = &toks->data[i];
-        if (tok->kind == TK_str)
-        {
-            cgs_dstr_deinit(&tok->data.string);
-        }
+        cgs_dstr_deinit(&tok->data.string);
     }
-    TokenList_drop(toks);
 }
 
 Token *copy_token(Token *token)
@@ -332,29 +327,17 @@ Token *copy_token(Token *token)
     Token *copy = malloc(sizeof(Token));
     *copy       = *token;
 
-    if (copy->kind == TK_str)
-    {
-        copy->data.string = cgs_dup(copy->data.string);
-    }
+    // if (copy->kind == TK_str)
+    // {
+    //     copy->data.string = cgs_dup(copy->data.string);
+    // }
 
     return copy;
 }
 
-// only usable with tokens from copy_token
-void free_token(Token *tok)
+CGS_StrView range_view(CGS_StrView begin, CGS_StrView end)
 {
-    if (tok->kind == TK_str)
-    {
-        cgs_dstr_deinit(&tok->data.string);
-    }
-    free(tok);
-}
-
-// "a" "bcdefg" "h"
-// -> "abcdefgh"
-CGS_StrView range_view(CGS_StrView left, CGS_StrView right)
-{
-    CGS_StrView ret = left;
-    ret.len         = (right.chars - left.chars) + right.len;
+    CGS_StrView ret = begin;
+    ret.len         = (end.chars - begin.chars) + end.len;
     return ret;
 }

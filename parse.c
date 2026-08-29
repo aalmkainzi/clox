@@ -12,28 +12,48 @@ static Expr *additive(Ctx *ctx);
 static Expr *multitive(Ctx *ctx);
 static Expr *unary(Ctx *ctx);
 static Expr *primary(Ctx *ctx);
+
 static Stmt print_stmt(Ctx *ctx);
 static Stmt expr_stmt(Ctx *ctx);
+static Stmt var_decl(Ctx *ctx);
 
-StmtList parse(Ctx *ctx)
+void parse(Ctx *ctx)
 {
-    StmtList stmts = StmtList_init();
-    ctx->cur       = ctx->toks.data;
+    ctx->stmts = StmtList_init();
+
+    ctx->cur = TokensChain_back(&ctx->toks)->data;
 
     while (ctx->cur && ctx->cur->kind != TK_eof)
     {
         switch (ctx->cur->kind)
         {
         case TK_print:
-            StmtList_push(&stmts, print_stmt(ctx));
+            StmtList_push(&ctx->stmts, print_stmt(ctx));
+            break;
+        case TK_var:
+            StmtList_push(&ctx->stmts, var_decl(ctx));
             break;
         default:
-            StmtList_push(&stmts, expr_stmt(ctx));
+            StmtList_push(&ctx->stmts, expr_stmt(ctx));
             break;
         }
     }
+}
 
-    return stmts;
+static Stmt var_decl(Ctx *ctx)
+{
+    Stmt stmt = {.kind = STMT_var, .begin = ctx->cur};
+    skip_tok(ctx, TK_var);
+    stmt.var.name = ctx->cur;
+    skip_tok(ctx, TK_ident);
+
+    if (ctx->cur->kind == TK_equal)
+    {
+        skip_tok(ctx, TK_equal);
+        stmt.var.rhs = or_expr(ctx);
+    }
+    skip_tok(ctx, TK_semicolon);
+    return stmt;
 }
 
 static Stmt expr_stmt(Ctx *ctx)
@@ -184,7 +204,7 @@ static Expr *primary(Ctx *ctx)
 
     if (ctx->cur->kind == TK_ident)
     {
-        report_tok_error(ctx, ctx->cur, "identifiers not supported in this context", tok2str[ctx->cur->kind]);
+        expr = new_var(ctx->cur);
     }
     else
     {
