@@ -39,6 +39,8 @@ typedef struct Value
 {
     TypeKind type;
     Token *tok;
+    bool error;
+
     union
     {
         CGS_DStr string;

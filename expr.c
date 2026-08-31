@@ -40,19 +40,19 @@ Expr *alloc_literal_expr(LiteralKind litKind, Token *tok)
 
     switch (type)
     {
-    case T_bool:
-        ret->value.boolean = tok->data.boolean;
-        break;
-    case T_num:
-        ret->value.number = tok->data.dbl;
-        break;
-    case T_str:
-        ret->value.string = cgs_dup(tok->data.string);
-        break;
-    case T_nil:
-        break;
-    case T_none:
-        unreachable();
+        case T_bool:
+            ret->value.boolean = tok->data.boolean;
+            break;
+        case T_num:
+            ret->value.number = tok->data.dbl;
+            break;
+        case T_str:
+            ret->value.string = cgs_dup(tok->data.string);
+            break;
+        case T_nil:
+            break;
+        case T_none:
+            unreachable();
     }
 
     return ret;
@@ -62,20 +62,20 @@ Expr *new_literal(Token *tok)
 {
     switch (tok->kind)
     {
-    case TK_nil:
-        return alloc_literal_expr(LIT_nil, tok);
-    case TK_str:
-        return alloc_literal_expr(LIT_str, tok);
-    case TK_num:
-        return alloc_literal_expr(LIT_num, tok);
-    case TK_float:
-        return alloc_literal_expr(LIT_num, tok);
-    case TK_true:
-        return alloc_literal_expr(LIT_bool, tok);
-    case TK_false:
-        return alloc_literal_expr(LIT_bool, tok);
-    default:
-        return NULL;
+        case TK_nil:
+            return alloc_literal_expr(LIT_nil, tok);
+        case TK_str:
+            return alloc_literal_expr(LIT_str, tok);
+        case TK_num:
+            return alloc_literal_expr(LIT_num, tok);
+        case TK_float:
+            return alloc_literal_expr(LIT_num, tok);
+        case TK_true:
+            return alloc_literal_expr(LIT_bool, tok);
+        case TK_false:
+            return alloc_literal_expr(LIT_bool, tok);
+        default:
+            return NULL;
     }
 }
 
@@ -94,18 +94,18 @@ void free_expr(Expr *expr)
 
     switch (expr->kind)
     {
-    case EXPR_unary:
-        free_expr(expr->unary.expr);
-        free(expr);
-        break;
-    case EXPR_binary:
-        free_expr(expr->binary.left);
-        free_expr(expr->binary.right);
-        free(expr);
-        break;
-    case EXPR_value:
-    case EXPR_var:
-        free(expr);
+        case EXPR_unary:
+            free_expr(expr->unary.expr);
+            free(expr);
+            break;
+        case EXPR_binary:
+            free_expr(expr->binary.left);
+            free_expr(expr->binary.right);
+            free(expr);
+            break;
+        case EXPR_value:
+        case EXPR_var:
+            free(expr);
     }
 }
 
@@ -113,14 +113,14 @@ Token *expr_tok(Expr *expr)
 {
     switch (expr->kind)
     {
-    case EXPR_unary:
-        return expr->unary.op;
-    case EXPR_binary:
-        return expr->binary.op;
-    case EXPR_value:
-        return expr->value.tok;
-    case EXPR_var:
-        return expr->ident;
+        case EXPR_unary:
+            return expr->unary.op;
+        case EXPR_binary:
+            return expr->binary.op;
+        case EXPR_value:
+            return expr->value.tok;
+        case EXPR_var:
+            return expr->ident;
     }
     unreachable();
 }

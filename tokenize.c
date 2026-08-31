@@ -8,9 +8,10 @@ static bool is_ident_char(char c)
     return isalnum(c) || c == '_';
 }
 
-static Token scan_keyword(Ctx *ctx, const char *tok_start)
+static Token scan_keyword(Ctx *ctx, const char *tok_start, bool *err)
 {
     (void)ctx;
+    (void)err;
 
     Token ret = {.kind = TK_none};
 
@@ -37,9 +38,10 @@ static Token scan_keyword(Ctx *ctx, const char *tok_start)
     return ret;
 }
 
-static Token scan_ident(Ctx *ctx, const char *tok_start)
+static Token scan_ident(Ctx *ctx, const char *tok_start, bool *err)
 {
     (void)ctx;
+    (void)err;
 
     Token ret = {.kind = TK_none};
 
@@ -58,9 +60,10 @@ static Token scan_ident(Ctx *ctx, const char *tok_start)
     return ret;
 }
 
-static Token scan_punct(Ctx *ctx, const char *tok_start)
+static Token scan_punct(Ctx *ctx, const char *tok_start, bool *err)
 {
     (void)ctx;
+    (void)err;
 
     Token ret = {.kind = TK_none};
 
@@ -88,9 +91,10 @@ static bool isnum(char c)
     return c >= '0' && c <= '9';
 }
 
-static Token scan_num(Ctx *ctx, const char *tok_start)
+static Token scan_num(Ctx *ctx, const char *tok_start, bool *err)
 {
     (void)ctx;
+    (void)err;
 
     Token ret = {.kind = TK_none};
 
@@ -148,23 +152,23 @@ static char handle_escape_sequence(char c)
 {
     switch (c)
     {
-    case 'f':
-        return '\f';
-    case 'n':
-        return '\n';
-    case 'r':
-        return '\r';
-    case 't':
-        return '\t';
-    case 'v':
-        return '\v';
-    case '\"':
-        return '\"';
+        case 'f':
+            return '\f';
+        case 'n':
+            return '\n';
+        case 'r':
+            return '\r';
+        case 't':
+            return '\t';
+        case 'v':
+            return '\v';
+        case '\"':
+            return '\"';
     }
     return -1;
 }
 
-static Token scan_str(Ctx *ctx, const char *tok_start)
+static Token scan_str(Ctx *ctx, const char *tok_start, bool *err)
 {
     Token ret = {.kind = TK_none};
 
@@ -182,6 +186,9 @@ static Token scan_str(Ctx *ctx, const char *tok_start)
         if (tok_start[it - 1] == '\0')
         {
             report_error(ctx, tok_start, "unterminated string literal");
+            *err = true;
+            cgs_dstr_deinit(&string_data);
+            return ret;
         }
 
         if (tok_start[it - 1] == '\\')
@@ -210,7 +217,7 @@ static Token scan_str(Ctx *ctx, const char *tok_start)
 #define try_scan_token(func)                                        \
     do                                                              \
     {                                                               \
-        Token scanned_tok = (func)(ctx, tok_start);                 \
+        Token scanned_tok = (func)(ctx, tok_start, err);            \
         if (scanned_tok.kind != TK_none)                            \
         {                                                           \
             if ((func) == scan_str)                                 \
@@ -219,9 +226,13 @@ static Token scan_str(Ctx *ctx, const char *tok_start)
             }                                                       \
             return scanned_tok;                                     \
         }                                                           \
+        else if (*err)                                              \
+        {                                                           \
+            return scanned_tok;                                     \
+        }                                                           \
     } while (0)
 
-Token scan_one_token(Ctx *ctx, const char *tok_start)
+Token scan_one_token(Ctx *ctx, const char *tok_start, bool *err)
 {
     try_scan_token(scan_keyword);
     try_scan_token(scan_ident);
@@ -257,14 +268,21 @@ void tokenize(Ctx *ctx)
 
         const char *tok_start = src_walk.chars;
 
-        Token scanned_tok = scan_one_token(ctx, tok_start);
+        bool err          = false;
+        Token scanned_tok = scan_one_token(ctx, tok_start, &err);
 
-        if (scanned_tok.kind == TK_none)
+        if (err)
+        {
+            src_walk.chars += 1;
+            src_walk.len -= 1;
+        }
+        else if (scanned_tok.kind == TK_none)
         {
             report_error(ctx, src_walk, "unexpected character %?", src_walk.chars[0]);
             src_walk.chars += 1;
             src_walk.len -= 1;
         }
+
         else
         {
             TokenList_push(toks, scanned_tok);
@@ -281,6 +299,9 @@ void skip_tok(Ctx *ctx, TokenKind kind)
 {
     if (ctx->cur->kind != kind)
         report_tok_error(ctx, ctx->cur, "expected %?, but got %?", tok2str[kind], tok2str[ctx->cur->kind]);
+
+    if (kind != TK_semicolon && ctx->cur->kind == TK_semicolon)
+        return;
 
     if (ctx->cur->kind != TK_eof)
         ctx->cur += 1;

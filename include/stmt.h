@@ -31,7 +31,6 @@ typedef struct Stmt
     };
 } Stmt;
 
-
 typedef struct Ctx Ctx;
 void execute_stmts(Ctx *ctx);
 

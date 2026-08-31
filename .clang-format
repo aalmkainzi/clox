@@ -13,6 +13,7 @@ AllowShortFunctionsOnASingleLine: None
 SpaceBeforeCpp11BracedList: true
 AlignAfterOpenBracket: BlockIndent
 BinPackArguments: false
+IndentCaseLabels: true
 ---
 Language: ObjC
 BasedOnStyle: LLVM
@@ -28,4 +29,5 @@ AllowShortFunctionsOnASingleLine: None
 SpaceBeforeCpp11BracedList: true
 AlignAfterOpenBracket: BlockIndent
 BinPackArguments: false
+IndentCaseLabels: true
 ...

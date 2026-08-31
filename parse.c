@@ -27,15 +27,15 @@ void parse(Ctx *ctx)
     {
         switch (ctx->cur->kind)
         {
-        case TK_print:
-            StmtList_push(&ctx->stmts, print_stmt(ctx));
-            break;
-        case TK_var:
-            StmtList_push(&ctx->stmts, var_decl(ctx));
-            break;
-        default:
-            StmtList_push(&ctx->stmts, expr_stmt(ctx));
-            break;
+            case TK_print:
+                StmtList_push(&ctx->stmts, print_stmt(ctx));
+                break;
+            case TK_var:
+                StmtList_push(&ctx->stmts, var_decl(ctx));
+                break;
+            default:
+                StmtList_push(&ctx->stmts, expr_stmt(ctx));
+                break;
         }
     }
 }
@@ -211,7 +211,14 @@ static Expr *primary(Ctx *ctx)
         expr = new_literal(ctx->cur);
 
         if (expr == NULL)
-            report_tok_error(ctx, ctx->cur, "unexpected %?", tok2str[ctx->cur->kind]);
+        {
+            report_tok_error(ctx, ctx->cur, "expected expression, but got '%?'", tok2str[ctx->cur->kind]);
+            if (ctx->cur->kind == TK_semicolon)
+                ctx->cur -= 1; // for better diagnostic.
+                               // error: expected expression, but got ';'
+                               // 1  | print 1 + !;
+                               //    |            ^
+        }
     }
 
     advance(ctx);

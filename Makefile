@@ -8,7 +8,7 @@ HDR := $(wildcard include/*.h) $(wildcard *.h)
 FMT_SRC := $(wildcard *.c)
 
 SANITIZE := -fsanitize=address,undefined
-CFLAGS := -Wall -Wextra -Iinclude -Iexternal -Iexternal/STC/include -ggdb $(SANITIZE)
+CFLAGS := -Wall -Wextra -Iinclude -Iexternal -Iexternal/STC/include -std=c23 -ggdb $(SANITIZE)
 CPPFLAGS := -MMD -MP
 LDFLAGS := -lm $(SANITIZE)
 

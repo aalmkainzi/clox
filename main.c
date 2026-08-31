@@ -34,7 +34,6 @@ static int run_file(const char *file_name)
     FILE *f            = fopen(file_name, "r");
     CGS_DStr file_data = cgs_dstr_init();
 
-    errno         = 0;
     CGS_Error err = cgs_fread_until(&file_data, f, EOF);
     if (err.ec != CGS_OK)
     {
@@ -57,13 +56,13 @@ static int run_repl_line(Ctx *ctx)
 
     tokenize(ctx);
 
-    if (tokens_empty(ctx))
+    if (ctx->error || tokens_empty(ctx))
         return 0;
 
     parse(ctx);
     execute_stmts(ctx);
     StmtList_drop(&ctx->stmts);
-    
+
     ctx->lineno += 1;
     if (ctx->error)
         return 1;
@@ -78,7 +77,12 @@ static int repl_loop()
 {
     Lines lines = Lines_init();
 
-    Ctx *ctx = &(Ctx) {.lineno = 1, .file_name = cgs_strv("<repl>"), .repl = true, .vars = VarMap_init()};
+    Ctx *ctx = &(Ctx) {
+        .lineno    = 1,
+        .file_name = cgs_strv("<repl>"),
+        .repl      = true,
+        .vars      = VarMap_init(),
+    };
 
     while (!feof(stdin))
     {
@@ -115,7 +119,7 @@ static int run(CGS_StrView file_name, CGS_DStr *src)
     Ctx *ctx = &(Ctx) {.lineno = 1, .file_name = file_name, .src = cgs_strv(src), .repl = false, .vars = VarMap_init()};
 
     tokenize(ctx);
-    if (tokens_empty(ctx))
+    if (ctx->error || tokens_empty(ctx))
         goto done;
 
     parse(ctx);
