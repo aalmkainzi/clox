@@ -336,17 +336,10 @@ CGS_Error stringify_literal(CGS_Writer *writer, Literal lit, CGS_StrView fmt_arg
     }
 }
 
-static Token *new_eval_token(Token *tok)
-{
-    Token *new_tok    = copy_token(tok);
-    new_tok->seperate = true;
-    return new_tok;
-}
-
 Value copy_value(Value from)
 {
     Value ret = from;
-    ret.tok   = new_eval_token(from.tok);
+    ret.tok   = copy_token(from.tok);
     if (from.type == T_str)
         ret.string = cgs_dup(ret.string);
     return ret;

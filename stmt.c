@@ -40,10 +40,9 @@ void execute_stmts(Ctx *ctx)
                 free_value(val);
                 break;
             case STMT_var:
-                
                 CGS_StrView name  = stmt.var.name->lexeme;
-                Value value       = eval(ctx, stmt.var.rhs);
-                value.var       = true;
+                Value value       = copy_value(eval(ctx, stmt.var.rhs));
+                value.var         = true;
                 VarMap_result res = VarMap_insert(vars, name, value);
                 if (!res.inserted)
                 {

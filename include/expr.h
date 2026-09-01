@@ -90,6 +90,8 @@ void free_var_value(Value *val);
 struct Ctx;
 Value eval(struct Ctx *ctx, Expr *expr);
 
+Value copy_value(Value from);
+
 CGS_Error stringify_value(CGS_Writer *writer, Value val, CGS_StrView fmt_arg);
 CGS_Error stringify_literal(CGS_Writer *writer, Literal lit, CGS_StrView fmt_arg);
 

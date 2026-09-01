@@ -356,13 +356,9 @@ void free_token(Token *tok)
 
 Token *copy_token(Token *token)
 {
-    Token *copy = malloc(sizeof(Token));
-    *copy       = *token;
-
-    // if (copy->kind == TK_str)
-    // {
-    //     copy->data.string = cgs_dup(copy->data.string);
-    // }
+    Token *copy    = malloc(sizeof(Token));
+    *copy          = *token;
+    copy->seperate = true;
 
     return copy;
 }
