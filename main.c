@@ -7,29 +7,45 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int run_file(const char *file_name);
-static int repl_loop();
+static int run_file(const char *file_name, bool verbose);
+static int repl_loop(bool verbose);
 
 int main(int argc, char **argv)
 {
-    if (argc > 2)
+    if (argc > 3)
     {
-        fprintf(stderr, "usage: clox [script]");
+        fprintf(stderr, "usage: clox [script] [-v]");
         exit(EXIT_FAILURE);
     }
-    else if (argc == 2)
+
+    bool verbose          = false;
+    const char *file_name = NULL;
+    for (int i = 1; i < argc; i++)
     {
-        return run_file(argv[1]);
+        if (cgs_equal(argv[i], "-v"))
+        {
+            verbose = true;
+        }
+        else
+        {
+            file_name = argv[i];
+        }
     }
-    else // just `clox`, run REPL
+
+    cgs_printfln("verbose = %?", verbose);
+    if (file_name)
     {
-        return repl_loop();
+        run_file(file_name, verbose);
+    }
+    else
+    {
+        repl_loop(verbose);
     }
 }
 
-static int run(CGS_StrView file_name, CGS_DStr *line);
+static int run(CGS_StrView file_name, CGS_DStr *line, bool verbose);
 
-static int run_file(const char *file_name)
+static int run_file(const char *file_name, bool verbose)
 {
     FILE *f            = fopen(file_name, "r");
     CGS_DStr file_data = cgs_dstr_init();
@@ -40,7 +56,7 @@ static int run_file(const char *file_name)
         cgs_fprintf(stderr, "could not read file %?: %?: %?\n", file_name, err, strerror(errno));
     }
 
-    int return_err = run(cgs_strv(file_name), &file_data);
+    int return_err = run(cgs_strv(file_name), &file_data, verbose);
     cgs_dstr_deinit(&file_data);
     return return_err;
 }
@@ -48,6 +64,15 @@ static int run_file(const char *file_name)
 static bool tokens_empty(Ctx *ctx)
 {
     return TokensChain_back(&ctx->toks)->size <= 1;
+}
+
+static void print_tokens(Ctx *ctx)
+{
+    for(c_each(it, TokenList, ctx->toks.last->value))
+    {
+        cgs_printf("(%?, %?), ", tok2str[it.ref->kind], it.ref->lexeme);
+    }
+    cgs_putc(stdout, '\n');
 }
 
 static int run_repl_line(Ctx *ctx)
@@ -59,7 +84,16 @@ static int run_repl_line(Ctx *ctx)
     if (ctx->error || tokens_empty(ctx))
         return 0;
 
+    if (ctx->verbose)
+    {
+        print_tokens(ctx);
+    }
+
     parse(ctx);
+    if (ctx->verbose)
+    {
+        cgs_printfln("nb statements: %?", ctx->stmts.size);
+    }
     execute_stmts(ctx);
     StmtList_drop(&ctx->stmts);
 
@@ -73,7 +107,7 @@ static int run_repl_line(Ctx *ctx)
 #define T Lines, CGS_DStr
 #include "stc/vec.h"
 
-static int repl_loop()
+static int repl_loop(bool verbose)
 {
     Lines lines = Lines_init();
 
@@ -82,6 +116,7 @@ static int repl_loop()
         .file_name = cgs_strv("<repl>"),
         .repl      = true,
         .vars      = VarMap_init(),
+        .verbose   = verbose,
     };
 
     while (!feof(stdin))
@@ -104,38 +139,48 @@ static int repl_loop()
         cgs_dstr_deinit(line);
     }
 
-    for(c_each(it, VarMap, ctx->vars))
+    for (c_each(it, VarMap, ctx->vars))
     {
         free_var_value(&it.ref->second);
     }
     VarMap_drop(&ctx->vars);
-    
+
     TokensChain_drop(&ctx->toks);
     Lines_drop(&lines);
 
     return 0;
 }
 
-static int run(CGS_StrView file_name, CGS_DStr *src)
+static int run(CGS_StrView file_name, CGS_DStr *src, bool verbose)
 {
     // appending empty spaces in cases we try to match a long keyword
     cgs_append(src, "        ");
 
-    Ctx *ctx = &(Ctx) {.lineno = 1, .file_name = file_name, .src = cgs_strv(src), .repl = false, .vars = VarMap_init()};
+    Ctx *ctx = &(Ctx) {
+        .lineno    = 1,
+        .file_name = file_name,
+        .src       = cgs_strv(src),
+        .repl      = false,
+        .vars      = VarMap_init(),
+        .verbose   = verbose,
+    };
 
     tokenize(ctx);
     if (ctx->error || tokens_empty(ctx))
         goto done;
-
+    if (ctx->verbose)
+    {
+        print_tokens(ctx);
+    }
     parse(ctx);
     execute_stmts(ctx);
 
 done:
-    for(c_each(it, StmtList, ctx->stmts))
+    for (c_each(it, StmtList, ctx->stmts))
     {
         free_stmt(it.ref);
     }
-    
+
     StmtList_drop(&ctx->stmts);
     TokensChain_drop(&ctx->toks);
     VarMap_drop(&ctx->vars);

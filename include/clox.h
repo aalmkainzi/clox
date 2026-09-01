@@ -12,6 +12,7 @@ typedef struct Ctx
     CGS_StrView file_name;
     CGS_StrView src;
     int lineno;
+    bool verbose;
 
     TokensChain toks;
     StmtList stmts;
