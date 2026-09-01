@@ -39,6 +39,7 @@ typedef struct Value
 {
     TypeKind type;
     Token *tok;
+    bool var;
     bool error;
 
     union
@@ -84,12 +85,13 @@ Expr *new_literal(Token *tok);
 Expr *new_var(Token *tok);
 Token *expr_tok(Expr *expr);
 void free_value(Value value);
+void free_var_value(Value *val);
 
 struct Ctx;
 Value eval(struct Ctx *ctx, Expr *expr);
 
-CGS_Error stringify_value(CGS_Writer *writer, Value val);
-CGS_Error stringify_literal(CGS_Writer *writer, Literal lit);
+CGS_Error stringify_value(CGS_Writer *writer, Value val, CGS_StrView fmt_arg);
+CGS_Error stringify_literal(CGS_Writer *writer, Literal lit, CGS_StrView fmt_arg);
 
 #define ADD_TOSTR (Value, stringify_value)
 #include "cgs/cgs.h"

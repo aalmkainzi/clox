@@ -111,12 +111,12 @@ Token *copy_token(Token *token);
 void free_token(Token *tok);
 
 // write functions so Token can be printable
-static inline CGS_Error write_token(CGS_Writer *writer, Token tok)
+static inline CGS_Error write_token(CGS_Writer *writer, Token tok, CGS_StrView fmt_arg)
 {
     return cgs_append(writer, tok.lexeme);
 }
 
-static inline CGS_Error write_token_ptr(CGS_Writer *writer, Token *tok)
+static inline CGS_Error write_token_ptr(CGS_Writer *writer, Token *tok, CGS_StrView fmt_arg)
 {
     return cgs_append(writer, tok->lexeme);
 }

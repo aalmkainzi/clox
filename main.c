@@ -104,9 +104,9 @@ static int repl_loop()
         cgs_dstr_deinit(line);
     }
 
-    Lines_drop(&lines);
-    TokensChain_drop(&ctx->toks);
     VarMap_drop(&ctx->vars);
+    TokensChain_drop(&ctx->toks);
+    Lines_drop(&lines);
 
     return 0;
 }

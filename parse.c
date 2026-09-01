@@ -86,7 +86,8 @@ static Expr *or_expr(Ctx *ctx)
 
     while (check_any(ctx, TK_or))
     {
-        Token *op   = advance(ctx);
+        Token *op = ctx->cur;
+        advance(ctx);
         Expr *right = and_expr(ctx);
 
         expr = new_binary(expr, right, op);
@@ -101,7 +102,8 @@ static Expr *and_expr(Ctx *ctx)
 
     while (check_any(ctx, TK_and))
     {
-        Token *op   = advance(ctx);
+        Token *op = ctx->cur;
+        advance(ctx);
         Expr *right = equality(ctx);
 
         expr = new_binary(expr, right, op);
@@ -121,7 +123,8 @@ static Expr *equality(Ctx *ctx)
 
     while (check_any(ctx, TK_equal_equal, TK_not_equal))
     {
-        Token *op   = advance(ctx);
+        Token *op = ctx->cur;
+        advance(ctx);
         Expr *right = comparison(ctx);
 
         expr = new_binary(expr, right, op);
@@ -136,7 +139,8 @@ static Expr *comparison(Ctx *ctx)
 
     while (check_any(ctx, TK_lt, TK_lte, TK_gt, TK_gte))
     {
-        Token *op   = advance(ctx);
+        Token *op = ctx->cur;
+        advance(ctx);
         Expr *right = additive(ctx);
 
         expr = new_binary(expr, right, op);
@@ -151,7 +155,8 @@ static Expr *additive(Ctx *ctx)
 
     while (check_any(ctx, TK_plus, TK_minus))
     {
-        Token *op   = advance(ctx);
+        Token *op = ctx->cur;
+        advance(ctx);
         Expr *right = multitive(ctx);
 
         expr = new_binary(expr, right, op);
@@ -166,7 +171,8 @@ static Expr *multitive(Ctx *ctx)
 
     while (check_any(ctx, TK_star, TK_slash))
     {
-        Token *op   = advance(ctx);
+        Token *op = ctx->cur;
+        advance(ctx);
         Expr *right = unary(ctx);
 
         expr = new_binary(expr, right, op);
@@ -179,7 +185,8 @@ static Expr *unary(Ctx *ctx)
 {
     if (check_any(ctx, TK_not, TK_minus))
     {
-        Token *op = advance(ctx);
+        Token *op = ctx->cur;
+        advance(ctx);
         Expr *exp = unary(ctx);
         Expr *new = new_unary(exp, op);
         return new;
@@ -213,11 +220,10 @@ static Expr *primary(Ctx *ctx)
         if (expr == NULL)
         {
             report_tok_error(ctx, ctx->cur, "expected expression, but got '%?'", tok2str[ctx->cur->kind]);
+
+            // dont skip ';' for better diagnostic
             if (ctx->cur->kind == TK_semicolon)
-                ctx->cur -= 1; // for better diagnostic.
-                               // error: expected expression, but got ';'
-                               // 1  | print 1 + !;
-                               //    |            ^
+                ctx->cur -= 1;
         }
     }
 

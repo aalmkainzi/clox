@@ -38,7 +38,7 @@ void report_tok_error_(Ctx *ctx, Token *tok);
 void report_tok_range_error_(Ctx *ctx, Token *begin_tok, Token *end_tok);
 
 void skip_tok(Ctx *ctx, TokenKind kind); // skip `kind` token
-Token *advance(Ctx *ctx);                // dequeue
+void advance(Ctx *ctx);                  // dequeue
 bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds);
 bool consume_any_(Ctx *ctx, TokenKind *kinds, int n_kinds);
 

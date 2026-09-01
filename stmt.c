@@ -38,10 +38,14 @@ void execute_stmts(Ctx *ctx)
                 free_value(val);
                 break;
             case STMT_var:
-                VarMap_result res = VarMap_insert(vars, stmt.var.name->lexeme, eval(ctx, stmt.var.rhs));
+                CGS_StrView name = stmt.var.name->lexeme;
+                Value value = eval(ctx, stmt.var.rhs);
+                value.var = true;
+                VarMap_result res = VarMap_insert(vars, name, value);
                 if (!res.inserted)
                 {
-                    report_tok_error(ctx, stmt.var.name, "var '%?' already declared", stmt.var.name->lexeme);
+                    free_value(res.ref->second);
+                    res.ref->second = value;
                 }
                 break;
             case STMT_expr:

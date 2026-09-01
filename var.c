@@ -14,6 +14,8 @@ static bool strv_eq(const CGS_StrView *a, const CGS_StrView *b)
 
 #define i_hash strv_hash
 #define i_eq strv_eq
-#define STC_IMPLEMENT
+#define i_no_clone
+#define i_valdrop free_var_value
+#define i_implement
 #define T VarMap, CGS_StrView, Value
 #include "stc/hashmap.h"

@@ -1,4 +1,38 @@
-print "hello"          ;
-print "hello" + "world";
-var a = 1;
-print a;
+// clox error test cases — one per line, each with its expected diagnostic.
+// Intended to be run ONE AT A TIME (one case per file), not as a single
+// program. See notes at the bottom for why the combined form misleads.
+
+// --- Scanner errors (exit 65, VM never runs) ---
+print "unterminated;         // [line N] Error: Unterminated string.
+var x = 3 @ 4;               // [line N] Error: Unexpected character.
+
+// --- Compile / parse errors (exit 65, VM never runs) ---
+print 1 + 2                  // [line N] Error at end: Expect ';' after value.
+print 1 + ;                  // [line N] Error at ';': Expect expression.
+print (1 + 2;                // [line N] Error at ';': Expect ')' after expression.
+var 3 = 4;                   // [line N] Error at '3': Expect variable name.
+var a = 1                    // [line N] Error at end: Expect ';' after variable declaration.
+a * b = c;                   // [line N] Error at '=': Invalid assignment target.
+
+// --- Runtime errors (exit 70; only fire if the file compiles cleanly) ---
+print undefinedVar;          // Undefined variable 'undefinedVar'.  +  [line N] in script
+notDeclared = 5;             // Undefined variable 'notDeclared'.
+print -"abc";                // Operand must be a number.
+print "abc" + 5;             // Operands must be two numbers or two strings.
+print 1 < "two";             // Operands must be numbers.
+print true * 3;              // Operands must be numbers.
+
+// --- Local-scope errors (ch. 22; exit 65) ---
+{ var a = a; }               // [line N] Error at 'a': Can't read local variable in its own initializer.
+{ var a = 1; var a = 2; }    // [line N] Error at 'a': Already a variable with this name in this scope.
+{ print 1;                   // [line N] Error at end: Expect '}' after block.
+
+// NOTES on why these don't belong in one runnable file:
+//  1. Runtime cases never fire here. Any compile error in the file makes
+//     compile() fail, so the VM never runs -> lines 18-23 are dead.
+//  2. The "at end" cases (print 1 + 2 / var a = 1 / { print 1) only say
+//     "at end" when they are the LAST token. Mid-file, the next line's first
+//     token becomes the unexpected one and the message changes.
+//  3. synchronize() will swallow some of these as it skips to the next
+//     statement boundary, so you won't get one diagnostic per line.
+// Split into one file per case (or drive them line-by-line) to assert cleanly.

@@ -8,8 +8,8 @@
 Value eval_unary(Ctx *ctx, Expr *expr);
 Value eval_binary(Ctx *ctx, Expr *expr);
 
-bool expect_number(Ctx *ctx,  Value *obj);
-bool expect_string(Ctx *ctx,  Value *obj);
+bool expect_number(Ctx *ctx, Value *obj);
+bool expect_string(Ctx *ctx, Value *obj);
 bool is_truthy(Value obj);
 
 Value copy_value(Value from);
@@ -51,7 +51,7 @@ Value eval_unary(Ctx *ctx, Expr *expr)
             {
                 break;
             }
-            
+
             Value result = copy_value(obj);
             result.number *= -1;
 
@@ -63,7 +63,7 @@ Value eval_unary(Ctx *ctx, Expr *expr)
         {
             Value result   = copy_value(obj);
             result.boolean = !is_truthy(result);
-            result.type = T_bool;
+            result.type    = T_bool;
 
             free_value(obj);
             return result;
@@ -180,14 +180,14 @@ Value eval_binary(Ctx *ctx, Expr *expr)
         case TK_or:
         {
             result.boolean = is_truthy(left) || is_truthy(right);
-            result.type = T_bool;
+            result.type    = T_bool;
         }
         break;
 
         case TK_and:
         {
             result.boolean = is_truthy(left) && is_truthy(right);
-            result.type = T_bool;
+            result.type    = T_bool;
         }
         break;
 
@@ -285,7 +285,7 @@ bool is_truthy(Value obj)
     return true;
 }
 
-CGS_Error stringify_value(CGS_Writer *writer, Value val)
+CGS_Error stringify_value(CGS_Writer *writer, Value val, CGS_StrView fmt_arg)
 {
     switch (val.type)
     {
@@ -307,7 +307,7 @@ CGS_Error stringify_value(CGS_Writer *writer, Value val)
     }
 }
 
-CGS_Error stringify_literal(CGS_Writer *writer, Literal lit)
+CGS_Error stringify_literal(CGS_Writer *writer, Literal lit, CGS_StrView fmt_arg)
 {
     switch (lit.kind)
     {
@@ -347,8 +347,15 @@ Value copy_value(Value from)
 
 void free_value(Value val)
 {
-    if (val.tok->seperate)
-        free(val.tok);
-    if (val.type == T_str)
-        cgs_dstr_deinit(&val.string);
+    if (val.var)
+        return;
+    free_var_value(&val);
+}
+
+void free_var_value(Value *val)
+{
+    if (val->tok->seperate)
+        free(val->tok);
+    if (val->type == T_str)
+        cgs_dstr_deinit(&val->string);
 }

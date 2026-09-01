@@ -303,8 +303,7 @@ void skip_tok(Ctx *ctx, TokenKind kind)
     if (kind != TK_semicolon && ctx->cur->kind == TK_semicolon)
         return;
 
-    if (ctx->cur->kind != TK_eof)
-        ctx->cur += 1;
+    advance(ctx);
 }
 
 bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds)
@@ -317,11 +316,12 @@ bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds)
     return false;
 }
 
-Token *advance(Ctx *ctx)
+void advance(Ctx *ctx)
 {
-    Token *ret = ctx->cur;
+    if (ctx->cur->kind == TK_eof)
+        return;
+
     ctx->cur += 1;
-    return ret;
 }
 
 bool consume_any_(Ctx *ctx, TokenKind *kinds, int n_kinds)
