@@ -36,8 +36,6 @@ void execute_stmts(Ctx *ctx);
 
 void free_stmt(Stmt *stmt);
 
-#define i_no_clone
-#define i_keydrop free_stmt
 #define T StmtList, Stmt
 #include "stc/vec.h"
 

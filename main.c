@@ -104,7 +104,12 @@ static int repl_loop()
         cgs_dstr_deinit(line);
     }
 
+    for(c_each(it, VarMap, ctx->vars))
+    {
+        free_var_value(&it.ref->second);
+    }
     VarMap_drop(&ctx->vars);
+    
     TokensChain_drop(&ctx->toks);
     Lines_drop(&lines);
 
@@ -126,6 +131,11 @@ static int run(CGS_StrView file_name, CGS_DStr *src)
     execute_stmts(ctx);
 
 done:
+    for(c_each(it, StmtList, ctx->stmts))
+    {
+        free_stmt(it.ref);
+    }
+    
     StmtList_drop(&ctx->stmts);
     TokensChain_drop(&ctx->toks);
     VarMap_drop(&ctx->vars);

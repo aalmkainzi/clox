@@ -1,5 +1,6 @@
 #include "stmt.h"
 #include "clox.h"
+#include "expr.h"
 #include "var.h"
 
 void free_stmt(Stmt *stmt)
@@ -25,11 +26,12 @@ void execute_stmts(Ctx *ctx)
     {
         if (ctx->error)
             return;
+
         Stmt stmt = *it.ref;
         switch (stmt.kind)
         {
             case STMT_print:
-                Value val = eval(ctx, stmt.expr);
+                Value val = eval(ctx, stmt.print_expr);
                 if (val.type == T_none)
                 {
                     break;
@@ -38,18 +40,20 @@ void execute_stmts(Ctx *ctx)
                 free_value(val);
                 break;
             case STMT_var:
+                
                 CGS_StrView name  = stmt.var.name->lexeme;
                 Value value       = eval(ctx, stmt.var.rhs);
-                value.var         = true;
+                value.var       = true;
                 VarMap_result res = VarMap_insert(vars, name, value);
                 if (!res.inserted)
                 {
-                    free_value(res.ref->second);
+                    free_var_value(&res.ref->second);
                     res.ref->second = value;
                 }
                 break;
             case STMT_expr:
-                eval(ctx, stmt.expr);
+                Value v = eval(ctx, stmt.expr);
+                free_value(v);
                 break;
         }
     }

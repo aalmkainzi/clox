@@ -259,6 +259,17 @@ void tokenize(Ctx *ctx)
             src_walk.chars += 1;
             src_walk.len -= 1;
         }
+        if (cgs_starts_with(src_walk, "//"))
+        {
+            src_walk.chars += 2;
+            src_walk.len -= 2;
+            while (src_walk.len > 0 && src_walk.chars[0] != '\n')
+            {
+                src_walk.chars += 1;
+                src_walk.len -= 1;
+            }
+            continue;
+        }
 
         if (src_walk.len == 0)
         {

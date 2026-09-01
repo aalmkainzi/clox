@@ -3,7 +3,7 @@
 
 Expr *new_binary(Expr *left, Expr *right, Token *op)
 {
-    Expr *ret         = malloc(sizeof(Expr));
+    Expr *ret         = calloc(1, sizeof(Expr));
     ret->kind         = EXPR_binary;
     ret->binary.left  = left;
     ret->binary.right = right;
@@ -14,7 +14,7 @@ Expr *new_binary(Expr *left, Expr *right, Token *op)
 
 Expr *new_unary(Expr *left, Token *op)
 {
-    Expr *ret       = malloc(sizeof(Expr));
+    Expr *ret       = calloc(1, sizeof(Expr));
     ret->kind       = EXPR_unary;
     ret->unary.expr = left;
     ret->unary.op   = op;
@@ -33,7 +33,7 @@ Expr *alloc_literal_expr(LiteralKind litKind, Token *tok)
 
     TypeKind type = map[litKind];
 
-    Expr *ret       = malloc(sizeof(Expr));
+    Expr *ret       = calloc(1, sizeof(Expr));
     ret->kind       = EXPR_value;
     ret->value.tok  = tok;
     ret->value.type = type;
@@ -81,7 +81,7 @@ Expr *new_literal(Token *tok)
 
 Expr *new_var(Token *tok)
 {
-    Expr *ret  = malloc(sizeof(Expr));
+    Expr *ret  = calloc(1, sizeof(Expr));
     ret->kind  = EXPR_var;
     ret->ident = tok;
     return ret;
@@ -104,6 +104,9 @@ void free_expr(Expr *expr)
             free(expr);
             break;
         case EXPR_value:
+            free_value(expr->value);
+            free(expr);
+            break;
         case EXPR_var:
             free(expr);
     }

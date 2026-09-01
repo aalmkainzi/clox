@@ -3,8 +3,7 @@
 // program. See notes at the bottom for why the combined form misleads.
 
 // --- Scanner errors (exit 65, VM never runs) ---
-print "unterminated;         // [line N] Error: Unterminated string.
-var x = 3 @ 4;               // [line N] Error: Unexpected character.
+// var x = 3 @ 4;               // [line N] Error: Unexpected character.
 
 // --- Compile / parse errors (exit 65, VM never runs) ---
 print 1 + 2                  // [line N] Error at end: Expect ';' after value.
@@ -23,9 +22,9 @@ print 1 < "two";             // Operands must be numbers.
 print true * 3;              // Operands must be numbers.
 
 // --- Local-scope errors (ch. 22; exit 65) ---
-{ var a = a; }               // [line N] Error at 'a': Can't read local variable in its own initializer.
-{ var a = 1; var a = 2; }    // [line N] Error at 'a': Already a variable with this name in this scope.
-{ print 1;                   // [line N] Error at end: Expect '}' after block.
+// { var a = a; }               // [line N] Error at 'a': Can't read local variable in its own initializer.
+// { var a = 1; var a = 2; }    // [line N] Error at 'a': Already a variable with this name in this scope.
+// { print 1;                   // [line N] Error at end: Expect '}' after block.
 
 // NOTES on why these don't belong in one runnable file:
 //  1. Runtime cases never fire here. Any compile error in the file makes

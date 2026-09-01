@@ -13,19 +13,20 @@ bool expect_string(Ctx *ctx, Value *obj);
 bool is_truthy(Value obj);
 
 Value copy_value(Value from);
+// Value finalize(Value v);
 
 Value eval(Ctx *ctx, Expr *expr)
 {
     switch (expr->kind)
     {
         case EXPR_unary:
-            return eval_unary(ctx, expr);
+            return (eval_unary(ctx, expr));
 
         case EXPR_binary:
-            return eval_binary(ctx, expr);
+            return (eval_binary(ctx, expr));
 
         case EXPR_value:
-            return expr->value;
+            return (expr->value);
 
         case EXPR_var:
             const VarMap_value *mapped = VarMap_get(&ctx->vars, expr->ident->lexeme);
@@ -38,6 +39,12 @@ Value eval(Ctx *ctx, Expr *expr)
     }
     unreachable();
 }
+
+// Value finalize(Value v)
+// {
+//     v.final = true;
+//     return v;
+// }
 
 Value eval_unary(Ctx *ctx, Expr *expr)
 {
