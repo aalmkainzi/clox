@@ -52,12 +52,12 @@ bool run_test_on_entry(Nob_Walk_Entry entry, bool repl)
     if (repl)
     {
         cmd_append(&cmd, "./clox");
-        result = cmd_run(&cmd, .stdin_path = entry.path, .stdout_path = "/dev/null");
+        result = cmd_run(&cmd, .stdin_path = entry.path, .stdout_path = "/dev/null", .stderr_path = "/dev/null");
     }
     else
     {
         cmd_append(&cmd, "./clox", entry.path);
-        result = cmd_run(&cmd, .stdout_path = "/dev/null");
+        result = cmd_run(&cmd, .stdout_path = "/dev/null", .stderr_path = "/dev/null");
     }
 
     cgs_putc(stderr, '\n');
