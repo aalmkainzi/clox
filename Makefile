@@ -1,14 +1,17 @@
 .PHONY: all format
-SRC := $(wildcard *.c) external/cgs/cgs.c
+CGS_SRC := external/cgs/cgs.c
+SRC := $(wildcard *.c) $(CGS_SRC)
 OBJ := $(addprefix build/obj/,$(notdir $(SRC:.c=.o)))
 DEP := $(OBJ:.o=.d)
 VPATH := external/cgs
+
+TEST_SRC := test/test.c
 
 HDR := $(wildcard include/*.h) $(wildcard *.h)
 FMT_SRC := $(wildcard *.c)
 
 SANITIZE := -fsanitize=address,undefined
-CFLAGS := -Wall -Wextra -Iinclude -Iexternal -Iexternal/STC/include -std=c23 -ggdb $(SANITIZE)
+CFLAGS := -Wall -Wextra -Iinclude -Iexternal -Iexternal/STC/include -std=gnu23 -ggdb $(SANITIZE)
 CPPFLAGS := -MMD -MP
 LDFLAGS := -lm $(SANITIZE)
 
@@ -25,5 +28,9 @@ build/obj/%.o: %.c | build/obj
 
 build/obj:
 	mkdir -p $@
+
+test: all
+	$(CC) $(TEST_SRC) $(CGS_SRC) $(CFLAGS) -o test/test
+	test/test
 
 -include $(DEP)

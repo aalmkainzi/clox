@@ -1,0 +1,3 @@
+// expected: fail
+
+var a = "abc" !;
