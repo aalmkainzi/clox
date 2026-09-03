@@ -308,10 +308,10 @@ void tokenize(Ctx *ctx)
 
 void skip_tok(Ctx *ctx, TokenKind kind)
 {
-    if (ctx->cur->kind != kind)
-        report_tok_error(ctx, ctx->cur, "expected %?, but got %?", tok2str[kind], tok2str[ctx->cur->kind]);
+    if (ctx->tok->kind != kind)
+        report_tok_error(ctx, ctx->tok, "expected %?, but got %?", tok2str[kind], tok2str[ctx->tok->kind]);
 
-    if (kind != TK_semicolon && ctx->cur->kind == TK_semicolon)
+    if (kind != TK_semicolon && ctx->tok->kind == TK_semicolon)
         return;
 
     advance(ctx);
@@ -321,7 +321,7 @@ bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds)
 {
     for (int i = 0; i < n_kinds; i++)
     {
-        if (ctx->cur->kind == kinds[i])
+        if (ctx->tok->kind == kinds[i])
             return true;
     }
     return false;
@@ -329,17 +329,17 @@ bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds)
 
 void advance(Ctx *ctx)
 {
-    if (ctx->cur->kind == TK_eof)
+    if (ctx->tok->kind == TK_eof)
         return;
 
-    ctx->cur += 1;
+    ctx->tok += 1;
 }
 
 Token *peek(Ctx *ctx)
 {
-    if (ctx->cur->kind == TK_eof)
-        return ctx->cur;
-    return ctx->cur + 1;
+    if (ctx->tok->kind == TK_eof)
+        return ctx->tok;
+    return ctx->tok + 1;
 }
 
 bool consume_any_(Ctx *ctx, TokenKind *kinds, int n_kinds)

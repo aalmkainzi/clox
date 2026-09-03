@@ -7,6 +7,13 @@
 #include "token.h"
 #include "var.h"
 
+typedef struct Scope
+{
+    struct Scope *up;
+    StmtList stmts;
+    VarMap vars;
+} Scope;
+
 typedef struct Ctx
 {
     CGS_StrView file_name;
@@ -15,10 +22,10 @@ typedef struct Ctx
     bool verbose;
 
     TokensChain toks;
-    StmtList stmts;
-    VarMap vars;
 
-    Token *cur;
+    Token *tok;
+    
+    Scope *scope;
 
     bool error;
     bool repl;
