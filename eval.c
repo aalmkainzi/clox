@@ -356,6 +356,8 @@ void free_value(Value val)
 
 void free_var_value(Value *val)
 {
+    if (val->tok == NULL)
+        return;
     if (val->tok->seperate)
         free(val->tok);
     if (val->type == T_str)
