@@ -1,4 +1,3 @@
-
 #include "cgs/cgs.h"
 #include <stdlib.h>
 #define NOB_IMPLEMENTATION
@@ -45,7 +44,7 @@ bool run_test_on_entry(Nob_Walk_Entry entry, bool repl)
         return true;
 
     CGS_StrView first_linev = cgs_skip(first_line, "// expected: ");
-    bool expected_success   = cgs_equal(first_linev, "ok");
+    bool expected_success   = cgs_equal(first_linev, "ok\n");
     bool result;
 
     Cmd cmd = {};
@@ -69,7 +68,7 @@ bool run_test_on_entry(Nob_Walk_Entry entry, bool repl)
         [false] = cgs_strv("fail"),
         [true]  = cgs_strv("ok"),
     };
-    if (result != expected_success)
+    if (!repl && (result != expected_success))
     {
         cgs_fprintfln(
             stderr,

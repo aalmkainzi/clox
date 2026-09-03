@@ -221,9 +221,11 @@ static Expr *primary(Ctx *ctx)
         {
             report_tok_error(ctx, ctx->cur, "expected expression, but got '%?'", tok2str[ctx->cur->kind]);
 
-            // dont skip ';' for better diagnostic
-            if (ctx->cur->kind == TK_semicolon)
-                ctx->cur -= 1;
+            while (ctx->cur->kind != TK_semicolon && ctx->cur->kind != TK_eof)
+            {
+                advance(ctx);
+            }
+            return NULL;
         }
     }
 

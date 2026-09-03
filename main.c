@@ -37,11 +37,11 @@ int main(int argc, char **argv)
 
     if (file_name)
     {
-        run_file(file_name, verbose);
+        return run_file(file_name, verbose);
     }
     else
     {
-        repl_loop(verbose);
+        return repl_loop(verbose);
     }
 }
 

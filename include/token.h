@@ -2,6 +2,7 @@
 #define TOKENS_H
 
 #include "cgs/cgs.h"
+#include "expr.h"
 
 // clang-format off
 
@@ -111,20 +112,22 @@ Token *copy_token(Token *token);
 void free_token(Token *tok);
 
 // write functions so Token can be printable
-static inline CGS_Error write_token(CGS_Writer *writer, Token tok, CGS_StrView fmt_arg)
+static inline CGS_Error stringify_token(CGS_Writer *writer, Token tok, CGS_StrView fmt_arg)
 {
+    (void)fmt_arg;
     return cgs_append(writer, tok.lexeme);
 }
 
-static inline CGS_Error write_token_ptr(CGS_Writer *writer, Token *tok, CGS_StrView fmt_arg)
+static inline CGS_Error stringify_token_ptr(CGS_Writer *writer, Token *tok, CGS_StrView fmt_arg)
 {
+    (void)fmt_arg;
     return cgs_append(writer, tok->lexeme);
 }
 
-#define ADD_TOSTR (Token, write_token)
+#define ADD_TOSTR (Token, stringify_token)
 #include "cgs/cgs.h"
 
-#define ADD_TOSTR (Token *, write_token_ptr)
+#define ADD_TOSTR (Token *, stringify_token_ptr)
 #include "cgs/cgs.h"
 
 #define i_no_clone

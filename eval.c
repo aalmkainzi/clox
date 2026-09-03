@@ -294,6 +294,7 @@ bool is_truthy(Value obj)
 
 CGS_Error stringify_value(CGS_Writer *writer, Value val, CGS_StrView fmt_arg)
 {
+    (void)fmt_arg;
     switch (val.type)
     {
         case T_str:
@@ -316,6 +317,7 @@ CGS_Error stringify_value(CGS_Writer *writer, Value val, CGS_StrView fmt_arg)
 
 CGS_Error stringify_literal(CGS_Writer *writer, Literal lit, CGS_StrView fmt_arg)
 {
+    (void)fmt_arg;
     switch (lit.kind)
     {
         case LIT_str:
