@@ -86,20 +86,24 @@ static Expr *expression(Ctx *ctx)
 
 static Expr *assignment(Ctx *ctx)
 {
-    if (ctx->cur->kind == TK_ident && peek(ctx)->kind == TK_equal)
+    Token *lhs_begin = ctx->cur;
+    Expr *left = equality(ctx);
+    
+    if (ctx->cur->kind == TK_equal)
     {
-        Token *var_name = ctx->cur;
-        Expr *left = new_var(var_name);
-        advance(ctx);
+        Token *lhs_end = ctx->cur - 1;
+
+        if (left->kind != EXPR_var)
+        {
+            report_tok_range_error(ctx, lhs_begin, lhs_end, "not a variable");
+        }
         Token *op = ctx->cur;
         advance(ctx);
         Expr *right = expression(ctx);
         return new_binary(left, right, op);
     }
-    else
-    {
-        return equality(ctx);
-    }
+    
+    return left;
 }
 
 static Expr *equality(Ctx *ctx)

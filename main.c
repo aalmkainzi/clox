@@ -52,7 +52,7 @@ static int run_file(const char *file_name, bool verbose)
     FILE *f            = fopen(file_name, "r");
     CGS_DStr file_data = cgs_dstr_init();
 
-    CGS_Error err = cgs_fread_until(&file_data, f, EOF);
+    CGS_Error err = cgs_append_fread_until(&file_data, f, EOF);
     if (err.ec != CGS_OK)
     {
         cgs_fprintf(stderr, "could not read file %?: %?: %?\n", file_name, err, strerror(errno));
@@ -128,7 +128,7 @@ static int repl_loop(bool verbose)
     {
         cgs_printf("> ");
         CGS_DStr *line = Lines_push(&lines, cgs_dstr_init());
-        CGS_Error err  = cgs_fread_until(line, stdin, '\n');
+        CGS_Error err  = cgs_append_fread_until(line, stdin, '\n');
         if (err.ec == CGS_OK)
         {
             line->len -= 1;

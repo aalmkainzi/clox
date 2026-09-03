@@ -84,6 +84,7 @@ Expr *new_grouping(Expr *inside);
 Expr *new_literal(Token *tok);
 Expr *new_var(Token *tok);
 Token *expr_tok(Expr *expr);
+CGS_StrView expr_view(Expr *expr);
 void free_value(Value value);
 void free_var_value(Value *val);
 

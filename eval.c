@@ -1,6 +1,7 @@
 #include "clox.h"
 #include "expr.h"
 #include "token.h"
+#include "var.h"
 #include <float.h>
 #include <math.h>
 #include <stdlib.h>
@@ -89,7 +90,8 @@ Value eval_binary(Ctx *ctx, Expr *expr)
     Value right = eval(ctx, expr->binary.right);
 
     Value result       = copy_value(left);
-    result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
+    if (left.tok && right.tok)
+        result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
 
     switch (expr->binary.op->kind)
     {
@@ -250,13 +252,20 @@ Value eval_binary(Ctx *ctx, Expr *expr)
         case TK_equal:
         {
             Token *var_name = expr->binary.left->ident;
-            Value *val = VarMap_at_mut(&ctx->vars, var_name->lexeme);
-            *val = copy_value(right);
-            val->var = true;
+            VarMap_value *val = VarMap_get_mut(&ctx->vars, var_name->lexeme);
+            if (val)
+            {
+                val->second = copy_value(right);
+                val->second.var = true;
 
-            free_var_value(&result);
-            free_var_value(&left);
-            result = *val;
+                free_var_value(&result);
+                free_var_value(&left);
+                result = val->second;
+            }
+            else
+            {
+                // no need to diagnose, `eval` did already
+            }
         }
         break;
         default:
@@ -352,7 +361,8 @@ CGS_Error stringify_literal(CGS_Writer *writer, Literal lit, CGS_StrView fmt_arg
 Value copy_value(Value from)
 {
     Value ret = from;
-    ret.tok   = copy_token(from.tok);
+    if (from.tok)
+        ret.tok   = copy_token(from.tok);
     if (from.type == T_str)
         ret.string = cgs_dup(ret.string);
     ret.var = false;

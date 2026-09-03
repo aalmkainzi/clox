@@ -127,3 +127,25 @@ Token *expr_tok(Expr *expr)
     }
     unreachable();
 }
+
+CGS_StrView expr_view(Expr *expr)
+{
+    CGS_StrView view;
+    switch (expr->kind)
+    {
+        case EXPR_unary:
+            view = range_view(expr->unary.op->lexeme, expr_view(expr->unary.expr));
+            break;
+        case EXPR_binary:
+            view = range_view(expr_view(expr->binary.left), expr_view(expr->binary.right));
+            break;
+        case EXPR_value:
+            view = expr->value.tok->lexeme;
+            break;
+        case EXPR_var:
+            view = expr->ident->lexeme;
+            break;
+    }
+    
+    return view;
+}
