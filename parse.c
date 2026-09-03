@@ -16,6 +16,9 @@ static Stmt print_stmt(Ctx *ctx);
 static Stmt expr_stmt(Ctx *ctx);
 static Stmt var_decl(Ctx *ctx);
 
+static void enter_scope(Ctx *ctx);
+static void exit_scope(Ctx *ctx);
+
 void parse(Ctx *ctx)
 {
     ctx->stmts = StmtList_init();
@@ -27,16 +30,40 @@ void parse(Ctx *ctx)
         switch (ctx->tok->kind)
         {
             case TK_print:
-                StmtList_push(&ctx->stmts, print_stmt(ctx));
+                StmtList_push(&ctx->scope->stmts, print_stmt(ctx));
                 break;
             case TK_var:
-                StmtList_push(&ctx->stmts, var_decl(ctx));
+                StmtList_push(&ctx->scope->stmts, var_decl(ctx));
                 break;
+            case TK_lcurly:
+                Scope *new_scope = calloc(1, sizeof(Scope));
+                new_scope->up    = ctx->scope;
+                ctx->scope       = new_scope;
+                break;
+            case TK_rcurly:
+                if (ctx->scope->up == NULL)
+                {
+                    report_tok_error(ctx, ctx->tok, "unexpected }");
+                }
+                else
+                {
+                    Scope *save = ctx->scope;
+                    ctx->scope  = ctx->scope->up;
+                    free(save);
+                }
             default:
                 StmtList_push(&ctx->stmts, expr_stmt(ctx));
                 break;
         }
     }
+}
+
+static void enter_scope(Ctx *ctx)
+{
+}
+
+static void exit_scope(Ctx *ctx)
+{
 }
 
 static Stmt var_decl(Ctx *ctx)
@@ -87,8 +114,8 @@ static Expr *expression(Ctx *ctx)
 static Expr *assignment(Ctx *ctx)
 {
     Token *lhs_begin = ctx->tok;
-    Expr *left = equality(ctx);
-    
+    Expr *left       = equality(ctx);
+
     if (ctx->tok->kind == TK_equal)
     {
         Token *lhs_end = ctx->tok - 1;
@@ -102,7 +129,7 @@ static Expr *assignment(Ctx *ctx)
         Expr *right = expression(ctx);
         return new_binary(left, right, op);
     }
-    
+
     return left;
 }
 

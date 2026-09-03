@@ -89,7 +89,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
     Value left  = eval(ctx, expr->binary.left);
     Value right = eval(ctx, expr->binary.right);
 
-    Value result       = copy_value(left);
+    Value result = copy_value(left);
     if (left.tok && right.tok)
         result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
 
@@ -251,11 +251,11 @@ Value eval_binary(Ctx *ctx, Expr *expr)
 
         case TK_equal:
         {
-            Token *var_name = expr->binary.left->ident;
+            Token *var_name   = expr->binary.left->ident;
             VarMap_value *val = VarMap_get_mut(&ctx->vars, var_name->lexeme);
             if (val)
             {
-                val->second = copy_value(right);
+                val->second     = copy_value(right);
                 val->second.var = true;
 
                 free_var_value(&result);
@@ -362,7 +362,7 @@ Value copy_value(Value from)
 {
     Value ret = from;
     if (from.tok)
-        ret.tok   = copy_token(from.tok);
+        ret.tok = copy_token(from.tok);
     if (from.type == T_str)
         ret.string = cgs_dup(ret.string);
     ret.var = false;
@@ -385,5 +385,5 @@ void free_var_value(Value *val)
     if (val->type == T_str)
         cgs_dstr_deinit(&val->string);
 
-    *val = (Value){};
+    *val = (Value) {};
 }

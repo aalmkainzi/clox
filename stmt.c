@@ -40,7 +40,7 @@ void execute_stmts(Ctx *ctx)
                 free_value(val);
                 break;
             case STMT_var:
-                CGS_StrView name  = stmt.var.name->lexeme;
+                CGS_StrView name = stmt.var.name->lexeme;
                 Value value;
                 if (stmt.var.rhs)
                 {
@@ -48,10 +48,10 @@ void execute_stmts(Ctx *ctx)
                 }
                 else
                 {
-                    value = (Value){.type = T_nil};
+                    value = (Value) {.type = T_nil};
                 }
-                value.var   = true;
-                
+                value.var = true;
+
                 VarMap_result res = VarMap_insert(vars, name, value);
                 if (!res.inserted)
                 {

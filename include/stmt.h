@@ -9,6 +9,7 @@ typedef enum StmtKind
     STMT_expr,
     STMT_print,
     STMT_var,
+    STMT_block,
 } StmtKind;
 
 typedef struct

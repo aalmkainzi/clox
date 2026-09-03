@@ -20,11 +20,12 @@ typedef struct Ctx
     CGS_StrView src;
     int lineno;
     bool verbose;
+    StmtList stmts;
 
     TokensChain toks;
 
     Token *tok;
-    
+
     Scope *scope;
 
     bool error;
