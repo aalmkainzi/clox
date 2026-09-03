@@ -20,7 +20,6 @@ typedef struct Ctx
     CGS_StrView src;
     int lineno;
     bool verbose;
-    StmtList stmts;
 
     TokensChain toks;
 

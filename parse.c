@@ -2,6 +2,7 @@
 #include "expr.h"
 #include "stmt.h"
 #include "token.h"
+#include "var.h"
 
 static Expr *expression(Ctx *ctx);
 static Expr *assignment(Ctx *ctx);
@@ -18,11 +19,14 @@ static Stmt var_decl(Ctx *ctx);
 
 static void enter_scope(Ctx *ctx);
 static void exit_scope(Ctx *ctx);
+static void init_scope(Scope *scope);
 
 void parse(Ctx *ctx)
 {
-    ctx->stmts = StmtList_init();
-
+    assert(ctx->scope == NULL);
+    ctx->scope = calloc(1, sizeof(Scope));
+    init_scope(ctx->scope);
+    
     ctx->tok = TokensChain_back(&ctx->toks)->data;
 
     while (ctx->tok && ctx->tok->kind != TK_eof)
@@ -36,30 +40,32 @@ void parse(Ctx *ctx)
                 StmtList_push(&ctx->scope->stmts, var_decl(ctx));
                 break;
             case TK_lcurly:
-                Scope *new_scope = calloc(1, sizeof(Scope));
-                new_scope->up    = ctx->scope;
-                ctx->scope       = new_scope;
+                enter_scope(ctx);
                 break;
             case TK_rcurly:
-                if (ctx->scope->up == NULL)
-                {
-                    report_tok_error(ctx, ctx->tok, "unexpected }");
-                }
-                else
-                {
-                    Scope *save = ctx->scope;
-                    ctx->scope  = ctx->scope->up;
-                    free(save);
-                }
+                exit_scope(ctx);
+                break;
             default:
-                StmtList_push(&ctx->stmts, expr_stmt(ctx));
+                StmtList_push(&ctx->scope->stmts, expr_stmt(ctx));
                 break;
         }
     }
 }
 
+static void init_scope(Scope *scope)
+{
+    scope->stmts = StmtList_init();
+    scope->vars  = VarMap_init();
+    scope->up    = NULL;
+}
+
 static void enter_scope(Ctx *ctx)
 {
+    // doing something wrong here.....
+    Scope *new_scope = calloc(1, sizeof(Scope));
+    init_scope(new_scope);
+    new_scope->up = ctx->scope;
+    ctx->scope = new_scope;
 }
 
 static void exit_scope(Ctx *ctx)

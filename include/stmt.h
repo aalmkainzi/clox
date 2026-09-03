@@ -9,7 +9,7 @@ typedef enum StmtKind
     STMT_expr,
     STMT_print,
     STMT_var,
-    STMT_block,
+    STMT_scope,
 } StmtKind;
 
 typedef struct
@@ -29,6 +29,7 @@ typedef struct Stmt
         Expr *expr;
         Expr *print_expr;
         StmtVar var;
+        struct Scope *scope;
     };
 } Stmt;
 
