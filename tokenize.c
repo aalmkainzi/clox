@@ -335,6 +335,13 @@ void advance(Ctx *ctx)
     ctx->cur += 1;
 }
 
+Token *peek(Ctx *ctx)
+{
+    if (ctx->cur->kind == TK_eof)
+        return ctx->cur;
+    return ctx->cur + 1;
+}
+
 bool consume_any_(Ctx *ctx, TokenKind *kinds, int n_kinds)
 {
     if (check_any_(ctx, kinds, n_kinds))

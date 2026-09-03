@@ -4,8 +4,7 @@
 #include "token.h"
 
 static Expr *expression(Ctx *ctx);
-static Expr *or_expr(Ctx *ctx);
-static Expr *and_expr(Ctx *ctx);
+static Expr *assignment(Ctx *ctx);
 static Expr *equality(Ctx *ctx);
 static Expr *comparison(Ctx *ctx);
 static Expr *additive(Ctx *ctx);
@@ -50,7 +49,7 @@ static Stmt var_decl(Ctx *ctx)
     if (ctx->cur->kind == TK_equal)
     {
         skip_tok(ctx, TK_equal);
-        stmt.var.rhs = or_expr(ctx);
+        stmt.var.rhs = expression(ctx);
     }
     skip_tok(ctx, TK_semicolon);
     return stmt;
@@ -60,7 +59,7 @@ static Stmt expr_stmt(Ctx *ctx)
 {
     Stmt stmt = {.kind = STMT_expr, .begin = ctx->cur};
 
-    stmt.expr = or_expr(ctx);
+    stmt.expr = expression(ctx);
     stmt.end  = ctx->cur;
 
     skip_tok(ctx, TK_semicolon);
@@ -73,48 +72,34 @@ static Stmt print_stmt(Ctx *ctx)
     Stmt stmt = {.kind = STMT_print, .begin = ctx->cur};
     skip_tok(ctx, TK_print);
 
-    stmt.print_expr = or_expr(ctx);
+    stmt.print_expr = expression(ctx);
     stmt.end        = ctx->cur;
 
     skip_tok(ctx, TK_semicolon);
     return stmt;
 }
 
-static Expr *or_expr(Ctx *ctx)
-{
-    Expr *expr = and_expr(ctx);
-
-    while (check_any(ctx, TK_or))
-    {
-        Token *op = ctx->cur;
-        advance(ctx);
-        Expr *right = and_expr(ctx);
-
-        expr = new_binary(expr, right, op);
-    }
-
-    return expr;
-}
-
-static Expr *and_expr(Ctx *ctx)
-{
-    Expr *expr = equality(ctx);
-
-    while (check_any(ctx, TK_and))
-    {
-        Token *op = ctx->cur;
-        advance(ctx);
-        Expr *right = equality(ctx);
-
-        expr = new_binary(expr, right, op);
-    }
-
-    return expr;
-}
-
 static Expr *expression(Ctx *ctx)
 {
-    return equality(ctx);
+    return assignment(ctx);
+}
+
+static Expr *assignment(Ctx *ctx)
+{
+    if (ctx->cur->kind == TK_ident && peek(ctx)->kind == TK_equal)
+    {
+        Token *var_name = ctx->cur;
+        Expr *left = new_var(var_name);
+        advance(ctx);
+        Token *op = ctx->cur;
+        advance(ctx);
+        Expr *right = expression(ctx);
+        return new_binary(left, right, op);
+    }
+    else
+    {
+        return equality(ctx);
+    }
 }
 
 static Expr *equality(Ctx *ctx)

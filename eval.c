@@ -13,7 +13,6 @@ bool expect_string(Ctx *ctx, Value *obj);
 bool is_truthy(Value obj);
 
 Value copy_value(Value from);
-// Value finalize(Value v);
 
 Value eval(Ctx *ctx, Expr *expr)
 {
@@ -248,6 +247,18 @@ Value eval_binary(Ctx *ctx, Expr *expr)
         }
         break;
 
+        case TK_equal:
+        {
+            Token *var_name = expr->binary.left->ident;
+            Value *val = VarMap_at_mut(&ctx->vars, var_name->lexeme);
+            *val = copy_value(right);
+            val->var = true;
+
+            free_var_value(&result);
+            free_var_value(&left);
+            result = *val;
+        }
+        break;
         default:
             report_tok_error(ctx, expr->binary.op, "operator %? not yet implemented", tok2str[expr->binary.op->kind]);
     }
@@ -344,6 +355,7 @@ Value copy_value(Value from)
     ret.tok   = copy_token(from.tok);
     if (from.type == T_str)
         ret.string = cgs_dup(ret.string);
+    ret.var = false;
     return ret;
 }
 
@@ -362,4 +374,6 @@ void free_var_value(Value *val)
         free(val->tok);
     if (val->type == T_str)
         cgs_dstr_deinit(&val->string);
+
+    *val = (Value){};
 }
