@@ -37,6 +37,9 @@ CGS_StrView range_view(CGS_StrView begin, CGS_StrView end);
 
 void tokenize(Ctx *ctx);
 void parse(Ctx *ctx);
+void parse_repl(Ctx *ctx);
+
+void init_scope(Scope *scope);
 
 void free_expr(Expr *expr);
 void free_tokens(TokenList *toks);
@@ -45,7 +48,8 @@ void report_error_(Ctx *ctx, const CGS_StrView error_loc);
 void report_tok_error_(Ctx *ctx, Token *tok);
 void report_tok_range_error_(Ctx *ctx, Token *begin_tok, Token *end_tok);
 
-void skip_tok(Ctx *ctx, TokenKind kind); // skip `kind` token
+[[nodiscard("syncronize if this returns false")]]
+bool skip_tok(Ctx *ctx, TokenKind kind); // skip `kind` token
 void advance(Ctx *ctx);                  // dequeue
 Token *peek(Ctx *ctx);
 bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds);

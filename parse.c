@@ -16,14 +16,13 @@ static Expr *primary(Ctx *ctx);
 static Stmt print_stmt(Ctx *ctx);
 static Stmt expr_stmt(Ctx *ctx);
 static Stmt var_decl(Ctx *ctx);
-static Stmt scope_stmt(Ctx *ctx);
 void parse_stmts(Ctx *ctx);
 
-static void init_scope(Scope *scope);
+void init_scope(Scope *scope);
+void synchronize(Ctx *ctx, TokenKind to);
 
 void parse(Ctx *ctx)
 {
-    assert(ctx->scope == NULL);
     ctx->scope = calloc(1, sizeof(Scope));
     init_scope(ctx->scope);
 
@@ -53,7 +52,7 @@ void parse_stmts(Ctx *ctx)
                 stmt = var_decl(ctx);
                 break;
             case TK_lcurly:
-                skip_tok(ctx, TK_lcurly);
+                advance(ctx);
                 Scope *new_scope = calloc(1, sizeof(Scope));
                 init_scope(new_scope);
                 new_scope->up = ctx->scope;
@@ -69,6 +68,7 @@ void parse_stmts(Ctx *ctx)
                     free_scope(ctx->scope);
                     ctx->scope = ctx->scope->up;
                 }
+                break;
             default:
                 stmt = expr_stmt(ctx);
                 break;
@@ -77,7 +77,7 @@ void parse_stmts(Ctx *ctx)
     }
 }
 
-static void init_scope(Scope *scope)
+void init_scope(Scope *scope)
 {
     scope->stmts = StmtList_init();
     scope->vars  = VarMap_init();
@@ -87,9 +87,13 @@ static void init_scope(Scope *scope)
 static Stmt var_decl(Ctx *ctx)
 {
     Stmt stmt = {.kind = STMT_var, .begin = ctx->tok};
-    skip_tok(ctx, TK_var);
+    advance(ctx);
     stmt.var.name = ctx->tok;
-    skip_tok(ctx, TK_ident);
+    if (!skip_tok(ctx, TK_ident))
+    {
+        synchronize(ctx, TK_semicolon);
+        return (Stmt){};
+    }
 
     if (ctx->tok->kind == TK_equal)
     {
@@ -97,7 +101,10 @@ static Stmt var_decl(Ctx *ctx)
         stmt.var.rhs = expression(ctx);
     }
 
-    skip_tok(ctx, TK_semicolon);
+    if (!skip_tok(ctx, TK_semicolon))
+    {
+        return (Stmt){};
+    }
     return stmt;
 }
 
@@ -108,7 +115,10 @@ static Stmt expr_stmt(Ctx *ctx)
     stmt.expr = expression(ctx);
     stmt.end  = ctx->tok;
 
-    skip_tok(ctx, TK_semicolon);
+    if (!skip_tok(ctx, TK_semicolon))
+    {
+        return (Stmt){};
+    }
 
     return stmt;
 }
@@ -116,12 +126,15 @@ static Stmt expr_stmt(Ctx *ctx)
 static Stmt print_stmt(Ctx *ctx)
 {
     Stmt stmt = {.kind = STMT_print, .begin = ctx->tok};
-    skip_tok(ctx, TK_print);
+    advance(ctx);
 
     stmt.print_expr = expression(ctx);
     stmt.end        = ctx->tok;
 
-    skip_tok(ctx, TK_semicolon);
+    if (!skip_tok(ctx, TK_semicolon))
+    {
+        return (Stmt){};
+    }
     return stmt;
 }
 
@@ -266,4 +279,12 @@ static Expr *primary(Ctx *ctx)
 
     advance(ctx);
     return expr;
+}
+
+void synchronize(Ctx *ctx, TokenKind to)
+{
+    while(ctx->tok->kind != to && ctx->tok->kind != TK_eof)
+    {
+        advance(ctx);
+    }
 }

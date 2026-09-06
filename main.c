@@ -89,7 +89,7 @@ static int run_repl_line(Ctx *ctx)
     if (ctx->verbose)
         print_tokens(ctx);
 
-    parse(ctx);
+    parse_repl(ctx);
 
     if (ctx->verbose)
         cgs_printfln("nb statements: %?", ctx->scope->stmts.size);
@@ -100,7 +100,8 @@ static int run_repl_line(Ctx *ctx)
     {
         free_stmt(it.ref);
     }
-    StmtList_drop(&ctx->scope->stmts);
+    StmtList_clear(&ctx->scope->stmts);
+    // StmtList_drop(&ctx->scope->stmts);
 
     ctx->lineno += 1;
     if (ctx->error)
@@ -122,6 +123,9 @@ static int repl_loop(bool verbose)
         .repl      = true,
         .verbose   = verbose,
     };
+
+    ctx->scope = calloc(1, sizeof(Scope));
+    init_scope(ctx->scope);
 
     while (!feof(stdin))
     {

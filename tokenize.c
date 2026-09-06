@@ -306,15 +306,16 @@ void tokenize(Ctx *ctx)
 
 // utils
 
-void skip_tok(Ctx *ctx, TokenKind kind)
+[[nodiscard("syncronize if this returns false")]]
+bool skip_tok(Ctx *ctx, TokenKind kind)
 {
-    if (ctx->tok->kind != kind)
+    if (ctx->tok->kind != kind) {
         report_tok_error(ctx, ctx->tok, "expected %?, but got %?", tok2str[kind], tok2str[ctx->tok->kind]);
-
-    if (kind != TK_semicolon && ctx->tok->kind == TK_semicolon)
-        return;
+        return false;
+    }
 
     advance(ctx);
+    return true;
 }
 
 bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds)

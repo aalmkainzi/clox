@@ -6,6 +6,7 @@
 
 typedef enum StmtKind
 {
+    STMT_none = 0,
     STMT_expr,
     STMT_print,
     STMT_var,
