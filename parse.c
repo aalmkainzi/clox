@@ -16,9 +16,8 @@ static Expr *primary(Ctx *ctx);
 static Stmt print_stmt(Ctx *ctx);
 static Stmt expr_stmt(Ctx *ctx);
 static Stmt var_decl(Ctx *ctx);
+static Stmt scope_stmt(Ctx *ctx);
 
-static void enter_scope(Ctx *ctx);
-static void exit_scope(Ctx *ctx);
 static void init_scope(Scope *scope);
 
 void parse(Ctx *ctx)
@@ -26,30 +25,47 @@ void parse(Ctx *ctx)
     assert(ctx->scope == NULL);
     ctx->scope = calloc(1, sizeof(Scope));
     init_scope(ctx->scope);
-    
+
     ctx->tok = TokensChain_back(&ctx->toks)->data;
 
+    Stmt stmt  = scope_stmt(ctx);
+    ctx->scope = stmt.scope;
+}
+
+static Stmt scope_stmt(Ctx *ctx)
+{
+    Stmt ret = {
+        .kind  = STMT_scope,
+        .scope = calloc(1, sizeof(Scope)),
+    };
+    ret.scope->stmts = StmtList_init();
+    ret.scope->vars  = VarMap_init();
+    ret.scope->up    = ctx->scope;
+
+    StmtList *stmts = &ret.scope->stmts;
     while (ctx->tok && ctx->tok->kind != TK_eof)
     {
+        Stmt stmt;
         switch (ctx->tok->kind)
         {
             case TK_print:
-                StmtList_push(&ctx->scope->stmts, print_stmt(ctx));
+                stmt = print_stmt(ctx);
                 break;
             case TK_var:
-                StmtList_push(&ctx->scope->stmts, var_decl(ctx));
+                stmt = var_decl(ctx);
                 break;
             case TK_lcurly:
-                enter_scope(ctx);
-                break;
-            case TK_rcurly:
-                exit_scope(ctx);
+                skip_tok(ctx, TK_lcurly);
+                stmt = scope_stmt(ctx);
+                skip_tok(ctx, TK_rcurly);
                 break;
             default:
-                StmtList_push(&ctx->scope->stmts, expr_stmt(ctx));
+                stmt = expr_stmt(ctx);
                 break;
         }
+        StmtList_push(stmts, stmt);
     }
+    return ret;
 }
 
 static void init_scope(Scope *scope)
@@ -57,19 +73,6 @@ static void init_scope(Scope *scope)
     scope->stmts = StmtList_init();
     scope->vars  = VarMap_init();
     scope->up    = NULL;
-}
-
-static void enter_scope(Ctx *ctx)
-{
-    // doing something wrong here.....
-    Scope *new_scope = calloc(1, sizeof(Scope));
-    init_scope(new_scope);
-    new_scope->up = ctx->scope;
-    ctx->scope = new_scope;
-}
-
-static void exit_scope(Ctx *ctx)
-{
 }
 
 static Stmt var_decl(Ctx *ctx)
@@ -81,9 +84,10 @@ static Stmt var_decl(Ctx *ctx)
 
     if (ctx->tok->kind == TK_equal)
     {
-        skip_tok(ctx, TK_equal);
+        advance(ctx);
         stmt.var.rhs = expression(ctx);
     }
+
     skip_tok(ctx, TK_semicolon);
     return stmt;
 }

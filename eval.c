@@ -15,6 +15,8 @@ bool is_truthy(Value obj);
 
 Value copy_value(Value from);
 
+static VarMap_entry *find_var(Scope *scope, CGS_StrView name);
+
 Value eval(Ctx *ctx, Expr *expr)
 {
     switch (expr->kind)
@@ -29,15 +31,28 @@ Value eval(Ctx *ctx, Expr *expr)
             return (expr->value);
 
         case EXPR_var:
-            const VarMap_value *mapped = VarMap_get(&ctx->vars, expr->ident->lexeme);
-            if (mapped == NULL)
+            const VarMap_value *var = find_var(ctx->scope, expr->ident->lexeme);
+            if (var == NULL)
             {
                 report_tok_error(ctx, expr_tok(expr), "undefined variable '%?'", expr->ident->lexeme);
                 return (Value) {.type = T_none};
             }
-            return mapped->second;
+            return var->second;
     }
     unreachable();
+}
+
+static VarMap_entry *find_var(Scope *scope, CGS_StrView name)
+{
+    VarMap *vars    = &scope->vars;
+    VarMap_value *v = VarMap_get_mut(vars, name);
+    if (v)
+        return v;
+
+    if (scope->up)
+        find_var(scope->up, name);
+
+    return NULL;
 }
 
 // Value finalize(Value v)
@@ -252,7 +267,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
         case TK_equal:
         {
             Token *var_name   = expr->binary.left->ident;
-            VarMap_value *val = VarMap_get_mut(&ctx->vars, var_name->lexeme);
+            VarMap_value *val = find_var(ctx->scope, var_name->lexeme);
             if (val)
             {
                 val->second     = copy_value(right);

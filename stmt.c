@@ -15,14 +15,23 @@ void free_stmt(Stmt *stmt)
             break;
         case STMT_var:
             free_expr(stmt->var.rhs);
+            break;
+        case STMT_scope:
+            for (c_each(scit, StmtList, stmt->scope->stmts))
+            {
+                free_stmt(scit.ref);
+            }
+            StmtList_drop(&stmt->scope->stmts);
+            VarMap_drop(&stmt->scope->vars);
+            break;
     }
 }
 
-void execute_stmts(Ctx *ctx)
+static void execute_stmts_in_scope(Ctx *ctx, Scope *scope)
 {
-    VarMap *vars = &ctx->vars;
+    VarMap *vars = &scope->vars;
 
-    for (c_each(it, StmtList, ctx->stmts))
+    for (c_each(it, StmtList, scope->stmts))
     {
         if (ctx->error)
             return;
@@ -63,6 +72,14 @@ void execute_stmts(Ctx *ctx)
                 Value v = eval(ctx, stmt.expr);
                 free_value(v);
                 break;
+            case STMT_scope:
+                execute_stmts_in_scope(ctx, stmt.scope);
+                break;
         }
     }
+}
+
+void execute_stmts(Ctx *ctx)
+{
+    execute_stmts_in_scope(ctx, ctx->scope);
 }

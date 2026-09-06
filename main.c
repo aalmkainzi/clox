@@ -92,15 +92,15 @@ static int run_repl_line(Ctx *ctx)
     parse(ctx);
 
     if (ctx->verbose)
-        cgs_printfln("nb statements: %?", ctx->stmts.size);
+        cgs_printfln("nb statements: %?", ctx->scope->stmts.size);
 
     execute_stmts(ctx);
 
-    for (c_each(it, StmtList, ctx->stmts))
+    for (c_each(it, StmtList, ctx->scope->stmts))
     {
         free_stmt(it.ref);
     }
-    StmtList_drop(&ctx->stmts);
+    StmtList_drop(&ctx->scope->stmts);
 
     ctx->lineno += 1;
     if (ctx->error)
