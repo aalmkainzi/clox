@@ -36,6 +36,7 @@ typedef struct Stmt
 typedef struct Ctx Ctx;
 void execute_stmts(Ctx *ctx);
 
+void free_scope(struct Scope *scope);
 void free_stmt(Stmt *stmt);
 
 #define T StmtList, Stmt

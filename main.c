@@ -120,7 +120,6 @@ static int repl_loop(bool verbose)
         .lineno    = 1,
         .file_name = cgs_strv("<repl>"),
         .repl      = true,
-        .vars      = VarMap_init(),
         .verbose   = verbose,
     };
 
@@ -144,12 +143,6 @@ static int repl_loop(bool verbose)
         cgs_dstr_deinit(line);
     }
 
-    for (c_each(it, VarMap, ctx->vars))
-    {
-        free_var_value(&it.ref->second);
-    }
-    VarMap_drop(&ctx->vars);
-
     TokensChain_drop(&ctx->toks);
     Lines_drop(&lines);
 
@@ -166,7 +159,6 @@ static int run(CGS_StrView file_name, CGS_DStr *src, bool verbose)
         .file_name = file_name,
         .src       = cgs_strv(src),
         .repl      = false,
-        .vars      = VarMap_init(),
         .verbose   = verbose,
     };
 
@@ -181,19 +173,19 @@ static int run(CGS_StrView file_name, CGS_DStr *src, bool verbose)
     execute_stmts(ctx);
 
 done:
-    for (c_each(it, StmtList, ctx->stmts))
+    for (c_each(it, StmtList, ctx->scope->stmts))
     {
         free_stmt(it.ref);
     }
+    StmtList_drop(&ctx->scope->stmts);
 
-    StmtList_drop(&ctx->stmts);
     TokensChain_drop(&ctx->toks);
 
-    for (c_each(it, VarMap, ctx->vars))
+    for (c_each(it, VarMap, ctx->scope->vars))
     {
         free_var_value(&it.ref->second);
     }
-    VarMap_drop(&ctx->vars);
+    VarMap_drop(&ctx->scope->vars);
 
     if (ctx->error)
         return 1;

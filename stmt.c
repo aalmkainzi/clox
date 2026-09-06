@@ -3,6 +3,21 @@
 #include "expr.h"
 #include "var.h"
 
+void free_scope(Scope *scope)
+{
+    for (c_each(scit, StmtList, scope->stmts))
+    {
+        free_stmt(scit.ref);
+    }
+    StmtList_drop(&scope->stmts);
+
+    for (c_each(it, VarMap, scope->vars))
+    {
+        free_var_value(&it.ref->second);
+    }
+    VarMap_drop(&scope->vars);
+}
+
 void free_stmt(Stmt *stmt)
 {
     switch (stmt->kind)
@@ -17,12 +32,7 @@ void free_stmt(Stmt *stmt)
             free_expr(stmt->var.rhs);
             break;
         case STMT_scope:
-            for (c_each(scit, StmtList, stmt->scope->stmts))
-            {
-                free_stmt(scit.ref);
-            }
-            StmtList_drop(&stmt->scope->stmts);
-            VarMap_drop(&stmt->scope->vars);
+            free_scope(stmt->scope);
             break;
     }
 }

@@ -17,6 +17,7 @@ static Stmt print_stmt(Ctx *ctx);
 static Stmt expr_stmt(Ctx *ctx);
 static Stmt var_decl(Ctx *ctx);
 static Stmt scope_stmt(Ctx *ctx);
+void parse_stmts(Ctx *ctx);
 
 static void init_scope(Scope *scope);
 
@@ -28,21 +29,18 @@ void parse(Ctx *ctx)
 
     ctx->tok = TokensChain_back(&ctx->toks)->data;
 
-    Stmt stmt  = scope_stmt(ctx);
-    ctx->scope = stmt.scope;
+    parse_stmts(ctx);
 }
 
-static Stmt scope_stmt(Ctx *ctx)
+void parse_repl(Ctx *ctx)
 {
-    Stmt ret = {
-        .kind  = STMT_scope,
-        .scope = calloc(1, sizeof(Scope)),
-    };
-    ret.scope->stmts = StmtList_init();
-    ret.scope->vars  = VarMap_init();
-    ret.scope->up    = ctx->scope;
+    assert(ctx->scope != NULL);
+    ctx->tok = TokensChain_back(&ctx->toks)->data;
+    parse_stmts(ctx);
+}
 
-    StmtList *stmts = &ret.scope->stmts;
+void parse_stmts(Ctx *ctx)
+{
     while (ctx->tok && ctx->tok->kind != TK_eof)
     {
         Stmt stmt;
@@ -56,16 +54,27 @@ static Stmt scope_stmt(Ctx *ctx)
                 break;
             case TK_lcurly:
                 skip_tok(ctx, TK_lcurly);
-                stmt = scope_stmt(ctx);
-                skip_tok(ctx, TK_rcurly);
+                Scope *new_scope = calloc(1, sizeof(Scope));
+                init_scope(new_scope);
+                new_scope->up = ctx->scope;
+                ctx->scope    = new_scope;
                 break;
+            case TK_rcurly:
+                if (ctx->scope->up == NULL)
+                {
+                    report_tok_error(ctx, ctx->tok, "unexpected }");
+                }
+                else
+                {
+                    free_scope(ctx->scope);
+                    ctx->scope = ctx->scope->up;
+                }
             default:
                 stmt = expr_stmt(ctx);
                 break;
         }
-        StmtList_push(stmts, stmt);
+        StmtList_push(&ctx->scope->stmts, stmt);
     }
-    return ret;
 }
 
 static void init_scope(Scope *scope)
