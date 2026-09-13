@@ -49,44 +49,54 @@ static void execute_stmts_in_scope(Ctx *ctx, StmtList *stmts, Scope *scope)
         switch (stmt.kind)
         {
             case STMT_print:
+            {
                 Value val = eval(ctx, stmt.data.print_expr);
                 if (val.type == T_none)
-                {
                     break;
-                }
                 cgs_writeln_tostr(val);
                 free_value(val);
-                break;
+            }
+            break;
             case STMT_var:
+            {
                 CGS_StrView name = stmt.data.var.name->lexeme;
-                Value value;
+                Value val = {};
                 if (stmt.data.var.rhs)
                 {
-                    value = eval(ctx, stmt.data.var.rhs);
+                    val = eval(ctx, stmt.data.var.rhs);
+                    if (val.type == T_none)
+                        break;
                 }
                 else
                 {
-                    value = (Value) {.type = T_nil};
+                    val = (Value) {.type = T_nil};
                 }
-                value.var = true;
+                val.var = true;
 
-                VarMap_result res = VarMap_insert(&ctx->scope->vars, name, value);
+                VarMap_result res = VarMap_insert(&ctx->scope->vars, name, val);
                 if (!res.inserted)
                 {
                     free_var_value(&res.ref->second);
-                    res.ref->second = value;
+                    res.ref->second = val;
                 }
-                break;
+            }
+            break;
             case STMT_expr:
-                Value v = eval(ctx, stmt.data.expr);
-                cgs_writeln_tostr(v);
-                free_value(v);
-                break;
+            {
+                Value val = eval(ctx, stmt.data.expr);
+                if (val.type == T_none)
+                    break;
+                cgs_writeln_tostr(val);
+                free_value(val);
+            }
+            break;
             case STMT_scope:
+            {
                 enter_scope(ctx);
                 execute_stmts_in_scope(ctx, &stmt.data.scope_stmts, scope);
                 exit_scope(ctx);
-                break;
+            }
+            break;
 
             case STMT_none:
                 unreachable();
