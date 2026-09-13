@@ -37,6 +37,11 @@ Value eval(Ctx *ctx, Expr *expr)
                 report_tok_error(ctx, expr_tok(expr), "undefined variable '%?'", expr->ident->lexeme);
                 return (Value) {.type = T_none};
             }
+            else if (var->second.type == T_none)
+            {
+                report_tok_error(ctx, expr_tok(expr), "variable not initialized");
+                return (Value) {.type = T_none};
+            }
             return var->second;
     }
     unreachable();
