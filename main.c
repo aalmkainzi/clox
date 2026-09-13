@@ -100,7 +100,8 @@ static int run_repl_line(Ctx *ctx)
     {
         free_stmt(it.ref);
     }
-    StmtList_drop(&ctx->stmts);
+    StmtList_clear(&ctx->stmts);
+    // StmtList_drop(&ctx->scope->stmts);
 
     ctx->lineno += 1;
     if (ctx->error)
@@ -120,9 +121,11 @@ static int repl_loop(bool verbose)
         .lineno    = 1,
         .file_name = cgs_strv("<repl>"),
         .repl      = true,
-        .vars      = VarMap_init(),
         .verbose   = verbose,
+        .scope     = calloc(1, sizeof(Scope)),
     };
+
+    init_scope(ctx->scope);
 
     while (!feof(stdin))
     {
@@ -144,14 +147,10 @@ static int repl_loop(bool verbose)
         cgs_dstr_deinit(line);
     }
 
-    for (c_each(it, VarMap, ctx->vars))
-    {
-        free_var_value(&it.ref->second);
-    }
-    VarMap_drop(&ctx->vars);
-
+    StmtList_drop(&ctx->stmts);
     TokensChain_drop(&ctx->toks);
     Lines_drop(&lines);
+    free_scope(ctx->scope);
 
     return 0;
 }
@@ -166,9 +165,11 @@ static int run(CGS_StrView file_name, CGS_DStr *src, bool verbose)
         .file_name = file_name,
         .src       = cgs_strv(src),
         .repl      = false,
-        .vars      = VarMap_init(),
         .verbose   = verbose,
+        .scope     = calloc(1, sizeof(Scope)),
     };
+
+    init_scope(ctx->scope);
 
     tokenize(ctx);
     if (ctx->error || tokens_empty(ctx))
@@ -185,15 +186,10 @@ done:
     {
         free_stmt(it.ref);
     }
-
     StmtList_drop(&ctx->stmts);
-    TokensChain_drop(&ctx->toks);
 
-    for (c_each(it, VarMap, ctx->vars))
-    {
-        free_var_value(&it.ref->second);
-    }
-    VarMap_drop(&ctx->vars);
+    TokensChain_drop(&ctx->toks);
+    free_scope(ctx->scope);
 
     if (ctx->error)
         return 1;

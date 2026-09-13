@@ -2,6 +2,7 @@
 #include "expr.h"
 #include "stmt.h"
 #include "token.h"
+#include "var.h"
 
 static Expr *expression(Ctx *ctx);
 static Expr *assignment(Ctx *ctx);
@@ -15,43 +16,78 @@ static Expr *primary(Ctx *ctx);
 static Stmt print_stmt(Ctx *ctx);
 static Stmt expr_stmt(Ctx *ctx);
 static Stmt var_decl(Ctx *ctx);
+static Stmt parse_stmt(Ctx *ctx);
+void parse_stmts(Ctx *ctx);
+
+static void synchronize(Ctx *ctx, TokenKind to);
 
 void parse(Ctx *ctx)
 {
-    ctx->stmts = StmtList_init();
-
     ctx->tok = TokensChain_back(&ctx->toks)->data;
 
+    parse_stmts(ctx);
+}
+
+void parse_stmts(Ctx *ctx)
+{
     while (ctx->tok && ctx->tok->kind != TK_eof)
     {
-        switch (ctx->tok->kind)
-        {
-            case TK_print:
-                StmtList_push(&ctx->stmts, print_stmt(ctx));
-                break;
-            case TK_var:
-                StmtList_push(&ctx->stmts, var_decl(ctx));
-                break;
-            default:
-                StmtList_push(&ctx->stmts, expr_stmt(ctx));
-                break;
-        }
+        StmtList_push(&ctx->stmts, parse_stmt(ctx));
     }
+}
+
+static Stmt parse_stmt(Ctx *ctx)
+{
+    Stmt stmt = {};
+    switch (ctx->tok->kind)
+    {
+        case TK_print:
+            stmt = print_stmt(ctx);
+            break;
+        case TK_var:
+            stmt = var_decl(ctx);
+            break;
+        case TK_lcurly:
+            advance(ctx);
+            stmt.kind      = STMT_scope;
+            StmtList *list = &stmt.data.scope_stmts;
+            while (ctx->tok->kind != TK_rcurly && ctx->tok->kind != TK_eof)
+            {
+                StmtList_push(list, parse_stmt(ctx));
+            }
+            if (!skip_tok(ctx, TK_rcurly))
+            {
+                ; // nothing to do. eof reached, error reported
+            }
+            break;
+        default:
+            stmt = expr_stmt(ctx);
+            break;
+    }
+    return stmt;
 }
 
 static Stmt var_decl(Ctx *ctx)
 {
     Stmt stmt = {.kind = STMT_var, .begin = ctx->tok};
-    skip_tok(ctx, TK_var);
-    stmt.var.name = ctx->tok;
-    skip_tok(ctx, TK_ident);
+    advance(ctx);
+    stmt.data.var.name = ctx->tok;
+    if (!skip_tok(ctx, TK_ident))
+    {
+        synchronize(ctx, TK_semicolon);
+        return (Stmt) {};
+    }
 
     if (ctx->tok->kind == TK_equal)
     {
-        skip_tok(ctx, TK_equal);
-        stmt.var.rhs = expression(ctx);
+        advance(ctx);
+        stmt.data.var.rhs = expression(ctx);
     }
-    skip_tok(ctx, TK_semicolon);
+
+    if (!skip_tok(ctx, TK_semicolon))
+    {
+        return (Stmt) {};
+    }
     return stmt;
 }
 
@@ -59,10 +95,13 @@ static Stmt expr_stmt(Ctx *ctx)
 {
     Stmt stmt = {.kind = STMT_expr, .begin = ctx->tok};
 
-    stmt.expr = expression(ctx);
-    stmt.end  = ctx->tok;
+    stmt.data.expr = expression(ctx);
+    stmt.end       = ctx->tok;
 
-    skip_tok(ctx, TK_semicolon);
+    if (!skip_tok(ctx, TK_semicolon))
+    {
+        return (Stmt) {};
+    }
 
     return stmt;
 }
@@ -70,12 +109,15 @@ static Stmt expr_stmt(Ctx *ctx)
 static Stmt print_stmt(Ctx *ctx)
 {
     Stmt stmt = {.kind = STMT_print, .begin = ctx->tok};
-    skip_tok(ctx, TK_print);
+    advance(ctx);
 
-    stmt.print_expr = expression(ctx);
-    stmt.end        = ctx->tok;
+    stmt.data.print_expr = expression(ctx);
+    stmt.end             = ctx->tok;
 
-    skip_tok(ctx, TK_semicolon);
+    if (!skip_tok(ctx, TK_semicolon))
+    {
+        return (Stmt) {};
+    }
     return stmt;
 }
 
@@ -87,8 +129,8 @@ static Expr *expression(Ctx *ctx)
 static Expr *assignment(Ctx *ctx)
 {
     Token *lhs_begin = ctx->tok;
-    Expr *left = equality(ctx);
-    
+    Expr *left       = equality(ctx);
+
     if (ctx->tok->kind == TK_equal)
     {
         Token *lhs_end = ctx->tok - 1;
@@ -102,7 +144,7 @@ static Expr *assignment(Ctx *ctx)
         Expr *right = expression(ctx);
         return new_binary(left, right, op);
     }
-    
+
     return left;
 }
 
@@ -192,7 +234,9 @@ static Expr *primary(Ctx *ctx)
     {
         advance(ctx);
         Expr *inside = expression(ctx);
-        skip_tok(ctx, TK_rparen);
+        if (!skip_tok(ctx, TK_rparen))
+            synchronize(ctx, TK_semicolon);
+
         return inside;
     }
 
@@ -220,4 +264,12 @@ static Expr *primary(Ctx *ctx)
 
     advance(ctx);
     return expr;
+}
+
+static void synchronize(Ctx *ctx, TokenKind to)
+{
+    while (ctx->tok->kind != to && ctx->tok->kind != TK_eof)
+    {
+        advance(ctx);
+    }
 }

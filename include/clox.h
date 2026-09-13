@@ -10,7 +10,6 @@
 typedef struct Scope
 {
     struct Scope *up;
-    StmtList stmts;
     VarMap vars;
 } Scope;
 
@@ -24,8 +23,9 @@ typedef struct Ctx
     TokensChain toks;
 
     Token *tok;
-    
+
     Scope *scope;
+    StmtList stmts;
 
     bool error;
     bool repl;
@@ -45,11 +45,15 @@ void report_error_(Ctx *ctx, const CGS_StrView error_loc);
 void report_tok_error_(Ctx *ctx, Token *tok);
 void report_tok_range_error_(Ctx *ctx, Token *begin_tok, Token *end_tok);
 
-void skip_tok(Ctx *ctx, TokenKind kind); // skip `kind` token
+[[nodiscard("syncronize if this returns false")]]
+bool skip_tok(Ctx *ctx, TokenKind kind); // skip `kind` token
 void advance(Ctx *ctx);                  // dequeue
 Token *peek(Ctx *ctx);
 bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds);
 bool consume_any_(Ctx *ctx, TokenKind *kinds, int n_kinds);
+
+void init_scope(Scope *scope);
+void free_scope(Scope *scope);
 
 extern _Thread_local char error_message_buf[1024];
 

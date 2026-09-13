@@ -146,6 +146,6 @@ CGS_StrView expr_view(Expr *expr)
             view = expr->ident->lexeme;
             break;
     }
-    
+
     return view;
 }

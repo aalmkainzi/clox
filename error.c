@@ -76,8 +76,8 @@ void report_tok_error_(Ctx *ctx, Token *tok)
 {
     if (tok->kind == TK_eof)
     {
-        Token *prev_tok = tok - 1;
-        char *eof_loc   = prev_tok->lexeme.chars + prev_tok->lexeme.len;
+        Token *prev_tok     = tok - 1;
+        const char *eof_loc = prev_tok->lexeme.chars + prev_tok->lexeme.len;
         report_error_(ctx, (CGS_StrView) {.chars = eof_loc, .len = 1});
     }
     else
