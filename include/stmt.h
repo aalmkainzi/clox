@@ -2,7 +2,6 @@
 #define STMT_H
 
 #include "expr.h"
-#include "stc/common.h"
 #include "token.h"
 
 typedef enum StmtKind

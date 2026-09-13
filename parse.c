@@ -32,7 +32,9 @@ void parse_stmts(Ctx *ctx)
 {
     while (ctx->tok && ctx->tok->kind != TK_eof)
     {
-        StmtList_push(&ctx->stmts, parse_stmt(ctx));
+        Stmt stmt = parse_stmt(ctx);
+        if (stmt.kind != STMT_none)
+            StmtList_push(&ctx->stmts, stmt);
     }
 }
 
@@ -100,6 +102,7 @@ static Stmt expr_stmt(Ctx *ctx)
 
     if (!skip_tok(ctx, TK_semicolon))
     {
+        free_expr(stmt.data.expr);
         return (Stmt) {};
     }
 

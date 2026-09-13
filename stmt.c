@@ -54,7 +54,7 @@ static void execute_stmts_in_scope(Ctx *ctx, StmtList *stmts, Scope *scope)
                 {
                     break;
                 }
-                cgs_printfln("%?", val);
+                cgs_writeln_tostr(val);
                 free_value(val);
                 break;
             case STMT_var:
@@ -79,6 +79,7 @@ static void execute_stmts_in_scope(Ctx *ctx, StmtList *stmts, Scope *scope)
                 break;
             case STMT_expr:
                 Value v = eval(ctx, stmt.data.expr);
+                cgs_writeln_tostr(v);
                 free_value(v);
                 break;
             case STMT_scope:
