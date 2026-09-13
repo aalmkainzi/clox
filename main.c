@@ -189,6 +189,7 @@ done:
     StmtList_drop(&ctx->stmts);
 
     TokensChain_drop(&ctx->toks);
+    free_scope(ctx->scope);
 
     if (ctx->error)
         return 1;

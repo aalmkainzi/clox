@@ -19,7 +19,7 @@ static Stmt var_decl(Ctx *ctx);
 static Stmt parse_stmt(Ctx *ctx);
 void parse_stmts(Ctx *ctx);
 
-void synchronize(Ctx *ctx, TokenKind to);
+static void synchronize(Ctx *ctx, TokenKind to);
 
 void parse(Ctx *ctx)
 {

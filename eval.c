@@ -50,7 +50,7 @@ static VarMap_entry *find_var(Scope *scope, CGS_StrView name)
         return v;
 
     if (scope->up)
-        find_var(scope->up, name);
+        return find_var(scope->up, name);
 
     return NULL;
 }

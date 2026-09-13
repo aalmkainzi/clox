@@ -125,8 +125,8 @@ static void exit_scope(Ctx *ctx)
 
 static void enter_scope(Ctx *ctx)
 {
-    Scope *save    = ctx->scope;
-    ctx->scope     = calloc(1, sizeof(Scope));
+    Scope *save = ctx->scope;
+    ctx->scope  = calloc(1, sizeof(Scope));
     init_scope(ctx->scope);
     ctx->scope->up = save;
 }
