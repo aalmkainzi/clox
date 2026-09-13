@@ -2,6 +2,7 @@
 #define STMT_H
 
 #include "expr.h"
+#include "stc/common.h"
 #include "token.h"
 
 typedef enum StmtKind
@@ -19,6 +20,8 @@ typedef struct
     Expr *rhs;
 } StmtVar;
 
+declare_vec(StmtList, struct Stmt);
+
 typedef struct Stmt
 {
     StmtKind kind;
@@ -30,16 +33,16 @@ typedef struct Stmt
         Expr *expr;
         Expr *print_expr;
         StmtVar var;
-        struct Scope *scope;
-    };
+        StmtList scope_stmts;
+    } data;
 } Stmt;
 
 typedef struct Ctx Ctx;
 void execute_stmts(Ctx *ctx);
 
-void free_scope(struct Scope *scope);
 void free_stmt(Stmt *stmt);
 
+#define i_declared
 #define T StmtList, Stmt
 #include "stc/vec.h"
 

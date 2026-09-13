@@ -89,18 +89,18 @@ static int run_repl_line(Ctx *ctx)
     if (ctx->verbose)
         print_tokens(ctx);
 
-    parse_repl(ctx);
+    parse(ctx);
 
     if (ctx->verbose)
-        cgs_printfln("nb statements: %?", ctx->scope->stmts.size);
+        cgs_printfln("nb statements: %?", ctx->stmts.size);
 
     execute_stmts(ctx);
 
-    for (c_each(it, StmtList, ctx->scope->stmts))
+    for (c_each(it, StmtList, ctx->stmts))
     {
         free_stmt(it.ref);
     }
-    StmtList_clear(&ctx->scope->stmts);
+    StmtList_clear(&ctx->stmts);
     // StmtList_drop(&ctx->scope->stmts);
 
     ctx->lineno += 1;
@@ -122,9 +122,9 @@ static int repl_loop(bool verbose)
         .file_name = cgs_strv("<repl>"),
         .repl      = true,
         .verbose   = verbose,
+        .scope     = calloc(1, sizeof(Scope)),
     };
 
-    ctx->scope = calloc(1, sizeof(Scope));
     init_scope(ctx->scope);
 
     while (!feof(stdin))
@@ -147,8 +147,10 @@ static int repl_loop(bool verbose)
         cgs_dstr_deinit(line);
     }
 
+    StmtList_drop(&ctx->stmts);
     TokensChain_drop(&ctx->toks);
     Lines_drop(&lines);
+    free_scope(ctx->scope);
 
     return 0;
 }
@@ -164,7 +166,10 @@ static int run(CGS_StrView file_name, CGS_DStr *src, bool verbose)
         .src       = cgs_strv(src),
         .repl      = false,
         .verbose   = verbose,
+        .scope     = calloc(1, sizeof(Scope)),
     };
+
+    init_scope(ctx->scope);
 
     tokenize(ctx);
     if (ctx->error || tokens_empty(ctx))
@@ -177,19 +182,13 @@ static int run(CGS_StrView file_name, CGS_DStr *src, bool verbose)
     execute_stmts(ctx);
 
 done:
-    for (c_each(it, StmtList, ctx->scope->stmts))
+    for (c_each(it, StmtList, ctx->stmts))
     {
         free_stmt(it.ref);
     }
-    StmtList_drop(&ctx->scope->stmts);
+    StmtList_drop(&ctx->stmts);
 
     TokensChain_drop(&ctx->toks);
-
-    for (c_each(it, VarMap, ctx->scope->vars))
-    {
-        free_var_value(&it.ref->second);
-    }
-    VarMap_drop(&ctx->scope->vars);
 
     if (ctx->error)
         return 1;

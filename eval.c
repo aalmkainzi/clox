@@ -22,13 +22,13 @@ Value eval(Ctx *ctx, Expr *expr)
     switch (expr->kind)
     {
         case EXPR_unary:
-            return (eval_unary(ctx, expr));
+            return eval_unary(ctx, expr);
 
         case EXPR_binary:
-            return (eval_binary(ctx, expr));
+            return eval_binary(ctx, expr);
 
         case EXPR_value:
-            return (expr->value);
+            return copy_value(expr->value);
 
         case EXPR_var:
             const VarMap_value *var = find_var(ctx->scope, expr->ident->lexeme);

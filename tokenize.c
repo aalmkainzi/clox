@@ -309,7 +309,8 @@ void tokenize(Ctx *ctx)
 [[nodiscard("syncronize if this returns false")]]
 bool skip_tok(Ctx *ctx, TokenKind kind)
 {
-    if (ctx->tok->kind != kind) {
+    if (ctx->tok->kind != kind)
+    {
         report_tok_error(ctx, ctx->tok, "expected %?, but got %?", tok2str[kind], tok2str[ctx->tok->kind]);
         return false;
     }

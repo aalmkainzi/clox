@@ -10,7 +10,6 @@
 typedef struct Scope
 {
     struct Scope *up;
-    StmtList stmts;
     VarMap vars;
 } Scope;
 
@@ -26,6 +25,7 @@ typedef struct Ctx
     Token *tok;
 
     Scope *scope;
+    StmtList stmts;
 
     bool error;
     bool repl;
@@ -37,9 +37,6 @@ CGS_StrView range_view(CGS_StrView begin, CGS_StrView end);
 
 void tokenize(Ctx *ctx);
 void parse(Ctx *ctx);
-void parse_repl(Ctx *ctx);
-
-void init_scope(Scope *scope);
 
 void free_expr(Expr *expr);
 void free_tokens(TokenList *toks);
@@ -54,6 +51,9 @@ void advance(Ctx *ctx);                  // dequeue
 Token *peek(Ctx *ctx);
 bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds);
 bool consume_any_(Ctx *ctx, TokenKind *kinds, int n_kinds);
+
+void init_scope(Scope *scope);
+void free_scope(Scope *scope);
 
 extern _Thread_local char error_message_buf[1024];
 
