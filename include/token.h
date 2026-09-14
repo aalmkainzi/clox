@@ -36,6 +36,7 @@ TWO_CHAR_PUNCT_TOKEN_LIST(macro)
 
 #define KEYWORD_TOKEN_LIST(macro) \
 macro(if      , "if"   )          \
+macro(else    , "else" )          \
 macro(while   , "while")          \
 macro(for     , "for"  )          \
 macro(and     , "and"  )          \

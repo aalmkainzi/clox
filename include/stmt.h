@@ -11,13 +11,21 @@ typedef enum StmtKind
     STMT_print,
     STMT_var,
     STMT_scope,
+    STMT_if,
 } StmtKind;
 
-typedef struct
+typedef struct StmtVar
 {
     Token *name;
     Expr *rhs;
 } StmtVar;
+
+typedef struct StmtIf
+{
+    Expr *cond;
+    struct Stmt *if_branch;
+    struct Stmt *else_branch;
+} StmtIf;
 
 declare_vec(StmtList, struct Stmt);
 
@@ -33,6 +41,7 @@ typedef struct Stmt
         Expr *print_expr;
         StmtVar var;
         StmtList scope_stmts;
+        StmtIf stmt_if;
     } data;
 } Stmt;
 

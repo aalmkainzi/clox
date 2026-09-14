@@ -90,6 +90,7 @@ void free_var_value(Value *val);
 
 struct Ctx;
 Value eval(struct Ctx *ctx, Expr *expr);
+bool is_truthy(Value obj);
 
 Value copy_value(Value from);
 

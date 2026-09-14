@@ -9,8 +9,12 @@
 Value eval_unary(Ctx *ctx, Expr *expr);
 Value eval_binary(Ctx *ctx, Expr *expr);
 
-bool expect_number(Ctx *ctx, Value *obj);
-bool expect_string(Ctx *ctx, Value *obj);
+static bool expect_number(Ctx *ctx, Value *obj);
+[[maybe_unused]]
+static bool expect_string(Ctx *ctx, Value *obj);
+[[maybe_unused]]
+static bool expect_nil(Ctx *ctx, Value *obj);
+
 bool is_truthy(Value obj);
 
 Value copy_value(Value from);
@@ -42,7 +46,10 @@ Value eval(Ctx *ctx, Expr *expr)
                 report_tok_error(ctx, expr_tok(expr), "variable not initialized");
                 return (Value) {.type = T_none};
             }
-            return var->second;
+            Value var_val = copy_value(var->second);
+            var_val.tok   = expr->ident;
+            assert(!var_val.var);
+            return var_val;
     }
     unreachable();
 }
@@ -104,8 +111,63 @@ Value eval_unary(Ctx *ctx, Expr *expr)
     return obj;
 }
 
+static Value eval_binary_logical(Ctx *ctx, Expr *expr)
+{
+    Value left = eval(ctx, expr->binary.left);
+    Value result;
+
+    switch (expr->binary.op->kind)
+    {
+        case TK_or:
+        {
+            bool left_truthy = is_truthy(left);
+            if (left_truthy)
+            {
+                result = copy_value(left);
+            }
+            else
+            {
+                Value right        = eval(ctx, expr->binary.right);
+                result             = copy_value(right);
+                result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
+                free_value(right);
+            }
+        }
+        break;
+
+        case TK_and:
+        {
+            bool left_truthy = is_truthy(left);
+            if (!left_truthy)
+            {
+                result = copy_value(left);
+            }
+            else
+            {
+                Value right        = eval(ctx, expr->binary.right);
+                result             = copy_value(right);
+                result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
+                free_value(right);
+            }
+        }
+        break;
+
+        default:
+            unreachable();
+            break;
+    }
+
+    free_value(left);
+    return result;
+}
+
 Value eval_binary(Ctx *ctx, Expr *expr)
 {
+    if (expr->binary.op->kind == TK_and || expr->binary.op->kind == TK_or)
+    {
+        return eval_binary_logical(ctx, expr);
+    }
+
     Value left  = eval(ctx, expr->binary.left);
     Value right = eval(ctx, expr->binary.right);
 
@@ -205,20 +267,6 @@ Value eval_binary(Ctx *ctx, Expr *expr)
         }
         break;
 
-        case TK_or:
-        {
-            result.boolean = is_truthy(left) || is_truthy(right);
-            result.type    = T_bool;
-        }
-        break;
-
-        case TK_and:
-        {
-            result.boolean = is_truthy(left) && is_truthy(right);
-            result.type    = T_bool;
-        }
-        break;
-
         case TK_gt:
         {
             if (!expect_number(ctx, &left) || !expect_number(ctx, &right))
@@ -261,11 +309,31 @@ Value eval_binary(Ctx *ctx, Expr *expr)
 
         case TK_equal_equal:
         {
-            if (!expect_number(ctx, &left) || !expect_number(ctx, &right))
-                break;
-
-            result.type    = T_bool;
-            result.boolean = left.number == right.number;
+            if (left.type == T_str)
+            {
+                Value str_equality_result = {
+                    .tok = copy_token(result.tok),
+                    .type = T_bool,
+                    .boolean = right.type == T_str && cgs_equal(left.string, right.string)
+                };
+                free_value(result);
+                result = str_equality_result;
+            }
+            else if (left.type == T_num)
+            {
+                result.type    = T_bool;
+                result.boolean = right.type == T_num && (left.number == right.number);
+            }
+            else if (left.type == T_nil)
+            {
+                result.type    = T_bool;
+                result.boolean = right.type == T_nil;
+            }
+            else // bool
+            {
+                result.type    = T_bool;
+                result.boolean = right.type == T_bool && (left.boolean == right.boolean);
+            }
         }
         break;
 
@@ -275,6 +343,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
             VarMap_value *val = find_var(ctx->scope, var_name->lexeme);
             if (val)
             {
+                free_var_value(&val->second);
                 val->second     = copy_value(right);
                 val->second.var = true;
 
@@ -297,7 +366,8 @@ Value eval_binary(Ctx *ctx, Expr *expr)
     return result;
 }
 
-bool expect_number(Ctx *ctx, Value *obj)
+[[maybe_unused]]
+static bool expect_number(Ctx *ctx, Value *obj)
 {
     if (obj->type != T_num)
     {
@@ -308,9 +378,21 @@ bool expect_number(Ctx *ctx, Value *obj)
     return true;
 }
 
-bool expect_string(Ctx *ctx, Value *obj)
+[[maybe_unused]]
+static bool expect_string(Ctx *ctx, Value *obj)
 {
     if (obj->type != T_str)
+    {
+        obj->error = true;
+        report_tok_error(ctx, obj->tok, "expected string");
+        return false;
+    }
+    return true;
+}
+
+static bool expect_nil(Ctx *ctx, Value *obj)
+{
+    if (obj->type != T_nil)
     {
         obj->error = true;
         report_tok_error(ctx, obj->tok, "expected string");

@@ -5,6 +5,8 @@
 #include "var.h"
 
 static Expr *expression(Ctx *ctx);
+static Expr *or_expr(Ctx *ctx);
+static Expr *and_expr(Ctx *ctx);
 static Expr *assignment(Ctx *ctx);
 static Expr *equality(Ctx *ctx);
 static Expr *comparison(Ctx *ctx);
@@ -16,6 +18,7 @@ static Expr *primary(Ctx *ctx);
 static Stmt print_stmt(Ctx *ctx);
 static Stmt expr_stmt(Ctx *ctx);
 static Stmt var_decl(Ctx *ctx);
+static Stmt if_stmt(Ctx *ctx);
 static Stmt parse_stmt(Ctx *ctx);
 void parse_stmts(Ctx *ctx);
 
@@ -62,9 +65,41 @@ static Stmt parse_stmt(Ctx *ctx)
                 ; // nothing to do. eof reached, error reported
             }
             break;
+        case TK_if:
+            stmt = if_stmt(ctx);
+            break;
         default:
             stmt = expr_stmt(ctx);
             break;
+    }
+    return stmt;
+}
+
+static Stmt if_stmt(Ctx *ctx)
+{
+    Stmt stmt = {.kind = STMT_if, .begin = ctx->tok};
+    advance(ctx);
+    if (!skip_tok(ctx, TK_lparen))
+    {
+        synchronize(ctx, TK_rparen);
+        return (Stmt) {};
+    }
+
+    stmt.data.stmt_if.cond = expression(ctx);
+
+    if (!skip_tok(ctx, TK_rparen))
+    {
+        ; // I think the best recovery is to just pretend ) is there
+    }
+
+    stmt.data.stmt_if.if_branch  = calloc(1, sizeof(Stmt));
+    *stmt.data.stmt_if.if_branch = parse_stmt(ctx);
+
+    if (ctx->tok->kind == TK_else)
+    {
+        advance(ctx);
+        stmt.data.stmt_if.else_branch  = calloc(1, sizeof(Stmt));
+        *stmt.data.stmt_if.else_branch = parse_stmt(ctx);
     }
     return stmt;
 }
@@ -132,7 +167,7 @@ static Expr *expression(Ctx *ctx)
 static Expr *assignment(Ctx *ctx)
 {
     Token *lhs_begin = ctx->tok;
-    Expr *left       = equality(ctx);
+    Expr *left       = or_expr(ctx);
 
     if (ctx->tok->kind == TK_equal)
     {
@@ -149,6 +184,38 @@ static Expr *assignment(Ctx *ctx)
     }
 
     return left;
+}
+
+static Expr *or_expr(Ctx *ctx)
+{
+    Expr *expr = and_expr(ctx);
+
+    while (ctx->tok->kind == TK_or)
+    {
+        Token *op = ctx->tok;
+        advance(ctx);
+        Expr *right = and_expr(ctx);
+
+        expr = new_binary(expr, right, op);
+    }
+
+    return expr;
+}
+
+static Expr *and_expr(Ctx *ctx)
+{
+    Expr *expr = equality(ctx);
+
+    while (ctx->tok->kind == TK_and)
+    {
+        Token *op = ctx->tok;
+        advance(ctx);
+        Expr *right = equality(ctx);
+
+        expr = new_binary(expr, right, op);
+    }
+
+    return expr;
 }
 
 static Expr *equality(Ctx *ctx)
