@@ -1,0 +1,9 @@
+var h = "hi";
+if (h == "hi") {
+  print "PASS: 'hi' or 2 -> 'hi'";
+} else {
+  print "FAIL: 'hi' or 2 -> 'hi'";
+}
+
+if (1) printf("1");
+
