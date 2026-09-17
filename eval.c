@@ -47,6 +47,7 @@ Value eval(Ctx *ctx, Expr *expr)
                 return (Value) {.type = T_none};
             }
             Value var_val = copy_value(var->second);
+            free(var_val.tok);
             var_val.tok   = expr->ident;
             assert(!var_val.var);
             return var_val;

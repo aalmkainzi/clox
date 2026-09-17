@@ -19,6 +19,7 @@ static Stmt print_stmt(Ctx *ctx);
 static Stmt expr_stmt(Ctx *ctx);
 static Stmt var_decl(Ctx *ctx);
 static Stmt if_stmt(Ctx *ctx);
+static Stmt while_stmt(Ctx *ctx);
 static Stmt parse_stmt(Ctx *ctx);
 void parse_stmts(Ctx *ctx);
 
@@ -68,6 +69,9 @@ static Stmt parse_stmt(Ctx *ctx)
         case TK_if:
             stmt = if_stmt(ctx);
             break;
+        case TK_while:
+            stmt = while_stmt(ctx);
+            break;
         default:
             stmt = expr_stmt(ctx);
             break;
@@ -85,22 +89,52 @@ static Stmt if_stmt(Ctx *ctx)
         return (Stmt) {};
     }
 
-    stmt.data.stmt_if.cond = expression(ctx);
+    stmt.data.if_stmt.cond = expression(ctx);
 
     if (!skip_tok(ctx, TK_rparen))
     {
         ; // I think the best recovery is to just pretend ) is there
     }
 
-    stmt.data.stmt_if.if_branch  = calloc(1, sizeof(Stmt));
-    *stmt.data.stmt_if.if_branch = parse_stmt(ctx);
+    stmt.data.if_stmt.if_branch  = calloc(1, sizeof(Stmt));
+    *stmt.data.if_stmt.if_branch = parse_stmt(ctx);
 
+    if (stmt.data.if_stmt.if_branch->kind == STMT_none)
+    {
+        free_stmt(stmt.data.if_stmt.if_branch);
+        free(stmt.data.if_stmt.if_branch);
+        return (Stmt){};
+    }
+    
     if (ctx->tok->kind == TK_else)
     {
         advance(ctx);
-        stmt.data.stmt_if.else_branch  = calloc(1, sizeof(Stmt));
-        *stmt.data.stmt_if.else_branch = parse_stmt(ctx);
+        stmt.data.if_stmt.else_branch  = calloc(1, sizeof(Stmt));
+        *stmt.data.if_stmt.else_branch = parse_stmt(ctx);
+        if (stmt.data.if_stmt.else_branch->kind == STMT_none)
+        {
+            free_stmt(stmt.data.if_stmt.if_branch);
+            free(stmt.data.if_stmt.if_branch);
+            return (Stmt){};
+        }
     }
+    return stmt;
+}
+
+static Stmt while_stmt(Ctx *ctx)
+{
+    Stmt stmt = {.begin = ctx->tok, .kind = STMT_while};
+    advance(ctx);
+    
+    stmt.data.while_stmt.cond = expression(ctx);
+    stmt.data.while_stmt.body = calloc(1, sizeof(Stmt));
+    *stmt.data.while_stmt.body = parse_stmt(ctx);
+    
+    if (stmt.data.while_stmt.body->kind == STMT_none)
+    {
+        
+    }
+    
     return stmt;
 }
 

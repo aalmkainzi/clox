@@ -33,14 +33,19 @@ void free_stmt(Stmt *stmt)
             free_stmts(&stmt->data.scope_stmts);
             break;
         case STMT_if:
-            free_expr(stmt->data.stmt_if.cond);
-            free_stmt(stmt->data.stmt_if.if_branch);
-            free(stmt->data.stmt_if.if_branch);
-            if (stmt->data.stmt_if.else_branch)
+            free_expr(stmt->data.if_stmt.cond);
+            free_stmt(stmt->data.if_stmt.if_branch);
+            free(stmt->data.if_stmt.if_branch);
+            if (stmt->data.if_stmt.else_branch)
             {
-                free_stmt(stmt->data.stmt_if.else_branch);
-                free(stmt->data.stmt_if.else_branch);
+                free_stmt(stmt->data.if_stmt.else_branch);
+                free(stmt->data.if_stmt.else_branch);
             }
+            break;
+        case STMT_while:
+            free_expr(stmt->data.while_stmt.cond);
+            free_stmt(stmt->data.while_stmt.body);
+            free(stmt->data.while_stmt.body);
             break;
 
         case STMT_none:
@@ -105,19 +110,31 @@ static void execute_stmt(Ctx *ctx, Stmt stmt)
         break;
         case STMT_if:
         {
-            Value cond = eval(ctx, stmt.data.stmt_if.cond);
+            StmtIf *if_stmt = &stmt.data.if_stmt;
+            Value cond = eval(ctx, if_stmt->cond);
             if (is_truthy(cond))
             {
-                execute_stmt(ctx, *stmt.data.stmt_if.if_branch);
+                execute_stmt(ctx, *if_stmt->if_branch);
             }
-            else if (stmt.data.stmt_if.else_branch)
+            else if (if_stmt->else_branch)
             {
-                execute_stmt(ctx, *stmt.data.stmt_if.else_branch);
+                execute_stmt(ctx, *if_stmt->else_branch);
             }
             free_value(cond);
         }
         break;
-
+        case STMT_while:
+        {
+            StmtWhile *while_stmt = &stmt.data.while_stmt;
+            Value cond = eval(ctx, while_stmt->cond);
+            if (is_truthy(cond))
+            {
+                execute_stmt(ctx, *while_stmt->body);
+            }
+            
+            free_value(cond);
+        }
+        break;
         case STMT_none:
             unreachable();
     }

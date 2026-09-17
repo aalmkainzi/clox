@@ -12,6 +12,7 @@ typedef enum StmtKind
     STMT_var,
     STMT_scope,
     STMT_if,
+    STMT_while,
 } StmtKind;
 
 typedef struct StmtVar
@@ -27,6 +28,12 @@ typedef struct StmtIf
     struct Stmt *else_branch;
 } StmtIf;
 
+typedef struct StmtWhile
+{
+    Expr *cond;
+    struct Stmt *body;
+} StmtWhile;
+
 declare_vec(StmtList, struct Stmt);
 
 typedef struct Stmt
@@ -41,7 +48,8 @@ typedef struct Stmt
         Expr *print_expr;
         StmtVar var;
         StmtList scope_stmts;
-        StmtIf stmt_if;
+        StmtIf if_stmt;
+        StmtWhile while_stmt;
     } data;
 } Stmt;
 
