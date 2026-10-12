@@ -55,12 +55,13 @@ static Stmt parse_stmt(Ctx *ctx)
             break;
         case TK_lcurly:
             advance(ctx);
-            Stmt stmt      = {.kind = STMT_scope};
-            stmt.kind      = STMT_scope;
+            stmt.kind = STMT_scope;
             StmtList *list = &stmt.data.scope_stmts;
             while (ctx->tok->kind != TK_rcurly && ctx->tok->kind != TK_eof)
             {
-                StmtList_push(list, parse_stmt(ctx));
+                Stmt scope_stmt = parse_stmt(ctx);
+                if (scope_stmt.kind != STMT_none)
+                    StmtList_push(list, scope_stmt);
             }
             if (!skip_tok(ctx, TK_rcurly))
             {
@@ -104,11 +105,9 @@ static Stmt if_stmt(Ctx *ctx)
     stmt.data.if_stmt.if_branch  = calloc(1, sizeof(Stmt));
     *stmt.data.if_stmt.if_branch = parse_stmt(ctx);
 
-    if (err || stmt.data.if_stmt.if_branch->kind == STMT_none)
+    if (stmt.data.if_stmt.if_branch->kind == STMT_none)
     {
-        free_stmt(stmt.data.if_stmt.if_branch);
-        free(stmt.data.if_stmt.if_branch);
-        return (Stmt) {};
+        err = true;
     }
 
     if (ctx->tok->kind == TK_else)
@@ -118,11 +117,20 @@ static Stmt if_stmt(Ctx *ctx)
         *stmt.data.if_stmt.else_branch = parse_stmt(ctx);
         if (stmt.data.if_stmt.else_branch->kind == STMT_none)
         {
-            free_stmt(stmt.data.if_stmt.if_branch);
-            free(stmt.data.if_stmt.if_branch);
-            return (Stmt) {};
+            err = true;
         }
     }
+
+    if (err)
+    {
+        free_expr(stmt.data.expr);
+        free_stmt(stmt.data.if_stmt.else_branch);
+        free_stmt(stmt.data.if_stmt.if_branch);
+        free(stmt.data.if_stmt.if_branch);
+        free(stmt.data.if_stmt.else_branch);
+        return (Stmt) {};
+    }
+
     return stmt;
 }
 
@@ -151,6 +159,8 @@ static Stmt while_stmt(Ctx *ctx)
     if (err)
     {
         free_stmt(w->body);
+        free(w->body);
+        free_expr(w->cond);
         return (Stmt) {};
     }
 

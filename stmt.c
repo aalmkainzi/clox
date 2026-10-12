@@ -49,7 +49,7 @@ void free_stmt(Stmt *stmt)
             break;
 
         case STMT_none:
-            unreachable();
+            ;
     }
 }
 
