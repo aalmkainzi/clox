@@ -97,7 +97,7 @@ static void execute_stmt(Ctx *ctx, Stmt stmt)
             Value val = eval(ctx, stmt.data.expr);
             if (val.type == T_none)
                 break;
-            cgs_writeln_tostr(val);
+            // cgs_writeln_tostr(val);
             free_value(val);
         }
         break;
@@ -111,7 +111,7 @@ static void execute_stmt(Ctx *ctx, Stmt stmt)
         case STMT_if:
         {
             StmtIf *if_stmt = &stmt.data.if_stmt;
-            Value cond = eval(ctx, if_stmt->cond);
+            Value cond      = eval(ctx, if_stmt->cond);
             if (is_truthy(cond))
             {
                 execute_stmt(ctx, *if_stmt->if_branch);
@@ -126,13 +126,13 @@ static void execute_stmt(Ctx *ctx, Stmt stmt)
         case STMT_while:
         {
             StmtWhile *while_stmt = &stmt.data.while_stmt;
-            Value cond = eval(ctx, while_stmt->cond);
-            if (is_truthy(cond))
+            Value cond;
+            for (cond = eval(ctx, while_stmt->cond); is_truthy(cond);
+                 free_value(cond), cond = eval(ctx, while_stmt->cond))
             {
                 execute_stmt(ctx, *while_stmt->body);
-            }
-            
-            free_value(cond);
+            };
+            free_value(cond); // free the false value
         }
         break;
         case STMT_none:

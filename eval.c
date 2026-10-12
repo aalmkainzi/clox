@@ -6,6 +6,33 @@
 #include <math.h>
 #include <stdlib.h>
 
+#define COMBINE_(a, b) a##b
+#define COMBINE(a, b) COMBINE_(a, b)
+
+#define NOPT(a, ...) COMBINE(NOPT_IMPL_, __VA_OPT__(0))(a)
+
+#define NOPT_IMPL_0(...)
+#define NOPT_IMPL_(...) __VA_ARGS__
+
+Value eval_depends_(Ctx *ctx, Expr *expr, Value deps[], int n_deps);
+
+// clang-format off
+#define eval_or_throw(ctx, expr, ...)                                   \
+    ({                                                                  \
+        Value _v = eval_depends_(                                       \
+            ctx,                                                        \
+            expr,                                                       \
+            __VA_OPT__((Value[]) {__VA_ARGS__})                         \
+            NOPT(NULL, __VA_ARGS__),                                    \
+            __VA_OPT__(sizeof((Value[]) {__VA_ARGS__}) / sizeof(Value)) \
+            NOPT(0, __VA_ARGS__)                                        \
+        );                                                              \
+        if (_v.error)                                                   \
+            return _v;                                                  \
+        _v;                                                             \
+    })
+// clang-format on
+
 Value eval_unary(Ctx *ctx, Expr *expr);
 Value eval_binary(Ctx *ctx, Expr *expr);
 
@@ -18,6 +45,7 @@ static bool expect_nil(Ctx *ctx, Value *obj);
 bool is_truthy(Value obj);
 
 Value copy_value(Value from);
+Value error_value(Value *free_this);
 
 static VarMap_entry *find_var(Scope *scope, CGS_StrView name);
 
@@ -39,16 +67,16 @@ Value eval(Ctx *ctx, Expr *expr)
             if (var == NULL)
             {
                 report_tok_error(ctx, expr_tok(expr), "undefined variable '%?'", expr->ident->lexeme);
-                return (Value) {.type = T_none};
+                return error_value(NULL);
             }
             else if (var->second.type == T_none)
             {
                 report_tok_error(ctx, expr_tok(expr), "variable not initialized");
-                return (Value) {.type = T_none};
+                return error_value(NULL);
             }
             Value var_val = copy_value(var->second);
             free(var_val.tok);
-            var_val.tok   = expr->ident;
+            var_val.tok = expr->ident;
             assert(!var_val.var);
             return var_val;
     }
@@ -68,15 +96,9 @@ static VarMap_entry *find_var(Scope *scope, CGS_StrView name)
     return NULL;
 }
 
-// Value finalize(Value v)
-// {
-//     v.final = true;
-//     return v;
-// }
-
 Value eval_unary(Ctx *ctx, Expr *expr)
 {
-    Value obj = eval(ctx, expr->unary.expr);
+    Value obj = eval_or_throw(ctx, expr->unary.expr);
 
     switch (expr->unary.op->kind)
     {
@@ -84,7 +106,7 @@ Value eval_unary(Ctx *ctx, Expr *expr)
         {
             if (!expect_number(ctx, &obj))
             {
-                break;
+                return error_value(&obj);
             }
 
             Value result = copy_value(obj);
@@ -114,7 +136,8 @@ Value eval_unary(Ctx *ctx, Expr *expr)
 
 static Value eval_binary_logical(Ctx *ctx, Expr *expr)
 {
-    Value left = eval(ctx, expr->binary.left);
+    Value left = eval_or_throw(ctx, expr->binary.left);
+
     Value result;
 
     switch (expr->binary.op->kind)
@@ -128,7 +151,8 @@ static Value eval_binary_logical(Ctx *ctx, Expr *expr)
             }
             else
             {
-                Value right        = eval(ctx, expr->binary.right);
+                Value right = eval_or_throw(ctx, expr->binary.right, left);
+
                 result             = copy_value(right);
                 result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
                 free_value(right);
@@ -145,7 +169,8 @@ static Value eval_binary_logical(Ctx *ctx, Expr *expr)
             }
             else
             {
-                Value right        = eval(ctx, expr->binary.right);
+                Value right = eval_or_throw(ctx, expr->binary.right, left);
+
                 result             = copy_value(right);
                 result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
                 free_value(right);
@@ -169,8 +194,8 @@ Value eval_binary(Ctx *ctx, Expr *expr)
         return eval_binary_logical(ctx, expr);
     }
 
-    Value left  = eval(ctx, expr->binary.left);
-    Value right = eval(ctx, expr->binary.right);
+    Value left  = eval_or_throw(ctx, expr->binary.left);
+    Value right = eval_or_throw(ctx, expr->binary.right, left);
 
     Value result = copy_value(left);
     if (left.tok && right.tok)
@@ -313,8 +338,8 @@ Value eval_binary(Ctx *ctx, Expr *expr)
             if (left.type == T_str)
             {
                 Value str_equality_result = {
-                    .tok = copy_token(result.tok),
-                    .type = T_bool,
+                    .tok     = copy_token(result.tok),
+                    .type    = T_bool,
                     .boolean = right.type == T_str && cgs_equal(left.string, right.string)
                 };
                 free_value(result);
@@ -338,11 +363,41 @@ Value eval_binary(Ctx *ctx, Expr *expr)
         }
         break;
 
+        case TK_not_equal:
+        {
+            if (left.type == T_str)
+            {
+                Value str_equality_result = {
+                    .tok     = copy_token(result.tok),
+                    .type    = T_bool,
+                    .boolean = right.type != T_str || !cgs_equal(left.string, right.string)
+                };
+                free_value(result);
+                result = str_equality_result;
+            }
+            else if (left.type == T_num)
+            {
+                result.type    = T_bool;
+                result.boolean = right.type != T_num || (left.number != right.number);
+            }
+            else if (left.type == T_nil)
+            {
+                result.type    = T_bool;
+                result.boolean = right.type != T_nil;
+            }
+            else // bool
+            {
+                result.type    = T_bool;
+                result.boolean = right.type != T_bool || (left.boolean != right.boolean);
+            }
+        }
+        break;
+
         case TK_equal:
         {
             Token *var_name   = expr->binary.left->ident;
             VarMap_value *val = find_var(ctx->scope, var_name->lexeme);
-            if (val)
+            if (val && !right.error)
             {
                 free_var_value(&val->second);
                 val->second     = copy_value(right);
@@ -358,8 +413,12 @@ Value eval_binary(Ctx *ctx, Expr *expr)
             }
         }
         break;
+
         default:
-            report_tok_error(ctx, expr->binary.op, "operator %? not yet implemented", tok2str[expr->binary.op->kind]);
+            result = error_value(&result);
+            report_tok_error(
+                ctx, expr->binary.op, "operator %? not yet implemented", tok2str[expr->binary.op->kind]
+            );
     }
 
     free_value(left);
@@ -489,4 +548,24 @@ void free_var_value(Value *val)
         cgs_dstr_deinit(&val->string);
 
     *val = (Value) {};
+}
+
+Value error_value(Value *free_this)
+{
+    if (free_this)
+        free_value(*free_this);
+    return (Value) {.error = true};
+}
+
+Value eval_depends_(Ctx *ctx, Expr *expr, Value deps[], int n_deps)
+{
+    Value ret = eval(ctx, expr);
+    if (ret.error)
+    {
+        for (int i = 0; i < n_deps; i++)
+        {
+            free_value(deps[i]);
+        }
+    }
+    return ret;
 }

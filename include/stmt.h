@@ -57,6 +57,7 @@ typedef struct Ctx Ctx;
 void execute_stmts(Ctx *ctx);
 
 void free_stmt(Stmt *stmt);
+void free_stmts(StmtList *stmts);
 
 #define i_declared
 #define T StmtList, Stmt

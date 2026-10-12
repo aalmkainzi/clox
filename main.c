@@ -192,7 +192,7 @@ done:
     free_scope(ctx->scope);
 
     if (ctx->error)
-        return 1;
+        return EXIT_FAILURE;
     else
         return 0;
 }

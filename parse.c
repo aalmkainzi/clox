@@ -55,6 +55,7 @@ static Stmt parse_stmt(Ctx *ctx)
             break;
         case TK_lcurly:
             advance(ctx);
+            Stmt stmt      = {.kind = STMT_scope};
             stmt.kind      = STMT_scope;
             StmtList *list = &stmt.data.scope_stmts;
             while (ctx->tok->kind != TK_rcurly && ctx->tok->kind != TK_eof)
@@ -63,8 +64,11 @@ static Stmt parse_stmt(Ctx *ctx)
             }
             if (!skip_tok(ctx, TK_rcurly))
             {
-                ; // nothing to do. eof reached, error reported
+                free_stmts(list);
+                return (Stmt) {};
             }
+            return stmt;
+
             break;
         case TK_if:
             stmt = if_stmt(ctx);
@@ -81,6 +85,7 @@ static Stmt parse_stmt(Ctx *ctx)
 
 static Stmt if_stmt(Ctx *ctx)
 {
+    bool err  = false;
     Stmt stmt = {.kind = STMT_if, .begin = ctx->tok};
     advance(ctx);
     if (!skip_tok(ctx, TK_lparen))
@@ -93,19 +98,19 @@ static Stmt if_stmt(Ctx *ctx)
 
     if (!skip_tok(ctx, TK_rparen))
     {
-        ; // I think the best recovery is to just pretend ) is there
+        err = true; // I think the best recovery is to just pretend ) is there
     }
 
     stmt.data.if_stmt.if_branch  = calloc(1, sizeof(Stmt));
     *stmt.data.if_stmt.if_branch = parse_stmt(ctx);
 
-    if (stmt.data.if_stmt.if_branch->kind == STMT_none)
+    if (err || stmt.data.if_stmt.if_branch->kind == STMT_none)
     {
         free_stmt(stmt.data.if_stmt.if_branch);
         free(stmt.data.if_stmt.if_branch);
-        return (Stmt){};
+        return (Stmt) {};
     }
-    
+
     if (ctx->tok->kind == TK_else)
     {
         advance(ctx);
@@ -115,7 +120,7 @@ static Stmt if_stmt(Ctx *ctx)
         {
             free_stmt(stmt.data.if_stmt.if_branch);
             free(stmt.data.if_stmt.if_branch);
-            return (Stmt){};
+            return (Stmt) {};
         }
     }
     return stmt;
@@ -123,18 +128,63 @@ static Stmt if_stmt(Ctx *ctx)
 
 static Stmt while_stmt(Ctx *ctx)
 {
+    bool err  = false;
     Stmt stmt = {.begin = ctx->tok, .kind = STMT_while};
+
     advance(ctx);
-    
-    stmt.data.while_stmt.cond = expression(ctx);
-    stmt.data.while_stmt.body = calloc(1, sizeof(Stmt));
-    *stmt.data.while_stmt.body = parse_stmt(ctx);
-    
-    if (stmt.data.while_stmt.body->kind == STMT_none)
+
+    StmtWhile *w = &stmt.data.while_stmt;
+    w->cond      = expression(ctx);
+    if (w->cond == NULL)
     {
-        
+        err = true;
     }
-    
+
+    w->body  = calloc(1, sizeof(Stmt));
+    *w->body = parse_stmt(ctx);
+
+    if (w->body->kind == STMT_none)
+    {
+        err = true;
+    }
+
+    if (err)
+    {
+        free_stmt(w->body);
+        return (Stmt) {};
+    }
+
+    return stmt;
+}
+
+static Stmt for_stmt(Ctx *ctx)
+{
+    bool err  = false;
+    Stmt stmt = {.begin = ctx->tok, .kind = STMT_while};
+
+    advance(ctx);
+
+    StmtWhile *w = &stmt.data.while_stmt;
+    w->cond      = expression(ctx);
+    if (w->cond == NULL)
+    {
+        err = true;
+    }
+
+    w->body  = calloc(1, sizeof(Stmt));
+    *w->body = parse_stmt(ctx);
+
+    if (w->body->kind == STMT_none)
+    {
+        err = true;
+    }
+
+    if (err)
+    {
+        free_stmt(w->body);
+        return (Stmt) {};
+    }
+
     return stmt;
 }
 
@@ -376,4 +426,6 @@ static void synchronize(Ctx *ctx, TokenKind to)
     {
         advance(ctx);
     }
+    if (ctx->tok->kind == to)
+        advance(ctx);
 }
