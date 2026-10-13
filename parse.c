@@ -187,34 +187,61 @@ static Stmt parse_for_stmt(Ctx *ctx)
         .data.scope_stmts = StmtList_init(),
     };
 
-    Stmt init_var_decl = parse_var_decl(ctx);
-    if (init_var_decl.kind == STMT_none)
+    Stmt init_stmt = {};
+    if (ctx->tok->kind != TK_semicolon)
     {
-        err = true;
+        init_stmt = parse_stmt(ctx);
+        if (init_stmt.kind == STMT_none)
+        {
+            err = true;
+        }
+        else
+        {
+            StmtList_push(&scope.data.scope_stmts, init_stmt);
+        }
     }
     else
     {
-        StmtList_push(&scope.data.scope_stmts, init_var_decl);
+        advance(ctx);
     }
 
     Stmt loop = {.begin = ctx->tok, .kind = STMT_while};
 
     StmtWhile *w = &loop.data.while_stmt;
-    w->cond      = expression(ctx);
-    if (w->cond == NULL)
+    if (ctx->tok->kind != TK_semicolon)
     {
-        err = true;
+        w->cond      = expression(ctx);
+        if (w->cond == NULL)
+        {
+            err = true;
+        }
+        if (!skip_tok(ctx, TK_semicolon))
+        {
+            err = true;
+        }
     }
-    if (!skip_tok(ctx, TK_semicolon))
+    else
     {
-        err = true;
+        w->cond = calloc(1, sizeof(Expr));
+        w->cond->kind = EXPR_value;
+        w->cond->value = (Value){.type = T_bool, .boolean = true};
+        advance(ctx);
     }
 
-    Stmt update = {
-        .begin     = ctx->tok,
-        .kind      = STMT_expr,
-        .data.expr = expression(ctx),
-    };
+    Stmt update = {};
+    if (ctx->tok->kind != TK_rparen)
+    {
+        update = (Stmt){
+            .begin     = ctx->tok,
+            .kind      = STMT_expr,
+            .data.expr = expression(ctx),
+        };
+        if (update.data.expr == NULL)
+        {
+            err = true;
+        }
+    }
+
     if (!skip_tok(ctx, TK_rparen))
     {
         err = true;
@@ -227,8 +254,18 @@ static Stmt parse_for_stmt(Ctx *ctx)
         .data.scope_stmts = StmtList_init(),
     };
 
-    StmtList_push(&w->body->data.scope_stmts, parse_stmt(ctx));
-    StmtList_push(&w->body->data.scope_stmts, update);
+    Stmt body_stmt = parse_stmt(ctx);
+    if (body_stmt.kind == STMT_none)
+    {
+        err = true;
+    }
+    else
+    {
+        StmtList_push(&w->body->data.scope_stmts, body_stmt);
+    }
+
+    if (update.kind != STMT_none)
+        StmtList_push(&w->body->data.scope_stmts, update);
 
     if (w->body->kind == STMT_none)
     {
@@ -240,7 +277,7 @@ static Stmt parse_for_stmt(Ctx *ctx)
     if (err)
     {
         free_stmt(&update);
-        free_stmt(&init_var_decl);
+        free_stmt(&init_stmt);
         free_stmt(&loop);
         free_stmt(&scope);
         return (Stmt) {};

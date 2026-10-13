@@ -52,9 +52,9 @@ void free_stmt(Stmt *stmt)
     }
 }
 
-static void execute_stmt_list(Ctx *ctx, StmtList *stmts);
+static bool execute_stmt_list(Ctx *ctx, StmtList *stmts);
 
-static void execute_stmt(Ctx *ctx, Stmt stmt)
+static bool execute_stmt(Ctx *ctx, Stmt stmt)
 {
     switch (stmt.kind)
     {
@@ -62,7 +62,7 @@ static void execute_stmt(Ctx *ctx, Stmt stmt)
         {
             Value val = eval(ctx, stmt.data.print_expr);
             if (val.type == T_none)
-                break;
+                return false;
             cgs_writeln_tostr(val);
             free_value(val);
         }
@@ -75,7 +75,7 @@ static void execute_stmt(Ctx *ctx, Stmt stmt)
             {
                 val = eval(ctx, stmt.data.var.rhs);
                 if (val.type == T_none)
-                    break;
+                    return false;
             }
             else
             {
@@ -95,31 +95,44 @@ static void execute_stmt(Ctx *ctx, Stmt stmt)
         {
             Value val = eval(ctx, stmt.data.expr);
             if (val.type == T_none)
-                break;
-            // cgs_writeln_tostr(val);
+            {
+                ctx->error = true;
+                return false;
+            }
+
+            if (ctx->repl)
+                cgs_writeln_tostr(val);
             free_value(val);
         }
         break;
         case STMT_scope:
         {
             enter_scope(ctx);
-            execute_stmt_list(ctx, &stmt.data.scope_stmts);
+            bool ret = execute_stmt_list(ctx, &stmt.data.scope_stmts);
             exit_scope(ctx);
+            return ret;
         }
         break;
         case STMT_if:
         {
             StmtIf *if_stmt = &stmt.data.if_stmt;
             Value cond      = eval(ctx, if_stmt->cond);
+            if (cond.type == T_none)
+            {
+                return false;
+            }
+
+            bool ret = true;
             if (is_truthy(cond))
             {
-                execute_stmt(ctx, *if_stmt->if_branch);
+                ret = execute_stmt(ctx, *if_stmt->if_branch);
             }
             else if (if_stmt->else_branch)
             {
-                execute_stmt(ctx, *if_stmt->else_branch);
+                ret = execute_stmt(ctx, *if_stmt->else_branch);
             }
             free_value(cond);
+            return ret;
         }
         break;
         case STMT_while:
@@ -129,26 +142,33 @@ static void execute_stmt(Ctx *ctx, Stmt stmt)
             for (cond = eval(ctx, while_stmt->cond); is_truthy(cond);
                  free_value(cond), cond = eval(ctx, while_stmt->cond))
             {
-                execute_stmt(ctx, *while_stmt->body);
+                if (!execute_stmt(ctx, *while_stmt->body))
+                {
+                    free_value(cond);
+                    return false;
+                }
             };
             free_value(cond); // free the false value
         }
         break;
         case STMT_none:
+        default:
             unreachable();
+            return false;
+        
     }
+    return true;
 }
 
-static void execute_stmt_list(Ctx *ctx, StmtList *stmts)
+static bool execute_stmt_list(Ctx *ctx, StmtList *stmts)
 {
     for (c_each(it, StmtList, *stmts))
     {
-        if (ctx->error)
-            return;
-
         Stmt stmt = *it.ref;
-        execute_stmt(ctx, stmt);
+        if (!execute_stmt(ctx, stmt))
+            return false;
     }
+    return true;
 }
 
 void execute_stmts(Ctx *ctx)
