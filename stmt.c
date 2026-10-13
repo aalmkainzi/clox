@@ -61,7 +61,7 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         case STMT_print:
         {
             Value val = eval(ctx, stmt.data.print_expr);
-            if (val.type == T_none)
+            if (ctx->error)
                 return false;
             cgs_writeln_tostr(val);
             free_value(val);
@@ -74,7 +74,7 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
             if (stmt.data.var.rhs)
             {
                 val = eval(ctx, stmt.data.var.rhs);
-                if (val.type == T_none)
+                if (ctx->error)
                     return false;
             }
             else
@@ -94,11 +94,8 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         case STMT_expr:
         {
             Value val = eval(ctx, stmt.data.expr);
-            if (val.type == T_none)
-            {
-                ctx->error = true;
+            if (ctx->error)
                 return false;
-            }
 
             if (ctx->repl)
                 cgs_writeln_tostr(val);
@@ -117,10 +114,8 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         {
             StmtIf *if_stmt = &stmt.data.if_stmt;
             Value cond      = eval(ctx, if_stmt->cond);
-            if (cond.type == T_none)
-            {
+            if (ctx->error)
                 return false;
-            }
 
             bool ret = true;
             if (is_truthy(cond))
@@ -142,7 +137,7 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
             for (cond = eval(ctx, while_stmt->cond); is_truthy(cond);
                  free_value(cond), cond = eval(ctx, while_stmt->cond))
             {
-                if (!execute_stmt(ctx, *while_stmt->body))
+                if (ctx->error || !execute_stmt(ctx, *while_stmt->body))
                 {
                     free_value(cond);
                     return false;
@@ -155,7 +150,6 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         default:
             unreachable();
             return false;
-        
     }
     return true;
 }

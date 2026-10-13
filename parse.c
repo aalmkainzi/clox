@@ -210,7 +210,7 @@ static Stmt parse_for_stmt(Ctx *ctx)
     StmtWhile *w = &loop.data.while_stmt;
     if (ctx->tok->kind != TK_semicolon)
     {
-        w->cond      = expression(ctx);
+        w->cond = expression(ctx);
         if (w->cond == NULL)
         {
             err = true;
@@ -222,16 +222,16 @@ static Stmt parse_for_stmt(Ctx *ctx)
     }
     else
     {
-        w->cond = calloc(1, sizeof(Expr));
-        w->cond->kind = EXPR_value;
-        w->cond->value = (Value){.type = T_bool, .boolean = true};
+        w->cond        = calloc(1, sizeof(Expr));
+        w->cond->kind  = EXPR_value;
+        w->cond->value = (Value) {.type = T_bool, .boolean = true};
         advance(ctx);
     }
 
     Stmt update = {};
     if (ctx->tok->kind != TK_rparen)
     {
-        update = (Stmt){
+        update = (Stmt) {
             .begin     = ctx->tok,
             .kind      = STMT_expr,
             .data.expr = expression(ctx),
@@ -245,6 +245,7 @@ static Stmt parse_for_stmt(Ctx *ctx)
     if (!skip_tok(ctx, TK_rparen))
     {
         err = true;
+        synchronize(ctx, TK_rparen);
     }
 
     w->body  = calloc(1, sizeof(Stmt));
@@ -276,9 +277,6 @@ static Stmt parse_for_stmt(Ctx *ctx)
 
     if (err)
     {
-        free_stmt(&update);
-        free_stmt(&init_stmt);
-        free_stmt(&loop);
         free_stmt(&scope);
         return (Stmt) {};
     }
@@ -312,12 +310,24 @@ static Stmt parse_var_decl(Ctx *ctx)
 
 static Stmt parse_expr_stmt(Ctx *ctx)
 {
+    bool err  = false;
     Stmt stmt = {.kind = STMT_expr, .begin = ctx->tok};
 
     stmt.data.expr = expression(ctx);
     stmt.end       = ctx->tok;
 
+    if (stmt.data.expr == NULL)
+    {
+        err = true;
+    }
+
     if (!skip_tok(ctx, TK_semicolon))
+    {
+        err = true;
+        advance(ctx);
+    }
+
+    if (err)
     {
         free_expr(stmt.data.expr);
         return (Stmt) {};
