@@ -190,7 +190,15 @@ static Stmt parse_for_stmt(Ctx *ctx)
     Stmt init_stmt = {};
     if (ctx->tok->kind != TK_semicolon)
     {
-        init_stmt = parse_stmt(ctx);
+        if (ctx->tok->kind == TK_var)
+        {
+            init_stmt = parse_var_decl(ctx);
+        }
+        else
+        {
+            init_stmt = parse_expr_stmt(ctx);
+        }
+
         if (init_stmt.kind == STMT_none)
         {
             err = true;
