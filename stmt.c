@@ -62,7 +62,10 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         {
             Value val = eval(ctx, stmt.data.print_expr);
             if (ctx->error)
+            {
+                free_value(val);
                 return false;
+            }
             cgs_writeln_tostr(val);
             free_value(val);
         }
@@ -75,7 +78,10 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
             {
                 val = eval(ctx, stmt.data.var.rhs);
                 if (ctx->error)
+                {
+                    free_value(val);
                     return false;
+                }
             }
             else
             {
@@ -95,7 +101,10 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         {
             Value val = eval(ctx, stmt.data.expr);
             if (ctx->error)
+            {
+                free_value(val);
                 return false;
+            }
 
             if (ctx->repl)
                 cgs_writeln_tostr(val);
@@ -115,7 +124,10 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
             StmtIf *if_stmt = &stmt.data.if_stmt;
             Value cond      = eval(ctx, if_stmt->cond);
             if (ctx->error)
+            {
+                free_value(cond);
                 return false;
+            }
 
             bool ret = true;
             if (is_truthy(cond))
