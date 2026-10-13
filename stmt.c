@@ -48,8 +48,7 @@ void free_stmt(Stmt *stmt)
             free(stmt->data.while_stmt.body);
             break;
 
-        case STMT_none:
-            ;
+        case STMT_none:;
     }
 }
 

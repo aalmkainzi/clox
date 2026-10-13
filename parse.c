@@ -16,10 +16,11 @@ static Expr *unary(Ctx *ctx);
 static Expr *primary(Ctx *ctx);
 
 static Stmt print_stmt(Ctx *ctx);
-static Stmt expr_stmt(Ctx *ctx);
-static Stmt var_decl(Ctx *ctx);
-static Stmt if_stmt(Ctx *ctx);
-static Stmt while_stmt(Ctx *ctx);
+static Stmt parse_expr_stmt(Ctx *ctx);
+static Stmt parse_var_decl(Ctx *ctx);
+static Stmt parse_if_stmt(Ctx *ctx);
+static Stmt parse_while_stmt(Ctx *ctx);
+static Stmt parse_for_stmt(Ctx *ctx);
 static Stmt parse_stmt(Ctx *ctx);
 void parse_stmts(Ctx *ctx);
 
@@ -51,11 +52,11 @@ static Stmt parse_stmt(Ctx *ctx)
             stmt = print_stmt(ctx);
             break;
         case TK_var:
-            stmt = var_decl(ctx);
+            stmt = parse_var_decl(ctx);
             break;
         case TK_lcurly:
             advance(ctx);
-            stmt.kind = STMT_scope;
+            stmt.kind      = STMT_scope;
             StmtList *list = &stmt.data.scope_stmts;
             while (ctx->tok->kind != TK_rcurly && ctx->tok->kind != TK_eof)
             {
@@ -72,19 +73,22 @@ static Stmt parse_stmt(Ctx *ctx)
 
             break;
         case TK_if:
-            stmt = if_stmt(ctx);
+            stmt = parse_if_stmt(ctx);
             break;
         case TK_while:
-            stmt = while_stmt(ctx);
+            stmt = parse_while_stmt(ctx);
+            break;
+        case TK_for:
+            stmt = parse_for_stmt(ctx);
             break;
         default:
-            stmt = expr_stmt(ctx);
+            stmt = parse_expr_stmt(ctx);
             break;
     }
     return stmt;
 }
 
-static Stmt if_stmt(Ctx *ctx)
+static Stmt parse_if_stmt(Ctx *ctx)
 {
     bool err  = false;
     Stmt stmt = {.kind = STMT_if, .begin = ctx->tok};
@@ -134,7 +138,7 @@ static Stmt if_stmt(Ctx *ctx)
     return stmt;
 }
 
-static Stmt while_stmt(Ctx *ctx)
+static Stmt parse_while_stmt(Ctx *ctx)
 {
     bool err  = false;
     Stmt stmt = {.begin = ctx->tok, .kind = STMT_while};
@@ -167,38 +171,85 @@ static Stmt while_stmt(Ctx *ctx)
     return stmt;
 }
 
-static Stmt for_stmt(Ctx *ctx)
+static Stmt parse_for_stmt(Ctx *ctx)
 {
-    bool err  = false;
-    Stmt stmt = {.begin = ctx->tok, .kind = STMT_while};
+    bool err = false;
 
     advance(ctx);
+    if (!skip_tok(ctx, TK_lparen))
+    {
+        err = true;
+    }
 
-    StmtWhile *w = &stmt.data.while_stmt;
+    Stmt scope = {
+        .begin            = ctx->tok,
+        .kind             = STMT_scope,
+        .data.scope_stmts = StmtList_init(),
+    };
+
+    Stmt init_var_decl = parse_var_decl(ctx);
+    if (init_var_decl.kind == STMT_none)
+    {
+        err = true;
+    }
+    else
+    {
+        StmtList_push(&scope.data.scope_stmts, init_var_decl);
+    }
+
+    Stmt loop = {.begin = ctx->tok, .kind = STMT_while};
+
+    StmtWhile *w = &loop.data.while_stmt;
     w->cond      = expression(ctx);
     if (w->cond == NULL)
     {
         err = true;
     }
+    if (!skip_tok(ctx, TK_semicolon))
+    {
+        err = true;
+    }
+
+    Stmt update = {
+        .begin     = ctx->tok,
+        .kind      = STMT_expr,
+        .data.expr = expression(ctx),
+    };
+    if (!skip_tok(ctx, TK_rparen))
+    {
+        err = true;
+    }
 
     w->body  = calloc(1, sizeof(Stmt));
-    *w->body = parse_stmt(ctx);
+    *w->body = (Stmt) {
+        .begin            = ctx->tok,
+        .kind             = STMT_scope,
+        .data.scope_stmts = StmtList_init(),
+    };
+
+    StmtList_push(&w->body->data.scope_stmts, parse_stmt(ctx));
+    StmtList_push(&w->body->data.scope_stmts, update);
 
     if (w->body->kind == STMT_none)
     {
         err = true;
     }
 
+    StmtList_push(&scope.data.scope_stmts, loop);
+
     if (err)
     {
-        free_stmt(w->body);
+        free_stmt(&update);
+        free_stmt(&init_var_decl);
+        free_stmt(&loop);
+        free_stmt(&scope);
         return (Stmt) {};
     }
 
-    return stmt;
+    return scope;
 }
 
-static Stmt var_decl(Ctx *ctx)
+static Stmt parse_var_decl(Ctx *ctx)
 {
     Stmt stmt = {.kind = STMT_var, .begin = ctx->tok};
     advance(ctx);
@@ -222,7 +273,7 @@ static Stmt var_decl(Ctx *ctx)
     return stmt;
 }
 
-static Stmt expr_stmt(Ctx *ctx)
+static Stmt parse_expr_stmt(Ctx *ctx)
 {
     Stmt stmt = {.kind = STMT_expr, .begin = ctx->tok};
 
