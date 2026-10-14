@@ -118,9 +118,11 @@ Value eval_unary(Ctx *ctx, Expr *expr)
         break;
         case TK_not:
         {
-            Value result   = copy_value(obj);
-            result.boolean = !is_truthy(result);
-            result.type    = T_bool;
+            Value tmp = obj;
+            tmp.type  = T_bool; // to avoid deep copy in copy_value if original type is T_str
+
+            Value result   = copy_value(tmp);
+            result.boolean = !is_truthy(obj);
 
             free_value(obj);
             return result;
@@ -130,8 +132,6 @@ Value eval_unary(Ctx *ctx, Expr *expr)
         default:
             unreachable();
     }
-
-    return obj;
 }
 
 static Value eval_binary_logical(Ctx *ctx, Expr *expr)

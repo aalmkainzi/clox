@@ -7,58 +7,86 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int run_file(const char *file_name, bool verbose);
-static int repl_loop(bool verbose);
+typedef struct
+{
+    bool verbose;
+    bool test;
+    const char *file_name;
+} Opts;
+
+static int run_file(Opts opts);
+static int repl_loop(Opts opts);
 
 int main(int argc, char **argv)
 {
     if (argc > 3)
     {
-        fprintf(stderr, "usage: clox [script] [-v]");
+        cgs_fwriteln(stderr, "usage: clox [script] [options]");
         exit(EXIT_FAILURE);
     }
 
-    bool verbose          = false;
-    const char *file_name = NULL;
+    clox_init();
+
+    Opts opts = {};
     for (int i = 1; i < argc; i++)
     {
         if (cgs_equal(argv[i], "-v"))
         {
-            verbose = true;
+            opts.verbose = true;
+        }
+        else if (cgs_equal(argv[i], "-t"))
+        {
+            opts.test = true;
         }
         else
         {
-            file_name = argv[i];
+            if (argv[i][0] == '-')
+            {
+                error_message("unsupported flag '%?'", argv[i]);
+                return EXIT_FAILURE;
+            }
+            if (opts.file_name)
+            {
+                error_message("only one file");
+                return EXIT_FAILURE;
+            }
+            opts.file_name = argv[i];
         }
     }
 
-    if (verbose)
-        cgs_printfln("verbose = %?", verbose);
+    if (opts.verbose)
+        cgs_printfln("verbose = %?", opts.verbose);
 
-    if (file_name)
+    if (opts.file_name)
     {
-        return run_file(file_name, verbose);
+        return run_file(opts);
     }
     else
     {
-        return repl_loop(verbose);
+        return repl_loop(opts);
     }
 }
 
-static int run(CGS_StrView file_name, CGS_DStr *line, bool verbose);
+static int run(Opts opts, CGS_DStr *line);
 
-static int run_file(const char *file_name, bool verbose)
+static int run_file(Opts opts)
 {
-    FILE *f            = fopen(file_name, "r");
+    FILE *f = fopen(opts.file_name, "r");
+    if (f == NULL)
+    {
+        error_message("could not open file '%?': %?", opts.file_name, strerror(errno));
+        return EXIT_FAILURE;
+    }
     CGS_DStr file_data = cgs_dstr_init();
 
     CGS_Error err = cgs_append_fread_until(&file_data, f, EOF);
     if (err.ec != CGS_OK)
     {
-        cgs_fprintf(stderr, "could not read file %?: %?: %?\n", file_name, err, strerror(errno));
+        error_message("could not read file %?: %?: %?\n", opts.file_name, err, strerror(errno));
+        return EXIT_FAILURE;
     }
 
-    int return_err = run(cgs_strv(file_name), &file_data, verbose);
+    int return_err = run(opts, &file_data);
     cgs_dstr_deinit(&file_data);
     return return_err;
 }
@@ -103,7 +131,6 @@ static int run_repl_line(Ctx *ctx)
     StmtList_clear(&ctx->stmts);
     // StmtList_drop(&ctx->scope->stmts);
 
-    ctx->lineno += 1;
     if (ctx->error)
         return 1;
     else
@@ -113,15 +140,14 @@ static int run_repl_line(Ctx *ctx)
 #define T Lines, CGS_DStr
 #include "stc/vec.h"
 
-static int repl_loop(bool verbose)
+static int repl_loop(Opts opts)
 {
     Lines lines = Lines_init();
 
     Ctx *ctx = &(Ctx) {
-        .lineno    = 1,
         .file_name = cgs_strv("<repl>"),
         .repl      = true,
-        .verbose   = verbose,
+        .verbose   = opts.verbose,
         .scope     = calloc(1, sizeof(Scope)),
     };
 
@@ -135,7 +161,7 @@ static int repl_loop(bool verbose)
         if (err.ec == CGS_OK)
         {
             line->len -= 1;
-            cgs_append(line, "        ");
+            cgs_append(line, "        "); // HACK delete this
             ctx->src = cgs_strv(line);
             run_repl_line(ctx);
         }
@@ -155,19 +181,26 @@ static int repl_loop(bool verbose)
     return 0;
 }
 
-static int run(CGS_StrView file_name, CGS_DStr *src, bool verbose)
+static int run(Opts opts, CGS_DStr *src)
 {
     // appending empty spaces in cases we try to match a long keyword
-    cgs_append(src, "        ");
+    cgs_append(src, "        "); // HACK delete this
 
     Ctx *ctx = &(Ctx) {
-        .lineno    = 1,
-        .file_name = file_name,
+        .file_name = cgs_strv(opts.file_name),
         .src       = cgs_strv(src),
         .repl      = false,
-        .verbose   = verbose,
+        .verbose   = opts.verbose,
+        .test      = opts.test,
         .scope     = calloc(1, sizeof(Scope)),
     };
+
+    linemap_fill(&ctx->linemap, ctx->src);
+
+    if (ctx->test)
+    {
+        parse_tests(ctx);
+    }
 
     init_scope(ctx->scope);
 
@@ -190,6 +223,7 @@ done:
 
     TokensChain_drop(&ctx->toks);
     free_scope(ctx->scope);
+    linemap_free(&ctx->linemap);
 
     if (ctx->error)
         return EXIT_FAILURE;

@@ -1,3 +1,7 @@
-var a = 99;
-for (print "a"; a < 10; a = a + 1)
-  print a;
+
+
+
+
+
+
+print "s" - 1;

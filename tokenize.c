@@ -220,10 +220,6 @@ static Token scan_str(Ctx *ctx, const char *tok_start, bool *err)
         Token scanned_tok = (func)(ctx, tok_start, err);            \
         if (scanned_tok.kind != TK_none)                            \
         {                                                           \
-            if ((func) == scan_str)                                 \
-            {                                                       \
-                ctx->lineno += cgs_count(scanned_tok.lexeme, "\n"); \
-            }                                                       \
             return scanned_tok;                                     \
         }                                                           \
         else if (*err)                                              \
@@ -253,9 +249,6 @@ void tokenize(Ctx *ctx)
     {
         while (src_walk.len > 0 && isspace(src_walk.chars[0]))
         {
-            if (src_walk.chars[0] == '\n')
-                ctx->lineno += 1;
-
             src_walk.chars += 1;
             src_walk.len -= 1;
         }

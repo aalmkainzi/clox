@@ -1,3 +1,2 @@
-// expected: fail
 
-var a = "abc" !;
+var a = "abc" !; // expected-error {{expected ';' but got !}}
