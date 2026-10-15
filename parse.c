@@ -311,6 +311,8 @@ static Stmt parse_var_decl(Ctx *ctx)
 
     if (!skip_tok(ctx, TK_semicolon))
     {
+        if (stmt.data.var.rhs)
+            free_expr(stmt.data.var.rhs);
         return (Stmt) {};
     }
     return stmt;
@@ -522,7 +524,7 @@ static Expr *primary(Ctx *ctx)
 
         if (expr == NULL)
         {
-            report_tok_error(ctx, ctx->tok, "expected expression, but got '%?'", tok2str[ctx->tok->kind]);
+            report_tok_error(ctx, ctx->tok, "expected expression, but got %?", tok2str[ctx->tok->kind]);
 
             while (ctx->tok->kind != TK_semicolon && ctx->tok->kind != TK_eof)
             {

@@ -299,7 +299,7 @@ void tokenize(Ctx *ctx)
 
 // utils
 
-[[nodiscard("syncronize if this returns false")]]
+[[nodiscard("synchronize if this returns false")]]
 bool skip_tok(Ctx *ctx, TokenKind kind)
 {
     if (ctx->tok->kind != kind)

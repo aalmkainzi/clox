@@ -122,7 +122,8 @@ static int run_repl_line(Ctx *ctx)
     if (ctx->verbose)
         cgs_printfln("nb statements: %?", ctx->stmts.size);
 
-    execute_stmts(ctx);
+    if (!ctx->error)
+        execute_stmts(ctx);
 
     for (c_each(it, StmtList, ctx->stmts))
     {
@@ -212,7 +213,9 @@ static int run(Opts opts, CGS_DStr *src)
         print_tokens(ctx);
     }
     parse(ctx);
-    execute_stmts(ctx);
+
+    if (!ctx->error)
+        execute_stmts(ctx);
 
 done:
     for (c_each(it, StmtList, ctx->stmts))

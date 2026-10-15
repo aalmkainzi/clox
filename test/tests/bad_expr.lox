@@ -1,2 +1,4 @@
 
-var a = "abc" !; // expected-error {{expected ';' but got !}}
+var a = "abc" !;
+
+// expected-error {{expected ';' but got !}}
