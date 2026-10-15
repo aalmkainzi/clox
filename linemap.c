@@ -42,14 +42,14 @@ int linemap_get_lineno(LineMap *lm, int file_offset)
 
 void linemap_fill(LineMap *lm, CGS_StrView src)
 {
-    CGS_StrView f    = {};
     CGS_StrView walk = src;
-
     linemap_put(lm, 0);
-    while ((f = cgs_find(walk, "\n"), f.chars))
+
+    CGS_Result(int) found_newline;
+    while ((found_newline = cgs_find(walk, "\n")).err.ec == CGS_OK)
     {
-        linemap_put(lm, f.chars - src.chars + 1);
-        walk = cgs_strv(src, (f.chars - src.chars) + 1);
+        linemap_put(lm, found_newline.val + (walk.chars - src.chars) + 1);
+        walk = cgs_strv(walk, found_newline.val + 1);
     }
 
     if (lm->count == 0)

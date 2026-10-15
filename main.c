@@ -19,6 +19,9 @@ static int repl_loop(Opts opts);
 
 int main(int argc, char **argv)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+
     if (argc > 3)
     {
         cgs_fwriteln(stderr, "usage: clox [script] [options]");
@@ -227,6 +230,10 @@ done:
     TokensChain_drop(&ctx->toks);
     free_scope(ctx->scope);
     linemap_free(&ctx->linemap);
+    if (ctx->test)
+    {
+        ExpectedErrors_drop(&ctx->expected_errors);
+    }
 
     if (ctx->error)
         return EXIT_FAILURE;

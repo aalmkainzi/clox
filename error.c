@@ -30,8 +30,10 @@ void report_error_(Ctx *ctx, const CGS_StrView error_loc)
 
     if (ctx->test)
     {
-        const CGS_StrView *expected = ExpectedErrors_at(&ctx->expected_errors, 0); // TODO not 0
-        if (cgs_equal(*expected, error_message_buf))
+        auto expected_entry = ExpectedErrors_get(
+            &ctx->expected_errors, linemap_get_lineno(&ctx->linemap, error_loc.chars - ctx->src.chars)
+        );
+        if (expected_entry && cgs_equal(expected_entry->second, error_message_buf))
         {
             return;
         }
@@ -114,28 +116,60 @@ void clox_init()
     }
 }
 
-// SLOW for now
 int parse_tests(Ctx *ctx)
 {
-    CGS_StrView found = {};
-    CGS_StrView walk  = ctx->src;
-    // TODO dont find {{, instead find "// expected-error" and skip non-line whitespace
-    while ((found = cgs_find(walk, "// expected-error {{"), found.chars))
-    {
-        unsigned int offset = (found.chars + found.len) - ctx->src.chars;
-        CGS_StrView rem     = cgs_strv(ctx->src, offset);
-        CGS_StrView end     = cgs_find(rem, "}}");
-        CGS_StrView msg     = cgs_strv(rem, 0, end.chars - rem.chars);
-        if (cgs_find(msg, "\n").chars)
-        {
-            error_message("unterminated expected-error message");
-            ExpectedErrors_drop(&ctx->expected_errors);
-            return EXIT_FAILURE;
-        }
-        int lineno = linemap_get_lineno(&ctx->linemap, offset);
-        ExpectedErrors_insert(&ctx->expected_errors, lineno, msg);
+    ctx->expected_errors = ExpectedErrors_init();
 
-        walk = rem;
+    CGS_StrView walk = ctx->src;
+    CGS_Result(int) found;
+
+    while ((found = cgs_find(walk, "//")).err.ec == CGS_OK)
+    {
+        CGS_StrView comment           = cgs_strv(walk, found.val);
+        CGS_Result(int) newline_found = cgs_find(comment, "\n");
+
+        unsigned int comment_end_pos;
+        if (newline_found.err.ec == CGS_OK)
+        {
+            comment_end_pos = newline_found.val;
+        }
+        else
+        {
+            comment_end_pos = comment.len;
+        }
+
+        comment = cgs_strv(comment, 0, comment_end_pos);
+
+        CGS_StrView comment_walk = comment;
+        CGS_Result(int) expected_found;
+        while ((expected_found = cgs_find(comment_walk, "expected-error")).err.ec == CGS_OK)
+        {
+            comment_walk = cgs_strv(comment_walk, expected_found.val);
+            comment_walk.chars += strlen("expected-error");
+            comment_walk.len -= strlen("expected-error");
+
+            comment_walk = cgs_skip_any(comment_walk, " \t");
+            if (!cgs_starts_with(comment_walk, "{{"))
+            {
+                report_error(ctx, comment_walk, "expected {{message}}, but got %?", comment_walk.chars[0]);
+                return EXIT_FAILURE;
+            }
+
+            CGS_Result(int) found_message_end = cgs_find(comment_walk, "}}");
+            if (found_message_end.err.ec != CGS_OK)
+            {
+                report_error(ctx, comment_walk, "expected {{message}}, but got %?", comment_walk);
+                return EXIT_FAILURE;
+            }
+
+            CGS_StrView msg = cgs_strv(comment_walk, 2, found_message_end.val);
+
+            int lineno = linemap_get_lineno(&ctx->linemap, msg.chars - ctx->src.chars);
+            ExpectedErrors_insert(&ctx->expected_errors, lineno, msg);
+
+            comment_walk = cgs_strv(comment_walk, found_message_end.val + 2);
+        }
+        walk = cgs_strv(walk, (comment.chars - walk.chars) + comment_end_pos);
     }
     return 0;
 }
