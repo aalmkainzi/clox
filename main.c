@@ -108,14 +108,14 @@ static void print_tokens(Ctx *ctx)
     cgs_putc(stdout, '\n');
 }
 
-static int run_repl_line(Ctx *ctx)
+static void run_repl_line(Ctx *ctx)
 {
     ctx->error = false;
 
     tokenize(ctx);
 
     if (ctx->error || tokens_empty(ctx))
-        return 0;
+        return;
 
     if (ctx->verbose)
         print_tokens(ctx);
@@ -133,12 +133,6 @@ static int run_repl_line(Ctx *ctx)
         free_stmt(it.ref);
     }
     StmtList_clear(&ctx->stmts);
-    // StmtList_drop(&ctx->scope->stmts);
-
-    if (ctx->error)
-        return 1;
-    else
-        return 0;
 }
 
 #define T Lines, CGS_DStr
@@ -182,7 +176,7 @@ static int repl_loop(Opts opts)
     Lines_drop(&lines);
     free_scope(ctx->scope);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 static int run(Opts opts, CGS_DStr *src)
@@ -191,12 +185,13 @@ static int run(Opts opts, CGS_DStr *src)
     cgs_append(src, "        "); // HACK delete this
 
     Ctx *ctx = &(Ctx) {
-        .file_name = cgs_strv(opts.file_name),
-        .src       = cgs_strv(src),
-        .repl      = false,
-        .verbose   = opts.verbose,
-        .test      = opts.test,
-        .scope     = calloc(1, sizeof(Scope)),
+        .file_name   = cgs_strv(opts.file_name),
+        .src         = cgs_strv(src),
+        .repl        = false,
+        .verbose     = opts.verbose,
+        .test        = opts.test,
+        .passed_test = true,
+        .scope       = calloc(1, sizeof(Scope)),
     };
 
     linemap_fill(&ctx->linemap, ctx->src);
@@ -235,8 +230,13 @@ done:
         ExpectedErrors_drop(&ctx->expected_errors);
     }
 
+    if (ctx->test)
+    {
+        return ctx->passed_test ? EXIT_SUCCESS : EXIT_FAILURE; // 0 is success
+    }
+
     if (ctx->error)
         return EXIT_FAILURE;
     else
-        return 0;
+        return EXIT_SUCCESS;
 }

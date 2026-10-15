@@ -8,7 +8,7 @@
 #include "token.h"
 #include "var.h"
 
-declare_hashmap(ExpectedErrors, int, CGS_StrView);
+declare_hashmap(ExpectedErrors, int, struct StrViews);
 
 typedef struct Scope
 {
@@ -32,10 +32,11 @@ typedef struct Ctx
     ExpectedErrors expected_errors;
     LineMap linemap;
 
-    bool verbose : 1;
-    bool test    : 1;
-    bool error   : 1;
-    bool repl    : 1;
+    bool verbose     : 1;
+    bool test        : 1;
+    bool passed_test : 1;
+    bool error       : 1;
+    bool repl        : 1;
 } Ctx;
 // clang-format on
 
@@ -90,8 +91,15 @@ extern _Thread_local char error_message_buf[1024];
 
 #define error_message(msg, ...) (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), error_message_())
 
+#define T StrViews, CGS_StrView
+#define i_eq(a, b) cgs_equal(*a, *b)
+#include <stc/vec.h>
+
 #define i_declared
-#define T ExpectedErrors, int, CGS_StrView
+#define T ExpectedErrors, int, StrViews
+#define i_valdrop StrViews_drop
+#define i_valclone StrViews_clone
+#define i_no_clone
 #include "stc/hashmap.h"
 
 #endif

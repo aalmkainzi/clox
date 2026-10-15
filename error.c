@@ -15,6 +15,7 @@ _Thread_local char error_message_buf[1024] = {};
 
 static const char *error_color_reset = "";
 static const char *error_red_begin   = "";
+static const char *error_green_begin   = "";
 static const char *error_cyan_begin  = "";
 
 void error_message_()
@@ -33,11 +34,17 @@ void report_error_(Ctx *ctx, const CGS_StrView error_loc)
         auto expected_entry = ExpectedErrors_get(
             &ctx->expected_errors, linemap_get_lineno(&ctx->linemap, error_loc.chars - ctx->src.chars)
         );
-        if (expected_entry && cgs_equal(expected_entry->second, error_message_buf))
+
+        if (expected_entry && StrViews_contains(&expected_entry->second, cgs_strv(error_message_buf)))
         {
+            cgs_fprintfln(stderr, "%?passed%?: error '%?' has occured on %?:%?:", error_green_begin, error_color_reset, error_message_buf, ctx->file_name, lineno);
             return;
         }
+
+        ctx->passed_test = false;
     }
+
+    // TODO replace this with code that relies on the linemap
     unsigned int line_end = error_loc.chars - ctx->src.chars;
     for (; line_end < ctx->src.len; line_end++)
     {
@@ -112,6 +119,7 @@ void clox_init()
     {
         error_color_reset = "\x1b[0m";
         error_red_begin   = "\x1b[31m";
+        error_green_begin = "\x1b[32m";
         error_cyan_begin  = "\x1b[36m";
     }
 }
@@ -165,7 +173,17 @@ int parse_tests(Ctx *ctx)
             CGS_StrView msg = cgs_strv(comment_walk, 2, found_message_end.val);
 
             int lineno = linemap_get_lineno(&ctx->linemap, msg.chars - ctx->src.chars);
-            ExpectedErrors_insert(&ctx->expected_errors, lineno, msg);
+
+            auto entry = ExpectedErrors_get_mut(&ctx->expected_errors, lineno);
+            if (entry)
+            {
+                StrViews_push(&entry->second, msg);
+            }
+            else
+            {
+                ExpectedErrors_result res = ExpectedErrors_insert(&ctx->expected_errors, lineno, StrViews_init());
+                StrViews_push(&res.ref->second, msg);
+            }
 
             comment_walk = cgs_strv(comment_walk, found_message_end.val + 2);
         }
