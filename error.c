@@ -26,7 +26,7 @@ void report_error_(Ctx *ctx, const CGS_StrView error_loc)
 {
     ctx->error = true;
 
-    int lineno                  = linemap_get_lineno(&ctx->linemap, error_loc.chars - ctx->src.chars);
+    int lineno = linemap_get_lineno(&ctx->linemap, error_loc.chars - ctx->src.chars);
 
     if (ctx->test)
     {

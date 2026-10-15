@@ -214,18 +214,18 @@ static Token scan_str(Ctx *ctx, const char *tok_start, bool *err)
     return ret;
 }
 
-#define try_scan_token(func)                                        \
-    do                                                              \
-    {                                                               \
-        Token scanned_tok = (func)(ctx, tok_start, err);            \
-        if (scanned_tok.kind != TK_none)                            \
-        {                                                           \
-            return scanned_tok;                                     \
-        }                                                           \
-        else if (*err)                                              \
-        {                                                           \
-            return scanned_tok;                                     \
-        }                                                           \
+#define try_scan_token(func)                             \
+    do                                                   \
+    {                                                    \
+        Token scanned_tok = (func)(ctx, tok_start, err); \
+        if (scanned_tok.kind != TK_none)                 \
+        {                                                \
+            return scanned_tok;                          \
+        }                                                \
+        else if (*err)                                   \
+        {                                                \
+            return scanned_tok;                          \
+        }                                                \
     } while (0)
 
 Token scan_one_token(Ctx *ctx, const char *tok_start, bool *err)
