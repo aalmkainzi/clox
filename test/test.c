@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include "cgs/cgs.h"
 #include <stdlib.h>
 #define NOB_IMPLEMENTATION

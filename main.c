@@ -147,6 +147,7 @@ static int repl_loop(Opts opts)
         .repl      = true,
         .verbose   = opts.verbose,
         .scope     = calloc(1, sizeof(Scope)),
+        .linemap = {.cap = 1, .count = 1, .offsets = (int[1]){0}}
     };
 
     init_scope(ctx->scope);

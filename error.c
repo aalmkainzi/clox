@@ -44,28 +44,19 @@ void report_error_(Ctx *ctx, const CGS_StrView error_loc)
         ctx->passed_test = false;
     }
 
-    // TODO replace this with code that relies on the linemap
-    unsigned int line_end = error_loc.chars - ctx->src.chars;
-    for (; line_end < ctx->src.len; line_end++)
+    unsigned int line_begin = ctx->linemap.offsets[lineno - 1];
+    unsigned int line_end;
+    if (ctx->linemap.count == lineno)
     {
-        if (ctx->src.chars[line_end] == '\n')
-        {
-            break;
-        }
+        for (line_end = line_begin; line_end < ctx->src.len; line_end++)
+            ;
+    }
+    else
+    {
+        line_end = ctx->linemap.offsets[lineno];
     }
 
-    int line_start = error_loc.chars - ctx->src.chars;
-    for (; line_start >= 0; line_start--)
-    {
-        if (ctx->src.chars[line_start] == '\n')
-        {
-            break;
-        }
-    }
-
-    line_start += 1; // we dont want to start at the '\n' (or at -1)
-
-    CGS_StrView line    = cgs_strv(ctx->src, line_start, line_end);
+    CGS_StrView line    = cgs_strv(ctx->src, line_begin, line_end);
     unsigned int offset = error_loc.chars - line.chars + 1;
 
     unsigned int lineno_vertical_bar_length       = 0;
