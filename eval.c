@@ -17,8 +17,16 @@
 
 Value eval_depends_(Ctx *ctx, Expr *expr, Value deps[], int n_deps);
 
-thread_local Arena active_arena;
-thread_local CGS_Allocator arena_allocator;
+static thread_local Arena active_arena;
+static thread_local CGS_Allocator *arena_allocator = ((CGS_Allocator *)&(ArenaAllocator) {
+    .base =
+        {
+            .alloc   = arena_alloc_callback,
+            .dealloc = arena_dealloc_callback,
+            .realloc = arena_realloc_callback,
+        },
+    .arena = (&active_arena)
+});
 
 // clang-format off
 #define eval_or_throw(ctx, expr, ...)                                   \

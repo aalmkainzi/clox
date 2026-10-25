@@ -80,7 +80,7 @@ void arena_free(Arena *arena)
 
 #include "cgs/cgs.h"
 
-static CGS_Allocation arena_alloc_callback(CGS_Allocator *a, size_t alignment, size_t n)
+CGS_Allocation arena_alloc_callback(CGS_Allocator *a, size_t alignment, size_t n)
 {
     (void)alignment;
     ArenaAllocator *aa = (ArenaAllocator *)a;
@@ -88,7 +88,7 @@ static CGS_Allocation arena_alloc_callback(CGS_Allocator *a, size_t alignment, s
     return (CGS_Allocation) {.ptr = p, .n = n};
 }
 
-static void arena_dealloc_callback(CGS_Allocator *a, void *p, size_t n)
+void arena_dealloc_callback(CGS_Allocator *a, void *p, size_t n)
 {
     (void)a;
     (void)p;
@@ -96,18 +96,9 @@ static void arena_dealloc_callback(CGS_Allocator *a, void *p, size_t n)
     return;
 }
 
-static CGS_Allocation
-arena_realloc_callback(CGS_Allocator *a, void *p, size_t alignment, size_t old_n, size_t new_n)
+CGS_Allocation arena_realloc_callback(CGS_Allocator *a, void *p, size_t alignment, size_t old_n, size_t new_n)
 {
     (void)p;
     (void)old_n;
     return arena_alloc_callback(a, alignment, new_n);
-}
-
-CGS_Allocator *arena_allocator_set_callbacks(ArenaAllocator *aa)
-{
-    aa->base.alloc   = arena_alloc_callback;
-    aa->base.dealloc = arena_dealloc_callback;
-    aa->base.realloc = arena_realloc_callback;
-    return (CGS_Allocator*) aa;
 }
