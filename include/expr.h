@@ -1,6 +1,7 @@
 #ifndef EXPR_H
 #define EXPR_H
 
+#include "arena.h"
 #include "cgs/cgs.h"
 #include "token.h"
 
@@ -89,6 +90,7 @@ void free_value(Value value);
 void free_var_value(Value *val);
 
 struct Ctx;
+
 Value eval(struct Ctx *ctx, Expr *expr);
 bool is_truthy(Value obj);
 
@@ -101,5 +103,7 @@ CGS_Error stringify_literal(CGS_Writer *writer, Literal lit, CGS_StrView fmt_arg
 #include "cgs/cgs.h"
 #define ADD_TOSTR (Literal, stringify_literal)
 #include "cgs/cgs.h"
+
+extern thread_local Arena active_arena;
 
 #endif

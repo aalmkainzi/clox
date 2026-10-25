@@ -1,3 +1,4 @@
+#include "arena.h"
 #include "clox.h"
 #include "expr.h"
 #include "token.h"
@@ -15,6 +16,9 @@
 #define NOPT_IMPL_(...) __VA_ARGS__
 
 Value eval_depends_(Ctx *ctx, Expr *expr, Value deps[], int n_deps);
+
+thread_local Arena active_arena;
+thread_local CGS_Allocator arena_allocator;
 
 // clang-format off
 #define eval_or_throw(ctx, expr, ...)                                   \
@@ -37,10 +41,6 @@ Value eval_unary(Ctx *ctx, Expr *expr);
 Value eval_binary(Ctx *ctx, Expr *expr);
 
 static bool expect_number(Ctx *ctx, Value *obj);
-[[maybe_unused]]
-static bool expect_string(Ctx *ctx, Value *obj);
-[[maybe_unused]]
-static bool expect_nil(Ctx *ctx, Value *obj);
 
 bool is_truthy(Value obj);
 
@@ -338,7 +338,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
             if (left.type == T_str)
             {
                 Value str_equality_result = {
-                    .tok     = copy_token(result.tok),
+                    .tok     = result.tok,
                     .type    = T_bool,
                     .boolean = right.type == T_str && cgs_equal(left.string, right.string)
                 };
@@ -368,7 +368,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
             if (left.type == T_str)
             {
                 Value str_equality_result = {
-                    .tok     = copy_token(result.tok),
+                    .tok     = result.tok,
                     .type    = T_bool,
                     .boolean = right.type != T_str || !cgs_equal(left.string, right.string)
                 };
@@ -426,36 +426,12 @@ Value eval_binary(Ctx *ctx, Expr *expr)
     return result;
 }
 
-[[maybe_unused]]
 static bool expect_number(Ctx *ctx, Value *obj)
 {
     if (obj->type != T_num)
     {
         obj->error = true;
         report_tok_error(ctx, obj->tok, "expected number");
-        return false;
-    }
-    return true;
-}
-
-[[maybe_unused]]
-static bool expect_string(Ctx *ctx, Value *obj)
-{
-    if (obj->type != T_str)
-    {
-        obj->error = true;
-        report_tok_error(ctx, obj->tok, "expected string");
-        return false;
-    }
-    return true;
-}
-
-static bool expect_nil(Ctx *ctx, Value *obj)
-{
-    if (obj->type != T_nil)
-    {
-        obj->error = true;
-        report_tok_error(ctx, obj->tok, "expected string");
         return false;
     }
     return true;
@@ -523,8 +499,6 @@ CGS_Error stringify_literal(CGS_Writer *writer, Literal lit, CGS_StrView fmt_arg
 Value copy_value(Value from)
 {
     Value ret = from;
-    if (from.tok)
-        ret.tok = copy_token(from.tok);
     if (from.type == T_str)
         ret.string = cgs_dup(ret.string);
     ret.var = false;
@@ -569,3 +543,5 @@ Value eval_depends_(Ctx *ctx, Expr *expr, Value deps[], int n_deps)
     }
     return ret;
 }
+
+

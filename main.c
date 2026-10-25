@@ -16,6 +16,7 @@ typedef struct
 
 static int run_file(Opts opts);
 static int repl_loop(Opts opts);
+static void clox_init();
 
 int main(int argc, char **argv)
 {
@@ -147,7 +148,7 @@ static int repl_loop(Opts opts)
         .repl      = true,
         .verbose   = opts.verbose,
         .scope     = calloc(1, sizeof(Scope)),
-        .linemap = {.cap = 1, .count = 1, .offsets = (int[1]){0}}
+        .linemap   = {.cap = 1, .count = 1, .offsets = (int[1]) {0}}
     };
 
     init_scope(ctx->scope);
@@ -240,4 +241,12 @@ done:
         return EXIT_FAILURE;
     else
         return EXIT_SUCCESS;
+}
+
+void clox_init()
+{
+    // if a specific system needs an init, add its decl here, and call it
+    void init_error_c();
+
+    init_error_c();
 }

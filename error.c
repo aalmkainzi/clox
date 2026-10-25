@@ -6,16 +6,18 @@
     #include <io.h>
     #define isatty _isatty
     #define stdout_fileno _fileno(stdout)
+    #define stderr_fileno _fileno(stderr)
 #else
     #include <unistd.h>
     #define stdout_fileno STDOUT_FILENO
+    #define stderr_fileno STDERR_FILENO
 #endif
 
 _Thread_local char error_message_buf[1024] = {};
 
 static const char *error_color_reset = "";
 static const char *error_red_begin   = "";
-static const char *error_green_begin   = "";
+static const char *error_green_begin = "";
 static const char *error_cyan_begin  = "";
 
 void error_message_()
@@ -37,7 +39,13 @@ void report_error_(Ctx *ctx, const CGS_StrView error_loc)
 
         if (expected_entry && StrViews_contains(&expected_entry->second, cgs_strv(error_message_buf)))
         {
-            cgs_fprintfln(stderr, "%?passed%?: error '%?' has occured on %?:%?:", error_green_begin, error_color_reset, error_message_buf, ctx->file_name, lineno);
+            cgs_fprintfln(
+                stderr,
+                "%?passed%?: error '%?' has occured",
+                error_green_begin,
+                error_color_reset,
+                error_message_buf
+            );
             return;
         }
 
@@ -53,7 +61,7 @@ void report_error_(Ctx *ctx, const CGS_StrView error_loc)
     }
     else
     {
-        line_end = ctx->linemap.offsets[lineno];
+        line_end = ctx->linemap.offsets[lineno] - 1;
     }
 
     CGS_StrView line    = cgs_strv(ctx->src, line_begin, line_end);
@@ -102,17 +110,6 @@ void report_tok_range_error_(Ctx *ctx, Token *begin_tok, Token *end_tok)
     range_view.chars = begin_tok->lexeme.chars;
     range_view.len   = (end_tok->lexeme.chars - begin_tok->lexeme.chars) + end_tok->lexeme.len;
     report_error_(ctx, range_view);
-}
-
-void clox_init()
-{
-    if (isatty(stdout_fileno))
-    {
-        error_color_reset = "\x1b[0m";
-        error_red_begin   = "\x1b[31m";
-        error_green_begin = "\x1b[32m";
-        error_cyan_begin  = "\x1b[36m";
-    }
 }
 
 int parse_tests(Ctx *ctx)
@@ -181,4 +178,15 @@ int parse_tests(Ctx *ctx)
         walk = cgs_strv(walk, (comment.chars - walk.chars) + comment_end_pos);
     }
     return 0;
+}
+
+void init_error_c()
+{
+    if (isatty(stderr_fileno))
+    {
+        error_color_reset = "\x1b[0m";
+        error_red_begin   = "\x1b[31m";
+        error_green_begin = "\x1b[32m";
+        error_cyan_begin  = "\x1b[36m";
+    }
 }

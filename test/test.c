@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#define NOB_REBUILD_URSELF(binary_path, source_path) "cc", "-Iexternal", "-o", binary_path, "external/cgs/cgs.c", source_path
 #include "cgs/cgs.h"
 #include <stdlib.h>
 #define NOB_IMPLEMENTATION
@@ -8,15 +9,16 @@
 #define nob_isatty isatty
 #define nob_fileno fileno
 
-bool run_repl_tests(Nob_Walk_Entry entry);
-bool run_file_tests(Nob_Walk_Entry entry);
+bool run_test_on_entry(Nob_Walk_Entry entry);
 
 char *red_begin   = "";
 char *green_begin = "";
 char *color_reset = "";
-
-int main()
+ 
+int main(int argc, char *argv[])
 {
+    NOB_GO_REBUILD_URSELF(argc, argv);
+
     if (nob_isatty(nob_fileno(stdout)))
     {
         red_begin   = "\x1b[31m";
@@ -24,13 +26,12 @@ int main()
         color_reset = "\x1b[0m";
     }
 
-    nob_walk_dir("test/tests", run_repl_tests);
-    nob_walk_dir("test/tests", run_file_tests);
+    nob_walk_dir("test/tests", run_test_on_entry);
 
     cgs_printfln("%?all tests pass%?\n", green_begin, color_reset);
 }
 
-bool run_test_on_entry(Nob_Walk_Entry entry, bool repl)
+bool run_test_on_entry(Nob_Walk_Entry entry)
 {
     if (entry.type != NOB_FILE_REGULAR)
         return true;
@@ -45,41 +46,23 @@ bool run_test_on_entry(Nob_Walk_Entry entry, bool repl)
     if (err.ec != CGS_OK)
         return true;
 
-    CGS_StrView first_linev = cgs_skip(first_line, "// expected: ");
-    bool expected_success   = cgs_equal(first_linev, "ok\n");
-    bool result;
-
     Cmd cmd = {};
-    if (repl)
-    {
-        cmd_append(&cmd, "./clox");
-        result = cmd_run(&cmd, .stdin_path = entry.path, .stdout_path = "/dev/null", .stderr_path = "/dev/null");
-    }
-    else
-    {
-        cmd_append(&cmd, "./clox", entry.path);
-        result = cmd_run(&cmd, .stdout_path = "/dev/null", .stderr_path = "/dev/null");
-    }
+    cmd_append(&cmd, "./clox", entry.path, "-t");
+    bool success = cmd_run(&cmd, .stdout_path = "/dev/null");
 
     cgs_putc(stderr, '\n');
 
     cmd_free(cmd);
     cgs_dstr_deinit(&first_line);
 
-    CGS_StrView success_map[] = {
-        [false] = cgs_strv("fail"),
-        [true]  = cgs_strv("ok"),
-    };
-    if (!repl && (result != expected_success))
+    if (!success)
     {
         cgs_fprintfln(
             stderr,
-            "%?%? failed%?: expected result is '%?', but got '%?'",
+            "%?failed%? on %?",
             red_begin,
-            nob_temp_file_name(entry.path),
             color_reset,
-            success_map[expected_success],
-            success_map[result]
+            nob_temp_file_name(entry.path)
         );
         exit(EXIT_FAILURE);
     }
@@ -87,12 +70,3 @@ bool run_test_on_entry(Nob_Walk_Entry entry, bool repl)
     return true;
 }
 
-bool run_file_tests(Nob_Walk_Entry entry)
-{
-    return run_test_on_entry(entry, false);
-}
-
-bool run_repl_tests(Nob_Walk_Entry entry)
-{
-    return run_test_on_entry(entry, true);
-}
