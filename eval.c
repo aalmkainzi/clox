@@ -558,18 +558,6 @@ Value eval_depends_(Ctx *ctx, Expr *expr, Value deps[], int n_deps)
     return ret;
 }
 
-void init_eval_c()
-{
-    Arenas_push(&active_eval_arenas, (Arena) {});
-}
-
-void deinit_eval_c()
-{
-    Arena *front = Arenas_front_mut(&active_eval_arenas);
-    arena_free(front);
-    Arenas_drop(&active_eval_arenas);
-}
-
 Arena *begin_eval_arena()
 {
     return Arenas_push(&active_eval_arenas, (Arena) {});
@@ -618,4 +606,16 @@ CGS_Allocation eval_arena_realloc(CGS_Allocator *a, void *p, size_t alignment, s
     Arena *arena = Arenas_back_mut(&active_eval_arenas);
 
     return arena_realloc_callback(arena_allocator(arena), p, alignment, old_n, new_n);
+}
+
+void init_eval_c()
+{
+    Arenas_push(&active_eval_arenas, (Arena) {});
+}
+
+void deinit_eval_c()
+{
+    Arena *front = Arenas_front_mut(&active_eval_arenas);
+    arena_free(front);
+    Arenas_drop(&active_eval_arenas);
 }
