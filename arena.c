@@ -11,44 +11,42 @@ void arena_init(Arena *arena)
 static ArenaNode *new_node(Arena *arena, size_t n)
 {
     arena->offset_in_last_arena = 0;
-    if (arena->node_pool == NULL)
+
+    ArenaNode *prev = NULL;
+    ArenaNode *node = arena->node_pool;
+    while (node && node->size < n)
     {
-    alloc_new_node:
+        prev = node;
+        node = node->next;
+    }
+    if (node)
+    {
+        if (prev)
+        {
+            prev->next = node->next;
+            node->next = NULL;
+        }
+        else
+        {
+            arena->node_pool = node->next;
+            node->next       = NULL;
+        }
+        return node;
+    }
+    else
+    {
         size_t size = 1024;
         if (size < n)
+        {
             size = n;
+            size += 7;
+            size &= ~7;
+        }
+
         ArenaNode *ret = malloc(sizeof(ArenaNode) + size);
         ret->next      = NULL;
         ret->size      = size;
         return ret;
-    }
-    else
-    {
-        ArenaNode *prev = NULL;
-        ArenaNode *node = arena->node_pool;
-        while (node && node->size < n)
-        {
-            prev = node;
-            node = node->next;
-        }
-        if (node)
-        {
-            if (prev)
-            {
-                prev->next = node->next;
-                node->next = NULL;
-            }
-            else
-            {
-                arena->node_pool = node->next;
-                node->next       = NULL;
-            }
-            return node;
-        }
-        else
-        {
-            goto alloc_new_node;
-        }
     }
 }
 
@@ -58,7 +56,7 @@ void *arena_alloc(Arena *arena, size_t n)
     {
         arena->head = arena->tail = new_node(arena, n);
     }
-    else if (arena->tail->size - arena->offset_in_last_arena >= n)
+    else if (arena->tail->size - arena->offset_in_last_arena < n)
     {
         arena->tail = arena->tail->next = new_node(arena, n);
     }
@@ -73,21 +71,28 @@ void *arena_alloc(Arena *arena, size_t n)
 
 void arena_reset(Arena *arena)
 {
-#if defined(NDEBUG)
+#if !defined(NDEBUG)
     arena_free(arena);
 #else
-    arena->node_pool            = arena->head;
-    arena->head                 = NULL;
+    if (arena->tail)
+    {
+        arena->tail->next = arena->node_pool;
+        arena->node_pool = arena->head;
+    }
+
+    arena->head = arena->tail   = NULL;
     arena->offset_in_last_arena = 0;
 #endif
 }
 
 void free_node(ArenaNode *node)
 {
-    if (node == NULL)
-        return;
-    free_node(node->next);
-    free(node);
+    while (node)
+    {
+        ArenaNode *next = node->next;
+        free(node);
+        node = next;
+    }
 }
 
 void arena_free(Arena *arena)
@@ -96,8 +101,6 @@ void arena_free(Arena *arena)
     free_node(arena->node_pool);
     memset(arena, 0, sizeof(Arena));
 }
-
-#include "cgs/cgs.h"
 
 CGS_Allocation arena_alloc_callback(CGS_Allocator *a, size_t alignment, size_t n)
 {
@@ -117,7 +120,7 @@ void arena_dealloc_callback(CGS_Allocator *a, void *p, size_t n)
 
 CGS_Allocation arena_realloc_callback(CGS_Allocator *a, void *p, size_t alignment, size_t old_n, size_t new_n)
 {
-    (void)p;
-    (void)old_n;
-    return arena_alloc_callback(a, alignment, new_n);
+    CGS_Allocation new_mem = arena_alloc_callback(a, alignment, new_n);
+    memcpy(new_mem.ptr, p, old_n < new_n ? old_n : new_n);
+    return new_mem;
 }

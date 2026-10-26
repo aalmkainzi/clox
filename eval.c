@@ -614,5 +614,8 @@ CGS_Allocation eval_arena_realloc(CGS_Allocator *a, void *p, size_t alignment, s
 {
     (void)p;
     (void)old_n;
-    return eval_arena_alloc(a, alignment, new_n);
+
+    Arena *arena = Arenas_back_mut(&active_eval_arenas);
+
+    return arena_realloc_callback(arena_allocator(arena), p, alignment, old_n, new_n);
 }

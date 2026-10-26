@@ -76,7 +76,7 @@ void report_error_(Ctx *ctx, const CGS_StrView error_loc)
         cgs_appendf(stderr, "%?:%?:%?: ", ctx->file_name, lineno, offset);
     }
 
-    error_message_(); // prints "error: error_message_buf"
+    error_message_();
 
     cgs_appendf(&stderr_writer_and_len_counter, "%?| ", cgs_alignfmt(lineno, LEFT, 3));
     cgs_appendf(stderr, "%?\n", line);

@@ -99,6 +99,9 @@ Value copy_value(Value from);
 CGS_Error stringify_value(CGS_Writer *writer, Value val, CGS_StrView fmt_arg);
 CGS_Error stringify_literal(CGS_Writer *writer, Literal lit, CGS_StrView fmt_arg);
 
+Arena *begin_eval_arena();
+void end_eval_arena(Arena *arena);
+
 #define ADD_TOSTR (Value, stringify_value)
 #include "cgs/cgs.h"
 #define ADD_TOSTR (Literal, stringify_literal)

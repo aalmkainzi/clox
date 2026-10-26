@@ -63,11 +63,9 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
             Value val = eval(ctx, stmt.data.print_expr);
             if (ctx->error)
             {
-                free_value(val);
                 return false;
             }
             cgs_writeln_tostr(val);
-            free_value(val);
         }
         break;
         case STMT_var:
@@ -79,7 +77,6 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
                 val = eval(ctx, stmt.data.var.rhs);
                 if (ctx->error)
                 {
-                    free_value(val);
                     return false;
                 }
             }
@@ -145,17 +142,20 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         case STMT_while:
         {
             StmtWhile *while_stmt = &stmt.data.while_stmt;
+            Arena *arena          = begin_eval_arena();
             Value cond;
             for (cond = eval(ctx, while_stmt->cond); is_truthy(cond);
                  free_value(cond), cond = eval(ctx, while_stmt->cond))
             {
+                arena_reset(arena);
                 if (ctx->error || !execute_stmt(ctx, *while_stmt->body))
                 {
                     free_value(cond);
                     return false;
                 }
             };
-            free_value(cond); // free the false value
+            // free_value(cond); // free the false value
+            end_eval_arena(arena);
         }
         break;
         case STMT_none:

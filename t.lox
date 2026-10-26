@@ -1,1 +1,10 @@
-for (var a = 10; a < 100; a = a + 2) { print a * 2; }
+var a = "a";
+var x = 1;
+while (a + "b" == "ab")
+{
+    if (x >= 2)
+        a = "bcdscsd";
+    x = x + 1;
+}
+
+print "a is now :" + a;
