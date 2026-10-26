@@ -19,17 +19,36 @@ static ArenaNode *new_node(Arena *arena, size_t n)
             size = n;
         ArenaNode *ret = malloc(sizeof(ArenaNode) + size);
         ret->next      = NULL;
+        ret->size = size;
         return ret;
     }
     else
     {
+        ArenaNode *prev = NULL;
         ArenaNode *node = arena->node_pool;
         while (node && node->size < n)
+        {
+            prev = node;
             node = node->next;
+        }
         if (node)
+        {
+            if (prev)
+            {
+                prev->next = node->next;
+                node->next = NULL;
+            }
+            else
+            {
+                arena->node_pool = node->next;
+                node->next = NULL;
+            }
             return node;
+        }
         else
+        {
             goto alloc_new_node;
+        }
     }
 }
 
@@ -37,7 +56,7 @@ void *arena_alloc(Arena *arena, size_t n)
 {
     if (arena->tail == NULL)
     {
-        arena->tail = new_node(arena, n);
+        arena->head = arena->tail = new_node(arena, n);
     }
     else if (arena->tail->size - arena->offset_in_last_arena >= n)
     {

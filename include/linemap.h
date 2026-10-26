@@ -7,7 +7,7 @@
 typedef struct LineMap
 {
     int *offsets;
-    size_t count, cap;
+    int count, cap;
 } LineMap;
 
 void linemap_put(LineMap *lm, int line_begin_file_offset);

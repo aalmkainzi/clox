@@ -4,8 +4,12 @@
 #include "token.h"
 #include "var.h"
 #include <float.h>
+#include <malloc.h>
 #include <math.h>
 #include <stdlib.h>
+
+#define T Arenas, Arena
+#include "stc/list.h"
 
 #define COMBINE_(a, b) a##b
 #define COMBINE(a, b) COMBINE_(a, b)
@@ -14,19 +18,6 @@
 
 #define NOPT_IMPL_0(...)
 #define NOPT_IMPL_(...) __VA_ARGS__
-
-Value eval_depends_(Ctx *ctx, Expr *expr, Value deps[], int n_deps);
-
-static thread_local Arena active_arena;
-static thread_local CGS_Allocator *arena_allocator = ((CGS_Allocator *)&(ArenaAllocator) {
-    .base =
-        {
-            .alloc   = arena_alloc_callback,
-            .dealloc = arena_dealloc_callback,
-            .realloc = arena_realloc_callback,
-        },
-    .arena = (&active_arena)
-});
 
 // clang-format off
 #define eval_or_throw(ctx, expr, ...)                                   \
@@ -44,6 +35,19 @@ static thread_local CGS_Allocator *arena_allocator = ((CGS_Allocator *)&(ArenaAl
         _v;                                                             \
     })
 // clang-format on
+
+Value eval_depends_(Ctx *ctx, Expr *expr, Value deps[], int n_deps);
+
+CGS_Allocation eval_arena_alloc(CGS_Allocator *a, size_t alignment, size_t n);
+void eval_arena_dealloc(CGS_Allocator *a, void *p, size_t n);
+CGS_Allocation eval_arena_realloc(CGS_Allocator *a, void *p, size_t alignment, size_t old_n, size_t new_n);
+
+static Arenas active_eval_arenas;
+static CGS_Allocator *eval_arena_allocator = &(CGS_Allocator) {
+    .alloc   = eval_arena_alloc,
+    .dealloc = eval_arena_dealloc,
+    .realloc = eval_arena_realloc,
+};
 
 Value eval_unary(Ctx *ctx, Expr *expr);
 Value eval_binary(Ctx *ctx, Expr *expr);
@@ -71,6 +75,7 @@ Value eval(Ctx *ctx, Expr *expr)
             return copy_value(expr->value);
 
         case EXPR_var:
+        {
             const VarMap_value *var = find_var(ctx->scope, expr->ident->lexeme);
             if (var == NULL)
             {
@@ -83,10 +88,11 @@ Value eval(Ctx *ctx, Expr *expr)
                 return error_value(NULL);
             }
             Value var_val = copy_value(var->second);
-            free(var_val.tok);
+            // free(var_val.tok);
             var_val.tok = expr->ident;
             assert(!var_val.var);
             return var_val;
+        }
     }
     unreachable();
 }
@@ -508,7 +514,7 @@ Value copy_value(Value from)
 {
     Value ret = from;
     if (from.type == T_str)
-        ret.string = cgs_dup(ret.string);
+        ret.string = cgs_dup(ret.string, eval_arena_allocator);
     ret.var = false;
     return ret;
 }
@@ -524,8 +530,8 @@ void free_var_value(Value *val)
 {
     if (val->tok == NULL)
         return;
-    if (val->tok->seperate)
-        free(val->tok);
+    // if (val->tok->seperate)
+    //     free(val->tok);
     if (val->type == T_str)
         cgs_dstr_deinit(&val->string);
 
@@ -552,4 +558,61 @@ Value eval_depends_(Ctx *ctx, Expr *expr, Value deps[], int n_deps)
     return ret;
 }
 
+void init_eval_c()
+{
+    Arenas_push(&active_eval_arenas, (Arena) {});
+}
 
+void deinit_eval_c()
+{
+    Arena *front = Arenas_front_mut(&active_eval_arenas);
+    arena_free(front);
+    Arenas_drop(&active_eval_arenas);
+}
+
+Arena *begin_eval_arena()
+{
+    return Arenas_push(&active_eval_arenas, (Arena) {});
+}
+
+static void end_eval_arena_node(Arenas_iter it)
+{
+    if (it.ref == NULL)
+        return;
+
+    Arenas_iter next = it;
+    Arenas_next(&next);
+
+    end_eval_arena_node(next);
+    arena_free(it.ref);
+}
+
+void end_eval_arena(Arena *arena)
+{
+    Arenas_iter it = {.ref = arena, ._last = &active_eval_arenas.last};
+    end_eval_arena_node(it);
+}
+
+CGS_Allocation eval_arena_alloc(CGS_Allocator *a, size_t alignment, size_t n)
+{
+    (void)a;
+    (void)alignment;
+
+    Arena *arena = Arenas_back_mut(&active_eval_arenas);
+    void *p      = arena_alloc(arena, n);
+    return (CGS_Allocation) {.ptr = p, .n = n};
+}
+
+void eval_arena_dealloc(CGS_Allocator *a, void *p, size_t n)
+{
+    (void)a;
+    (void)p;
+    (void)n;
+}
+
+CGS_Allocation eval_arena_realloc(CGS_Allocator *a, void *p, size_t alignment, size_t old_n, size_t new_n)
+{
+    (void)p;
+    (void)old_n;
+    return eval_arena_alloc(a, alignment, new_n);
+}

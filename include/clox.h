@@ -40,7 +40,6 @@ typedef struct Ctx
 } Ctx;
 // clang-format on
 
-void clox_init();
 int parse_tests(Ctx *ctx);
 
 // "abc" ... "h"

@@ -26,7 +26,7 @@ void linemap_put(LineMap *lm, int line_begin_file_offset)
 
 int linemap_get_lineno(LineMap *lm, int file_offset)
 {
-    for (size_t i = 0; i < lm->count - 1; i++)
+    for (int i = 0; i < lm->count - 1; i++)
     {
         if (file_offset >= lm->offsets[i])
         {

@@ -16,7 +16,9 @@ typedef struct
 
 static int run_file(Opts opts);
 static int repl_loop(Opts opts);
+
 static void clox_init();
+static void clox_deinit();
 
 int main(int argc, char **argv)
 {
@@ -61,14 +63,17 @@ int main(int argc, char **argv)
     if (opts.verbose)
         cgs_printfln("verbose = %?", opts.verbose);
 
+    int ret;
     if (opts.file_name)
     {
-        return run_file(opts);
+        ret = run_file(opts);
     }
     else
     {
-        return repl_loop(opts);
+        ret = repl_loop(opts);
     }
+    clox_deinit();
+    return ret;
 }
 
 static int run(Opts opts, CGS_DStr *line);
@@ -243,10 +248,19 @@ done:
         return EXIT_SUCCESS;
 }
 
-void clox_init()
+static void clox_init()
 {
     // if a specific system needs an init, add its decl here, and call it
     void init_error_c();
+    void init_eval_c();
 
     init_error_c();
+    init_eval_c();
+}
+
+static void clox_deinit()
+{
+    void deinit_eval_c();
+
+    deinit_eval_c();
 }

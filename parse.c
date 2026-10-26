@@ -311,8 +311,7 @@ static Stmt parse_var_decl(Ctx *ctx)
 
     if (!skip_tok(ctx, TK_semicolon))
     {
-        if (stmt.data.var.rhs)
-            free_expr(stmt.data.var.rhs);
+        free_expr(stmt.data.var.rhs);
         return (Stmt) {};
     }
     return stmt;
@@ -356,6 +355,7 @@ static Stmt print_stmt(Ctx *ctx)
 
     if (!skip_tok(ctx, TK_semicolon))
     {
+        free_expr(stmt.data.print_expr);
         return (Stmt) {};
     }
     return stmt;
