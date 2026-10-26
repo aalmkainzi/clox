@@ -76,10 +76,10 @@ Value eval(Ctx *ctx, Expr *expr)
 
         case EXPR_var:
         {
-            const VarMap_value *var = find_var(ctx->scope, expr->ident->lexeme);
+            const VarMap_value *var = find_var(ctx->scope, expr->ident.lexeme);
             if (var == NULL)
             {
-                report_tok_error(ctx, expr_tok(expr), "undefined variable '%?'", expr->ident->lexeme);
+                report_tok_error(ctx, expr_tok(expr), "undefined variable '%?'", expr->ident.lexeme);
                 return error_value(NULL);
             }
             else if (var->second.type == T_none)
@@ -114,7 +114,7 @@ Value eval_unary(Ctx *ctx, Expr *expr)
 {
     Value obj = eval_or_throw(ctx, expr->unary.expr);
 
-    switch (expr->unary.op->kind)
+    switch (expr->unary.op.kind)
     {
         case TK_minus:
         {
@@ -154,7 +154,7 @@ static Value eval_binary_logical(Ctx *ctx, Expr *expr)
 
     Value result;
 
-    switch (expr->binary.op->kind)
+    switch (expr->binary.op.kind)
     {
         case TK_or:
         {
@@ -167,8 +167,8 @@ static Value eval_binary_logical(Ctx *ctx, Expr *expr)
             {
                 Value right = eval_or_throw(ctx, expr->binary.right, left);
 
-                result             = copy_value(right);
-                result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
+                result            = copy_value(right);
+                result.tok.lexeme = range_view(left.tok.lexeme, right.tok.lexeme);
                 free_value(right);
             }
         }
@@ -185,8 +185,8 @@ static Value eval_binary_logical(Ctx *ctx, Expr *expr)
             {
                 Value right = eval_or_throw(ctx, expr->binary.right, left);
 
-                result             = copy_value(right);
-                result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
+                result            = copy_value(right);
+                result.tok.lexeme = range_view(left.tok.lexeme, right.tok.lexeme);
                 free_value(right);
             }
         }
@@ -203,7 +203,7 @@ static Value eval_binary_logical(Ctx *ctx, Expr *expr)
 
 Value eval_binary(Ctx *ctx, Expr *expr)
 {
-    if (expr->binary.op->kind == TK_and || expr->binary.op->kind == TK_or)
+    if (expr->binary.op.kind == TK_and || expr->binary.op.kind == TK_or)
     {
         return eval_binary_logical(ctx, expr);
     }
@@ -212,10 +212,10 @@ Value eval_binary(Ctx *ctx, Expr *expr)
     Value right = eval_or_throw(ctx, expr->binary.right, left);
 
     Value result = copy_value(left);
-    if (left.tok && right.tok)
-        result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
+    if (left.tok.lexeme.chars && right.tok.lexeme.chars)
+        result.tok.lexeme = range_view(left.tok.lexeme, right.tok.lexeme);
 
-    switch (expr->binary.op->kind)
+    switch (expr->binary.op.kind)
     {
         case TK_minus:
         {
@@ -275,7 +275,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
                 if (!expect_number(ctx, &right) || !expect_number(ctx, &left))
                     break;
 
-                result.tok->lexeme = range_view(left.tok->lexeme, right.tok->lexeme);
+                result.tok.lexeme = range_view(left.tok.lexeme, right.tok.lexeme);
                 result.number += right.number;
             }
         }
@@ -409,8 +409,8 @@ Value eval_binary(Ctx *ctx, Expr *expr)
 
         case TK_equal:
         {
-            Token *var_name   = expr->binary.left->ident;
-            VarMap_value *val = find_var(ctx->scope, var_name->lexeme);
+            Token var_name    = expr->binary.left->ident;
+            VarMap_value *val = find_var(ctx->scope, var_name.lexeme);
             if (val && !right.error)
             {
                 free_var_value(&val->second);
@@ -431,7 +431,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
         default:
             result = error_value(&result);
             report_tok_error(
-                ctx, expr->binary.op, "operator %? not yet implemented", tok2str[expr->binary.op->kind]
+                ctx, expr->binary.op, "operator %? not yet implemented", tok2str[expr->binary.op.kind]
             );
     }
 
@@ -528,7 +528,7 @@ void free_value(Value val)
 
 void free_var_value(Value *val)
 {
-    if (val->tok == NULL)
+    if (val->tok.lexeme.chars == NULL)
         return;
     // if (val->tok->seperate)
     //     free(val->tok);

@@ -377,12 +377,12 @@ static Expr *assignment(Ctx *ctx)
 
         if (left->kind != EXPR_var)
         {
-            report_tok_range_error(ctx, lhs_begin, lhs_end, "not a variable");
+            report_tok_range_error(ctx, *lhs_begin, *lhs_end, "not a variable");
         }
         Token *op = ctx->tok;
         advance(ctx);
         Expr *right = expression(ctx);
-        return new_binary(left, right, op);
+        return new_binary(left, right, *op);
     }
 
     return left;
@@ -398,7 +398,7 @@ static Expr *or_expr(Ctx *ctx)
         advance(ctx);
         Expr *right = and_expr(ctx);
 
-        expr = new_binary(expr, right, op);
+        expr = new_binary(expr, right, *op);
     }
 
     return expr;
@@ -414,7 +414,7 @@ static Expr *and_expr(Ctx *ctx)
         advance(ctx);
         Expr *right = equality(ctx);
 
-        expr = new_binary(expr, right, op);
+        expr = new_binary(expr, right, *op);
     }
 
     return expr;
@@ -430,7 +430,7 @@ static Expr *equality(Ctx *ctx)
         advance(ctx);
         Expr *right = comparison(ctx);
 
-        expr = new_binary(expr, right, op);
+        expr = new_binary(expr, right, *op);
     }
 
     return expr;
@@ -446,7 +446,7 @@ static Expr *comparison(Ctx *ctx)
         advance(ctx);
         Expr *right = additive(ctx);
 
-        expr = new_binary(expr, right, op);
+        expr = new_binary(expr, right, *op);
     }
 
     return expr;
@@ -462,7 +462,7 @@ static Expr *additive(Ctx *ctx)
         advance(ctx);
         Expr *right = multitive(ctx);
 
-        expr = new_binary(expr, right, op);
+        expr = new_binary(expr, right, *op);
     }
 
     return expr;
@@ -478,7 +478,7 @@ static Expr *multitive(Ctx *ctx)
         advance(ctx);
         Expr *right = unary(ctx);
 
-        expr = new_binary(expr, right, op);
+        expr = new_binary(expr, right, *op);
     }
 
     return expr;
@@ -491,7 +491,7 @@ static Expr *unary(Ctx *ctx)
         Token *op = ctx->tok;
         advance(ctx);
         Expr *exp = unary(ctx);
-        Expr *new = new_unary(exp, op);
+        Expr *new = new_unary(exp, *op);
         return new;
     }
     else
@@ -516,15 +516,15 @@ static Expr *primary(Ctx *ctx)
 
     if (ctx->tok->kind == TK_ident)
     {
-        expr = new_var(ctx->tok);
+        expr = new_var(*ctx->tok);
     }
     else
     {
-        expr = new_literal(ctx->tok);
+        expr = new_literal(*ctx->tok);
 
         if (expr == NULL)
         {
-            report_tok_error(ctx, ctx->tok, "expected expression, but got %?", tok2str[ctx->tok->kind]);
+            report_tok_error(ctx, *ctx->tok, "expected expression, but got %?", tok2str[ctx->tok->kind]);
 
             while (ctx->tok->kind != TK_semicolon && ctx->tok->kind != TK_eof)
             {

@@ -1,5 +1,6 @@
 #include "clox.h"
 #include "linemap.h"
+#include "token.h"
 #include <stdlib.h>
 
 #ifdef _WIN32
@@ -90,25 +91,27 @@ void report_error_(Ctx *ctx, const CGS_StrView error_loc)
     );
 }
 
-void report_tok_error_(Ctx *ctx, Token *tok)
+void report_tok_error_(Ctx *ctx, Token tok)
 {
-    if (tok->kind == TK_eof)
+    if (tok.kind == TK_eof)
     {
-        Token *prev_tok     = tok - 1;
+        TokenList *toks     = TokensChain_back_mut(&ctx->toks);
+        Token *end          = TokenList_back_mut(toks);
+        Token *prev_tok     = end - 1;
         const char *eof_loc = prev_tok->lexeme.chars + prev_tok->lexeme.len;
         report_error_(ctx, (CGS_StrView) {.chars = eof_loc, .len = 1});
     }
     else
     {
-        report_error_(ctx, tok->lexeme);
+        report_error_(ctx, tok.lexeme);
     }
 }
 
-void report_tok_range_error_(Ctx *ctx, Token *begin_tok, Token *end_tok)
+void report_tok_range_error_(Ctx *ctx, Token begin_tok, Token end_tok)
 {
     CGS_StrView range_view;
-    range_view.chars = begin_tok->lexeme.chars;
-    range_view.len   = (end_tok->lexeme.chars - begin_tok->lexeme.chars) + end_tok->lexeme.len;
+    range_view.chars = begin_tok.lexeme.chars;
+    range_view.len   = (end_tok.lexeme.chars - begin_tok.lexeme.chars) + end_tok.lexeme.len;
     report_error_(ctx, range_view);
 }
 

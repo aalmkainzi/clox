@@ -39,7 +39,7 @@ typedef enum TypeKind
 typedef struct Value
 {
     TypeKind type;
-    Token *tok;
+    Token tok;
     bool var;
     bool error;
 
@@ -59,32 +59,32 @@ typedef struct Expr
     {
         struct
         {
-            Token *op;
+            Token op;
             struct Expr *expr;
         } unary;
 
         struct
         {
-            Token *op;
+            Token op;
             struct Expr *left;
             struct Expr *right;
         } binary;
 
         Value value;
 
-        Token *ident;
+        Token ident;
     };
 } Expr;
 
 void pretty_print(CGS_Writer *sink, Expr *expr);
 void rpn_print(CGS_Writer *sink, Expr *expr);
 
-Expr *new_binary(Expr *left, Expr *right, Token *op);
-Expr *new_unary(Expr *left, Token *op);
+Expr *new_binary(Expr *left, Expr *right, Token op);
+Expr *new_unary(Expr *left, Token op);
 Expr *new_grouping(Expr *inside);
-Expr *new_literal(Token *tok);
-Expr *new_var(Token *tok);
-Token *expr_tok(Expr *expr);
+Expr *new_literal(Token tok);
+Expr *new_var(Token tok);
+Token expr_tok(Expr *expr);
 CGS_StrView expr_view(Expr *expr);
 void free_value(Value value);
 void free_var_value(Value *val);

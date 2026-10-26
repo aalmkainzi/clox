@@ -1,7 +1,7 @@
 #include "expr.h"
 #include "clox.h"
 
-Expr *new_binary(Expr *left, Expr *right, Token *op)
+Expr *new_binary(Expr *left, Expr *right, Token op)
 {
     Expr *ret         = calloc(1, sizeof(Expr));
     ret->kind         = EXPR_binary;
@@ -12,7 +12,7 @@ Expr *new_binary(Expr *left, Expr *right, Token *op)
     return ret;
 }
 
-Expr *new_unary(Expr *left, Token *op)
+Expr *new_unary(Expr *left, Token op)
 {
     Expr *ret       = calloc(1, sizeof(Expr));
     ret->kind       = EXPR_unary;
@@ -22,7 +22,7 @@ Expr *new_unary(Expr *left, Token *op)
     return ret;
 }
 
-Expr *alloc_literal_expr(LiteralKind litKind, Token *tok)
+Expr *alloc_literal_expr(LiteralKind litKind, Token tok)
 {
     static const TypeKind map[] = {
         [LIT_bool] = T_bool,
@@ -41,13 +41,13 @@ Expr *alloc_literal_expr(LiteralKind litKind, Token *tok)
     switch (type)
     {
         case T_bool:
-            ret->value.boolean = tok->data.boolean;
+            ret->value.boolean = tok.data.boolean;
             break;
         case T_num:
-            ret->value.number = tok->data.dbl;
+            ret->value.number = tok.data.dbl;
             break;
         case T_str:
-            ret->value.string = cgs_dup(tok->data.string);
+            ret->value.string = cgs_dup(tok.data.string);
             break;
         case T_nil:
             break;
@@ -58,9 +58,9 @@ Expr *alloc_literal_expr(LiteralKind litKind, Token *tok)
     return ret;
 }
 
-Expr *new_literal(Token *tok)
+Expr *new_literal(Token tok)
 {
-    switch (tok->kind)
+    switch (tok.kind)
     {
         case TK_nil:
             return alloc_literal_expr(LIT_nil, tok);
@@ -79,7 +79,7 @@ Expr *new_literal(Token *tok)
     }
 }
 
-Expr *new_var(Token *tok)
+Expr *new_var(Token tok)
 {
     Expr *ret  = calloc(1, sizeof(Expr));
     ret->kind  = EXPR_var;
@@ -112,7 +112,7 @@ void free_expr(Expr *expr)
     }
 }
 
-Token *expr_tok(Expr *expr)
+Token expr_tok(Expr *expr)
 {
     switch (expr->kind)
     {
@@ -134,16 +134,16 @@ CGS_StrView expr_view(Expr *expr)
     switch (expr->kind)
     {
         case EXPR_unary:
-            view = range_view(expr->unary.op->lexeme, expr_view(expr->unary.expr));
+            view = range_view(expr->unary.op.lexeme, expr_view(expr->unary.expr));
             break;
         case EXPR_binary:
             view = range_view(expr_view(expr->binary.left), expr_view(expr->binary.right));
             break;
         case EXPR_value:
-            view = expr->value.tok->lexeme;
+            view = expr->value.tok.lexeme;
             break;
         case EXPR_var:
-            view = expr->ident->lexeme;
+            view = expr->ident.lexeme;
             break;
     }
 

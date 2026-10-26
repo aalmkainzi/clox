@@ -53,8 +53,8 @@ void free_expr(Expr *expr);
 void free_tokens(TokenList *toks);
 
 void report_error_(Ctx *ctx, const CGS_StrView error_loc);
-void report_tok_error_(Ctx *ctx, Token *tok);
-void report_tok_range_error_(Ctx *ctx, Token *begin_tok, Token *end_tok);
+void report_tok_error_(Ctx *ctx, Token tok);
+void report_tok_range_error_(Ctx *ctx, Token begin_tok, Token end_tok);
 void error_message_();
 
 [[nodiscard("syncronize if this returns false")]]

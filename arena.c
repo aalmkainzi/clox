@@ -19,7 +19,7 @@ static ArenaNode *new_node(Arena *arena, size_t n)
             size = n;
         ArenaNode *ret = malloc(sizeof(ArenaNode) + size);
         ret->next      = NULL;
-        ret->size = size;
+        ret->size      = size;
         return ret;
     }
     else
@@ -41,7 +41,7 @@ static ArenaNode *new_node(Arena *arena, size_t n)
             else
             {
                 arena->node_pool = node->next;
-                node->next = NULL;
+                node->next       = NULL;
             }
             return node;
         }

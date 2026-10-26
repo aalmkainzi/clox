@@ -1,1 +1,1 @@
-print 0
+for (var a = 10; a < 100; a = a + 2) { print a * 2; }
