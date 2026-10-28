@@ -185,7 +185,7 @@ Token scan_str(Ctx *ctx, const char *tok_start, bool *err)
     {
         if (tok_start[it - 1] == '\0')
         {
-            report_error(ctx, cgs_strv(tok_start, 0, 1), "unterminated string literal");
+            error_at(ctx, cgs_strv(tok_start, 0, 1), "unterminated string literal");
             *err = true;
             cgs_dstr_deinit(&string_data);
             return ret;
@@ -282,7 +282,7 @@ void tokenize(Ctx *ctx)
         }
         else if (scanned_tok.kind == TK_none)
         {
-            report_error(ctx, cgs_strv(src_walk, 0, 1), "unexpected character %?", src_walk.chars[0]);
+            error_at(ctx, cgs_strv(src_walk, 0, 1), "unexpected character %?", src_walk.chars[0]);
             src_walk.chars += 1;
             src_walk.len -= 1;
         }
@@ -304,7 +304,7 @@ bool skip_tok(Ctx *ctx, TokenKind kind)
 {
     if (ctx->tok->kind != kind)
     {
-        report_tok_error(ctx, *ctx->tok, "expected %?, but got %?", tok2str[kind], tok2str[ctx->tok->kind]);
+        error_at_tok(ctx, *ctx->tok, "expected %?, but got %?", tok2str[kind], tok2str[ctx->tok->kind]);
         return false;
     }
 

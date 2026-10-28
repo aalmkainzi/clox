@@ -48,12 +48,12 @@ int main(int argc, char **argv)
         {
             if (argv[i][0] == '-')
             {
-                error_message("unsupported flag '%?'", argv[i]);
+                error("unsupported flag '%?'", argv[i]);
                 return EXIT_FAILURE;
             }
             if (opts.file_name)
             {
-                error_message("only one file");
+                error("only one file");
                 return EXIT_FAILURE;
             }
             opts.file_name = argv[i];
@@ -83,7 +83,7 @@ static int run_file(Opts opts)
     FILE *f = fopen(opts.file_name, "r");
     if (f == NULL)
     {
-        error_message("could not open file '%?': %?", opts.file_name, strerror(errno));
+        error("could not open file '%?': %?", opts.file_name, strerror(errno));
         return EXIT_FAILURE;
     }
     CGS_DStr file_data = cgs_dstr_init();
@@ -91,7 +91,7 @@ static int run_file(Opts opts)
     CGS_Error err = cgs_append_fread_until(&file_data, f, EOF);
     if (err.ec != CGS_OK)
     {
-        error_message("could not read file %?: %?: %?\n", opts.file_name, err, strerror(errno));
+        error("could not read file %?: %?: %?\n", opts.file_name, err, strerror(errno));
         return EXIT_FAILURE;
     }
 
@@ -236,7 +236,7 @@ done:
         {
             for (unsigned int i = ctx->test_data.verified_outputs; i < ctx->test_data.expected_outputs.size; i++)
             {
-                error_message("expected output '%?' did not occur", ctx->test_data.expected_outputs.data[i]);
+                error("expected output '%?' did not occur", ctx->test_data.expected_outputs.data[i]);
             }
             ctx->passed_test = false;
         }

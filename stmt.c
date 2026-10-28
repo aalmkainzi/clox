@@ -70,11 +70,11 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
                 cgs_tostr(&dstr, val);
                 if (ctx->test_data.expected_outputs.size == ctx->test_data.verified_outputs)
                 {
-                    error_message("unexpected output '%?'", dstr);
+                    error("unexpected output '%?'", dstr);
                 }
                 else if (!cgs_equal(dstr, ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs]))
                 {
-                    error_message(
+                    error(
                         "expected output '%?' but got '%?'",
                         ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs],
                         dstr

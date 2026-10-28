@@ -377,7 +377,7 @@ static Expr *assignment(Ctx *ctx)
 
         if (left->kind != EXPR_var)
         {
-            report_tok_range_error(ctx, *lhs_begin, *lhs_end, "not a variable");
+            error_at_tok_range(ctx, *lhs_begin, *lhs_end, "not a variable");
         }
         Token *op = ctx->tok;
         advance(ctx);
@@ -524,7 +524,7 @@ static Expr *primary(Ctx *ctx)
 
         if (expr == NULL)
         {
-            report_tok_error(ctx, *ctx->tok, "expected expression, but got %?", tok2str[ctx->tok->kind]);
+            error_at_tok(ctx, *ctx->tok, "expected expression, but got %?", tok2str[ctx->tok->kind]);
 
             while (ctx->tok->kind != TK_semicolon && ctx->tok->kind != TK_eof)
             {

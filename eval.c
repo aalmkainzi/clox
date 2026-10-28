@@ -56,12 +56,12 @@ Value eval(Ctx *ctx, Expr *expr)
             const VarMap_value *var = find_var(ctx->scope, expr->ident.lexeme);
             if (var == NULL)
             {
-                report_tok_error(ctx, expr_tok(expr), "undefined variable '%?'", expr->ident.lexeme);
+                error_at_tok(ctx, expr_tok(expr), "undefined variable '%?'", expr->ident.lexeme);
                 return error_value();
             }
             else if (var->second.type == T_none)
             {
-                report_tok_error(ctx, expr_tok(expr), "variable not initialized");
+                error_at_tok(ctx, expr_tok(expr), "variable not initialized");
                 return error_value();
             }
             Value var_val = copy_value(var->second);
@@ -226,17 +226,17 @@ Value eval_binary(Ctx *ctx, Expr *expr)
                 switch (left.type)
                 {
                     case T_bool:
-                        result.string = cgs_asprintf("%?%?", left.boolean, right.string);
+                        result.string = cgs_asprintf(arena_allocator_stack, "%?%?", left.boolean, right.string);
                         break;
                     case T_num:
-                        result.string = cgs_asprintf("%?%?", left.number, right.string);
+                        result.string = cgs_asprintf(arena_allocator_stack, "%?%?", left.number, right.string);
                         break;
                     case T_str:
                         // not actually possible, previous branch wouldve caught it
-                        result.string = cgs_asprintf("%?%?", left.string, right.string);
+                        result.string = cgs_asprintf(arena_allocator_stack, "%?%?", left.string, right.string);
                         break;
                     case T_nil:
-                        result.string = cgs_asprintf("%?%?", "nil", right.string);
+                        result.string = cgs_asprintf(arena_allocator_stack, "%?%?", "nil", right.string);
                         break;
                     case T_none:
                         unreachable();
@@ -269,7 +269,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
 
             if (right.number == 0)
             {
-                report_tok_error(ctx, right.tok, "division by zero");
+                error_at_tok(ctx, right.tok, "division by zero");
                 result.number = INFINITY;
             }
             else
@@ -383,7 +383,9 @@ Value eval_binary(Ctx *ctx, Expr *expr)
             VarMap_value *val = find_var(ctx->scope, var_name.lexeme);
             if (val && !right.error)
             {
-                val->second     = copy_value(right);
+                set_current_arena(val->second.scope->arena);
+                val->second     = eval(ctx, expr->binary.right);
+                unset_current_arena();
                 val->second.var = true;
                 result          = val->second;
             }
@@ -396,7 +398,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
 
         default:
             result = error_value();
-            report_tok_error(
+            error_at_tok(
                 ctx, expr->binary.op, "operator %? not yet implemented", tok2str[expr->binary.op.kind]
             );
     }
@@ -409,7 +411,7 @@ static bool expect_number(Ctx *ctx, Value *obj)
     if (obj->type != T_num)
     {
         obj->error = true;
-        report_tok_error(ctx, obj->tok, "expected number");
+        error_at_tok(ctx, obj->tok, "expected number");
         return false;
     }
     return true;

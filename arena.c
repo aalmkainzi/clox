@@ -126,29 +126,6 @@ void arena_free(Arena *arena)
     memset(arena, 0, sizeof(Arena));
 }
 
-CGS_Allocation arena_alloc_callback(CGS_Allocator *a, size_t alignment, size_t n)
-{
-    (void)alignment;
-    ArenaAllocator *aa = (ArenaAllocator *)a;
-    void *p            = arena_alloc(aa->arena, n);
-    return (CGS_Allocation) {.ptr = p, .n = n};
-}
-
-void arena_dealloc_callback(CGS_Allocator *a, void *p, size_t n)
-{
-    (void)a;
-    (void)p;
-    (void)n;
-    return;
-}
-
-CGS_Allocation arena_realloc_callback(CGS_Allocator *a, void *p, size_t alignment, size_t old_n, size_t new_n)
-{
-    CGS_Allocation new_mem = arena_alloc_callback(a, alignment, new_n);
-    memcpy(new_mem.ptr, p, old_n < new_n ? old_n : new_n);
-    return new_mem;
-}
-
 Arena *begin_arena()
 {
     return Arenas_push(&arena_stack, (Arena) {});
@@ -187,6 +164,31 @@ void end_arena(Arena *arena)
 #endif
 }
 
+CGS_Allocation arena_alloc_callback(CGS_Allocator *a, size_t alignment, size_t n)
+{
+    (void)alignment;
+    ArenaAllocator *aa = (ArenaAllocator *)a;
+    void *p            = arena_alloc(aa->arena, n);
+    return (CGS_Allocation) {.ptr = p, .n = n};
+}
+
+void arena_dealloc_callback(CGS_Allocator *a, void *p, size_t n)
+{
+    (void)a;
+    (void)p;
+    (void)n;
+    return;
+}
+
+CGS_Allocation arena_realloc_callback(CGS_Allocator *a, void *p, size_t alignment, size_t old_n, size_t new_n)
+{
+    CGS_Allocation new_mem = arena_alloc_callback(a, alignment, new_n);
+    size_t copy_n = old_n < new_n ? old_n : new_n;
+    if (copy_n)
+        memcpy(new_mem.ptr, p, copy_n);
+    return new_mem;
+}
+
 CGS_Allocation top_arena_alloc(CGS_Allocator *a, size_t alignment, size_t n)
 {
     (void)a;
@@ -211,14 +213,13 @@ void top_arena_dealloc(CGS_Allocator *a, void *p, size_t n)
 CGS_Allocation top_arena_realloc(CGS_Allocator *a, void *p, size_t alignment, size_t old_n, size_t new_n)
 {
     (void)a;
-    (void)p;
     (void)old_n;
 
     Arena *arena;
     if (manually_set_arena)
         arena = manually_set_arena;
     else
-        Arenas_back_mut(&arena_stack);
+        arena = Arenas_back_mut(&arena_stack);
 
     return arena_realloc_callback(arena_allocator(arena), p, alignment, old_n, new_n);
 }
@@ -232,3 +233,5 @@ void unset_current_arena()
 {
     manually_set_arena = NULL;
 }
+
+

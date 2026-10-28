@@ -21,12 +21,12 @@ static const char *error_red_begin   = "";
 static const char *error_green_begin = "";
 static const char *error_cyan_begin  = "";
 
-void error_message_()
+void error_()
 {
     cgs_fprintfln(stderr, "%?error:%? %?", error_red_begin, error_color_reset, error_message_buf);
 }
 
-void report_error_(Ctx *ctx, CGS_StrView error_loc)
+void error_at_(Ctx *ctx, CGS_StrView error_loc)
 {
     if (error_loc.len == 0)
         error_loc.len = 1;
@@ -79,7 +79,7 @@ void report_error_(Ctx *ctx, CGS_StrView error_loc)
         cgs_appendf(stderr, "%?:%?:%?: ", ctx->file_name, lineno, offset);
     }
 
-    error_message_();
+    error_();
 
     cgs_appendf(&stderr_writer_and_len_counter, "%?| ", cgs_alignfmt(lineno, LEFT, 3));
     cgs_appendf(stderr, "%?\n", line);
@@ -94,7 +94,7 @@ void report_error_(Ctx *ctx, CGS_StrView error_loc)
     );
 }
 
-void report_tok_error_(Ctx *ctx, Token tok)
+void error_at_tok_(Ctx *ctx, Token tok)
 {
     if (tok.kind == TK_eof)
     {
@@ -102,20 +102,20 @@ void report_tok_error_(Ctx *ctx, Token tok)
         Token *end          = TokenList_back_mut(toks);
         Token *prev_tok     = end - 1;
         const char *eof_loc = prev_tok->lexeme.chars + prev_tok->lexeme.len;
-        report_error_(ctx, (CGS_StrView) {.chars = eof_loc, .len = 1});
+        error_at_(ctx, (CGS_StrView) {.chars = eof_loc, .len = 1});
     }
     else
     {
-        report_error_(ctx, tok.lexeme);
+        error_at_(ctx, tok.lexeme);
     }
 }
 
-void report_tok_range_error_(Ctx *ctx, Token begin_tok, Token end_tok)
+void error_at_tok_range_(Ctx *ctx, Token begin_tok, Token end_tok)
 {
     CGS_StrView range_view;
     range_view.chars = begin_tok.lexeme.chars;
     range_view.len   = (end_tok.lexeme.chars - begin_tok.lexeme.chars) + end_tok.lexeme.len;
-    report_error_(ctx, range_view);
+    error_at_(ctx, range_view);
 }
 
 #define non_newline_whitespace " \f\r\t\v"
@@ -140,7 +140,7 @@ int parse_tests(Ctx *ctx)
         after_directive = cgs_skip_any(after_directive, non_newline_whitespace);
         if (!cgs_starts_with(after_directive, "{{"))
         {
-            report_error(ctx, after_directive, "expected {{ ...strs }}");
+            error_at(ctx, after_directive, "expected {{ ...strs }}");
             return EXIT_FAILURE;
         }
 
@@ -160,7 +160,7 @@ int parse_tests(Ctx *ctx)
             }
             if (i == 0 || literal_list.chars[i] != '}' || literal_list.chars[i - 1] != '}')
             {
-                report_error(ctx, literal_list, "expected {{ ...strs }}");
+                error_at(ctx, literal_list, "expected {{ ...strs }}");
                 return EXIT_FAILURE;
             }
             after_end_brackets = i + 1;
@@ -169,7 +169,7 @@ int parse_tests(Ctx *ctx)
 
         if (after_end_brackets == -1)
         {
-            report_error(ctx, literal_list, "expected {{ ...strs }}");
+            error_at(ctx, literal_list, "expected {{ ...strs }}");
             return EXIT_FAILURE;
         }
 
@@ -190,7 +190,7 @@ int parse_tests(Ctx *ctx)
             {
                 if (list_walk.chars[0] != ',')
                 {
-                    report_error(ctx, list_walk, "expected ',' but got %?", list_walk.chars[0]);
+                    error_at(ctx, list_walk, "expected ',' but got %?", list_walk.chars[0]);
                     return EXIT_FAILURE;
                 }
                 list_walk.chars += 1;
@@ -203,7 +203,7 @@ int parse_tests(Ctx *ctx)
             Token str_tok = scan_str(ctx, list_walk.chars, &err);
             if (err || (str_tok.kind != TK_str))
             {
-                report_error(ctx, list_walk, "expected string literal");
+                error_at(ctx, list_walk, "expected string literal");
                 return EXIT_FAILURE;
             }
 
@@ -212,7 +212,7 @@ int parse_tests(Ctx *ctx)
             if (after_tok > list_walk.len)
             {
                 cgs_dstr_deinit(&str_tok.data.string);
-                report_error(ctx, list_walk, "unterminated string literal");
+                error_at(ctx, list_walk, "unterminated string literal");
                 return EXIT_FAILURE;
             }
 
@@ -257,14 +257,14 @@ int parse_tests(Ctx *ctx)
             comment_walk = cgs_skip_any(comment_walk, non_newline_whitespace);
             if (!cgs_starts_with(comment_walk, "{{"))
             {
-                report_error(ctx, comment_walk, "expected {{message}}");
+                error_at(ctx, comment_walk, "expected {{message}}");
                 return EXIT_FAILURE;
             }
 
             CGS_Result(int) found_message_end = cgs_find(comment_walk, "}}");
             if (found_message_end.err.ec != CGS_OK)
             {
-                report_error(ctx, comment_walk, "expected {{message}}, but got %?", comment_walk);
+                error_at(ctx, comment_walk, "expected {{message}}, but got %?", comment_walk);
                 return EXIT_FAILURE;
             }
 

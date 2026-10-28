@@ -60,10 +60,10 @@ void parse(Ctx *ctx);
 void free_expr(Expr *expr);
 void free_tokens(TokenList *toks);
 
-void report_error_(Ctx *ctx, CGS_StrView error_loc);
-void report_tok_error_(Ctx *ctx, Token tok);
-void report_tok_range_error_(Ctx *ctx, Token begin_tok, Token end_tok);
-void error_message_();
+void error_at_(Ctx *ctx, CGS_StrView error_loc);
+void error_at_tok_(Ctx *ctx, Token tok);
+void error_at_tok_range_(Ctx *ctx, Token begin_tok, Token end_tok);
+void error_();
 
 [[nodiscard("syncronize if this returns false")]]
 bool skip_tok(Ctx *ctx, TokenKind kind); // skip `kind` token
@@ -78,18 +78,18 @@ void free_scope(Scope *scope);
 extern _Thread_local char error_message_buf[1024];
 
 #ifdef NDEBUG
-    #define report_error(ctx, loc, msg, ...) \
-        (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), report_error_(ctx, cgs_strv(loc)))
+    #define error_at(ctx, loc, msg, ...) \
+        (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), error_at_(ctx, cgs_strv(loc)))
 #else
-    #define report_error(ctx, loc, msg, ...)                                             \
+    #define error_at(ctx, loc, msg, ...)                                             \
         (cgs_sprintf(error_message_buf, "%?:%?: " msg, __FILE__, __LINE__, __VA_ARGS__), \
-         report_error_(ctx, cgs_strv(loc)))
+         error_at_(ctx, cgs_strv(loc)))
 #endif
-#define report_tok_error(ctx, tok, msg, ...) \
-    (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), report_tok_error_(ctx, tok))
+#define error_at_tok(ctx, tok, msg, ...) \
+    (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), error_at_tok_(ctx, tok))
 
-#define report_tok_range_error(ctx, begin_tok, end_tok, msg, ...) \
-    (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), report_tok_range_error_(ctx, begin_tok, end_tok))
+#define error_at_tok_range(ctx, begin_tok, end_tok, msg, ...) \
+    (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), error_at_tok_range_(ctx, begin_tok, end_tok))
 
 #define check_any(ctx, ...) \
     check_any_(ctx, (TokenKind[]) {__VA_ARGS__}, sizeof((TokenKind[]) {__VA_ARGS__}) / sizeof(TokenKind))
@@ -101,7 +101,7 @@ extern _Thread_local char error_message_buf[1024];
 
 #define consume_tok(ctx, kind) consume_any_(ctx, (TokenKind[1]) {kind}, 1)
 
-#define error_message(msg, ...) (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), error_message_())
+#define error(msg, ...) (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), error_())
 
 #define T StrViews, CGS_StrView
 #define i_eq(a, b) cgs_equal(*a, *b)
