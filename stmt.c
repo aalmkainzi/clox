@@ -1,10 +1,8 @@
 #include "stmt.h"
+#include "arena.h"
 #include "clox.h"
 #include "expr.h"
 #include "var.h"
-
-static void enter_scope(Ctx *ctx);
-static void exit_scope(Ctx *ctx);
 
 void free_stmts(StmtList *stmts)
 {
@@ -66,6 +64,28 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
                 return false;
             }
             cgs_writeln_tostr(val);
+            if (ctx->test && (ctx->test_data.verified_outputs != (unsigned int)-1))
+            {
+                CGS_DStr dstr = cgs_dstr_init();
+                cgs_tostr(&dstr, val);
+                if (ctx->test_data.expected_outputs.size == ctx->test_data.verified_outputs)
+                {
+                    error_message("unexpected output '%?'", dstr);
+                }
+                else if (!cgs_equal(dstr, ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs]))
+                {
+                    error_message(
+                        "expected output '%?' but got '%?'",
+                        ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs],
+                        dstr
+                    );
+
+                    ctx->test_data.verified_outputs = (unsigned int)-1;
+                    ctx->passed_test = false;
+                }
+                ctx->test_data.verified_outputs++;
+                cgs_dstr_deinit(&dstr);
+            }
         }
         break;
         case STMT_var:
@@ -84,12 +104,12 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
             {
                 val = (Value) {.type = T_nil};
             }
-            val.var = true;
+            val.var   = true;
+            val.scope = ctx->scope;
 
             VarMap_result res = VarMap_insert(&ctx->scope->vars, name, val);
             if (!res.inserted)
             {
-                free_var_value(&res.ref->second);
                 res.ref->second = val;
             }
         }
@@ -99,13 +119,11 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
             Value val = eval(ctx, stmt.data.expr);
             if (ctx->error)
             {
-                free_value(val);
                 return false;
             }
 
             if (ctx->repl)
                 cgs_writeln_tostr(val);
-            free_value(val);
         }
         break;
         case STMT_scope:
@@ -122,7 +140,6 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
             Value cond      = eval(ctx, if_stmt->cond);
             if (ctx->error)
             {
-                free_value(cond);
                 return false;
             }
 
@@ -135,27 +152,23 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
             {
                 ret = execute_stmt(ctx, *if_stmt->else_branch);
             }
-            free_value(cond);
             return ret;
         }
         break;
         case STMT_while:
         {
             StmtWhile *while_stmt = &stmt.data.while_stmt;
-            Arena *arena          = begin_eval_arena();
+            Arena *arena          = begin_arena();
             Value cond;
-            for (cond = eval(ctx, while_stmt->cond); is_truthy(cond);
-                 free_value(cond), cond = eval(ctx, while_stmt->cond))
+            for (cond = eval(ctx, while_stmt->cond); is_truthy(cond); cond = eval(ctx, while_stmt->cond))
             {
                 arena_reset(arena);
                 if (ctx->error || !execute_stmt(ctx, *while_stmt->body))
                 {
-                    free_value(cond);
                     return false;
                 }
             };
-            // free_value(cond); // free the false value
-            end_eval_arena(arena);
+            end_arena(arena);
         }
         break;
         case STMT_none:
@@ -192,25 +205,26 @@ void free_scope(Scope *scope)
 {
     if (scope == NULL)
         return;
-    for (c_each(vit, VarMap, scope->vars))
-    {
-        free_var_value(&vit.ref->second);
-    }
+
     VarMap_drop(&scope->vars);
-    free(scope);
 }
 
-static void exit_scope(Ctx *ctx)
+void exit_scope(Ctx *ctx)
 {
-    Scope *up = ctx->scope->up;
     free_scope(ctx->scope);
+    Scope *up = ctx->scope->up;
+    end_arena(ctx->scope->arena);
     ctx->scope = up;
 }
 
-static void enter_scope(Ctx *ctx)
+void enter_scope(Ctx *ctx)
 {
-    Scope *save = ctx->scope;
-    ctx->scope  = calloc(1, sizeof(Scope));
+    Arena *scope_arena = begin_arena();
+    Scope *save        = ctx->scope;
+
+    // the first allocation in the new arena is the Scope itself
+    ctx->scope = cgs_alloc(arena_allocator_stack, Scope, 1).ptr;
     init_scope(ctx->scope);
-    ctx->scope->up = save;
+    ctx->scope->up    = save;
+    ctx->scope->arena = scope_arena;
 }

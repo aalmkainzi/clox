@@ -35,7 +35,7 @@ void report_error_(Ctx *ctx, const CGS_StrView error_loc)
     if (ctx->test)
     {
         auto expected_entry = ExpectedErrors_get(
-            &ctx->expected_errors, linemap_get_lineno(&ctx->linemap, error_loc.chars - ctx->src.chars)
+            &ctx->test_data.expected_errors, linemap_get_lineno(&ctx->linemap, error_loc.chars - ctx->src.chars)
         );
 
         if (expected_entry && StrViews_contains(&expected_entry->second, cgs_strv(error_message_buf)))
@@ -115,17 +115,110 @@ void report_tok_range_error_(Ctx *ctx, Token begin_tok, Token end_tok)
     report_error_(ctx, range_view);
 }
 
+#define comment_whitespace " \f\r\t\v\t"
+
 int parse_tests(Ctx *ctx)
 {
-    ctx->expected_errors = ExpectedErrors_init();
+    ctx->test_data.expected_errors  = ExpectedErrors_init();
+    ctx->test_data.expected_outputs = StrViews_init();
 
-    CGS_StrView walk = ctx->src;
+    CGS_StrView walk                          = ctx->src;
+    CGS_Result(CGS_StrView) first_line_result = cgs_next_tok(&walk, '\n');
+    CGS_Result(int) found_expected_output;
+
+    // first line may be: // expected-output {{"a", "b", "c"}}
+    if (first_line_result.err.ec == CGS_OK &&
+        (found_expected_output = cgs_starts_with_tokens(first_line_result.val, " ", "//", "expected-output"))
+                .err.ec == CGS_OK)
+    {
+        CGS_StrView after_directive = cgs_strv(first_line_result.val, found_expected_output.val);
+
+        after_directive = cgs_skip_any(after_directive, comment_whitespace);
+        if (!cgs_starts_with(after_directive, "{{"))
+        {
+            report_error(ctx, after_directive, "expected {{ ...strs }}, but got %?", after_directive.chars[0]);
+            return EXIT_FAILURE;
+        }
+
+        CGS_StrView literal_list = cgs_strv(after_directive, 2); // message}}
+
+        long long after_end_brackets = -1;
+        for (long long i = literal_list.len - 1; i >= 0; i--)
+        {
+            if (literal_list.chars[i] != ' ')
+            {
+                if (i == 0 || (literal_list.chars[i] != '}' && literal_list.chars[i - 1] != '}'))
+                {
+                    report_error(ctx, literal_list, "expected {{ ...strs }}");
+                    return EXIT_FAILURE;
+                }
+                after_end_brackets = i + 1;
+                break;
+            }
+        }
+
+        if (after_end_brackets == -1)
+        {
+            report_error(ctx, literal_list, "expected {{ ...strs }}");
+            return EXIT_FAILURE;
+        }
+
+        literal_list = cgs_strv(literal_list, 0, after_end_brackets - 2);
+
+        CGS_StrView list_walk = literal_list;
+
+        bool first = true;
+        while (list_walk.chars[0] != '}')
+        {
+            list_walk = cgs_skip_any(list_walk, comment_whitespace);
+            if (first)
+            {
+                first = false;
+            }
+            else
+            {
+                if (list_walk.chars[0] != ',')
+                {
+                    report_error(ctx, list_walk, "expected ',' but got %?", list_walk.chars[0]);
+                    return EXIT_FAILURE;
+                }
+                list_walk.chars += 1;
+                list_walk.len -= 1;
+
+                list_walk = cgs_skip_any(list_walk, comment_whitespace);
+            }
+
+            bool err      = false;
+            Token str_tok = scan_str(ctx, list_walk.chars, &err);
+            if (err || (str_tok.kind != TK_str))
+            {
+                report_error(ctx, list_walk, "expected string literal");
+                return EXIT_FAILURE;
+            }
+            StrViews_push(&ctx->test_data.expected_outputs, cgs_strv(str_tok.data.string));
+
+            ptrdiff_t after_tok = (str_tok.lexeme.chars + str_tok.lexeme.len) - list_walk.chars;
+            list_walk.chars += after_tok;
+            list_walk.len -= after_tok;
+
+            list_walk = cgs_skip_any(list_walk, comment_whitespace);
+        }
+        if (list_walk.len != 2 || (list_walk.chars[0] != '}' && list_walk.chars[1] != '}'))
+        {
+            report_error(ctx, list_walk, "expected {{ ...strs }}");
+            return EXIT_FAILURE;
+        }
+    }
+    else
+    {
+        walk = ctx->src;
+    }
+
     CGS_Result(int) found;
-
     while ((found = cgs_find(walk, "//")).err.ec == CGS_OK)
     {
         CGS_StrView comment           = cgs_strv(walk, found.val);
-        CGS_Result(int) newline_found = cgs_find(comment, "\n");
+        CGS_Result(int) newline_found = cgs_find(comment, '\n');
 
         unsigned int comment_end_pos;
         if (newline_found.err.ec == CGS_OK)
@@ -165,14 +258,15 @@ int parse_tests(Ctx *ctx)
 
             int lineno = linemap_get_lineno(&ctx->linemap, msg.chars - ctx->src.chars);
 
-            auto entry = ExpectedErrors_get_mut(&ctx->expected_errors, lineno);
+            auto entry = ExpectedErrors_get_mut(&ctx->test_data.expected_errors, lineno);
             if (entry)
             {
                 StrViews_push(&entry->second, msg);
             }
             else
             {
-                ExpectedErrors_result res = ExpectedErrors_insert(&ctx->expected_errors, lineno, StrViews_init());
+                ExpectedErrors_result res =
+                    ExpectedErrors_insert(&ctx->test_data.expected_errors, lineno, StrViews_init());
                 StrViews_push(&res.ref->second, msg);
             }
 
@@ -183,7 +277,7 @@ int parse_tests(Ctx *ctx)
     return 0;
 }
 
-void init_error_c()
+void init_error_system()
 {
     if (isatty(stderr_fileno))
     {

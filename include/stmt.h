@@ -34,7 +34,7 @@ typedef struct StmtWhile
     struct Stmt *body;
 } StmtWhile;
 
-declare_vec(StmtList, struct Stmt);
+c_declare_vec(StmtList, struct Stmt);
 
 typedef struct Stmt
 {
@@ -55,6 +55,9 @@ typedef struct Stmt
 
 typedef struct Ctx Ctx;
 void execute_stmts(Ctx *ctx);
+
+void exit_scope(Ctx *ctx);
+void enter_scope(Ctx *ctx);
 
 void free_stmt(Stmt *stmt);
 void free_stmts(StmtList *stmts);

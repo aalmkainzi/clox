@@ -43,6 +43,9 @@ typedef struct Value
     bool var;
     bool error;
 
+    // only not null in case of `.var = true`, and it represents the scope in which the var is declared
+    struct Scope *scope;
+
     union
     {
         CGS_DStr string;
@@ -86,8 +89,8 @@ Expr *new_literal(Token tok);
 Expr *new_var(Token tok);
 Token expr_tok(Expr *expr);
 CGS_StrView expr_view(Expr *expr);
-void free_value(Value value);
-void free_var_value(Value *val);
+// void free_value(Value value);
+// void free_var_value(Value *val);
 
 struct Ctx;
 
@@ -99,14 +102,17 @@ Value copy_value(Value from);
 CGS_Error stringify_value(CGS_Writer *writer, Value val, CGS_StrView fmt_arg);
 CGS_Error stringify_literal(CGS_Writer *writer, Literal lit, CGS_StrView fmt_arg);
 
-Arena *begin_eval_arena();
-void end_eval_arena(Arena *arena);
+// begin a region that should be freed together (e.g. scope)
+Arena *begin_arena();
+void end_arena(Arena *arena);
+
+// ignores the current stack of arenas, uses the passed one until unset
+void set_current_arena(Arena *arena);
+void unset_current_arena();
 
 #define ADD_TOSTR (Value, stringify_value)
 #include "cgs/cgs.h"
 #define ADD_TOSTR (Literal, stringify_literal)
 #include "cgs/cgs.h"
-
-extern thread_local Arena active_arena;
 
 #endif

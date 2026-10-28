@@ -8,9 +8,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-#define T Arenas, Arena
-#include "stc/list.h"
-
 #define COMBINE_(a, b) a##b
 #define COMBINE(a, b) COMBINE_(a, b)
 
@@ -20,34 +17,14 @@
 #define NOPT_IMPL_(...) __VA_ARGS__
 
 // clang-format off
-#define eval_or_throw(ctx, expr, ...)                                   \
-    ({                                                                  \
-        Value _v = eval_depends_(                                       \
-            ctx,                                                        \
-            expr,                                                       \
-            __VA_OPT__((Value[]) {__VA_ARGS__})                         \
-            NOPT(NULL, __VA_ARGS__),                                    \
-            __VA_OPT__(sizeof((Value[]) {__VA_ARGS__}) / sizeof(Value)) \
-            NOPT(0, __VA_ARGS__)                                        \
-        );                                                              \
-        if (_v.error)                                                   \
-            return _v;                                                  \
-        _v;                                                             \
+#define eval_or_throw(ctx, expr)    \
+    ({                              \
+        Value _v = eval(ctx, expr); \
+        if (_v.error)               \
+            return _v;              \
+        _v;                         \
     })
 // clang-format on
-
-Value eval_depends_(Ctx *ctx, Expr *expr, Value deps[], int n_deps);
-
-CGS_Allocation eval_arena_alloc(CGS_Allocator *a, size_t alignment, size_t n);
-void eval_arena_dealloc(CGS_Allocator *a, void *p, size_t n);
-CGS_Allocation eval_arena_realloc(CGS_Allocator *a, void *p, size_t alignment, size_t old_n, size_t new_n);
-
-static Arenas active_eval_arenas;
-static CGS_Allocator *eval_arena_allocator = &(CGS_Allocator) {
-    .alloc   = eval_arena_alloc,
-    .dealloc = eval_arena_dealloc,
-    .realloc = eval_arena_realloc,
-};
 
 Value eval_unary(Ctx *ctx, Expr *expr);
 Value eval_binary(Ctx *ctx, Expr *expr);
@@ -57,7 +34,7 @@ static bool expect_number(Ctx *ctx, Value *obj);
 bool is_truthy(Value obj);
 
 Value copy_value(Value from);
-Value error_value(Value *free_this);
+Value error_value();
 
 static VarMap_entry *find_var(Scope *scope, CGS_StrView name);
 
@@ -80,12 +57,12 @@ Value eval(Ctx *ctx, Expr *expr)
             if (var == NULL)
             {
                 report_tok_error(ctx, expr_tok(expr), "undefined variable '%?'", expr->ident.lexeme);
-                return error_value(NULL);
+                return error_value();
             }
             else if (var->second.type == T_none)
             {
                 report_tok_error(ctx, expr_tok(expr), "variable not initialized");
-                return error_value(NULL);
+                return error_value();
             }
             Value var_val = copy_value(var->second);
             // free(var_val.tok);
@@ -120,13 +97,12 @@ Value eval_unary(Ctx *ctx, Expr *expr)
         {
             if (!expect_number(ctx, &obj))
             {
-                return error_value(&obj);
+                return error_value();
             }
 
             Value result = copy_value(obj);
             result.number *= -1;
 
-            free_value(obj);
             return result;
         }
         break;
@@ -138,7 +114,6 @@ Value eval_unary(Ctx *ctx, Expr *expr)
             Value result   = copy_value(tmp);
             result.boolean = !is_truthy(obj);
 
-            free_value(obj);
             return result;
         }
         break;
@@ -165,11 +140,10 @@ static Value eval_binary_logical(Ctx *ctx, Expr *expr)
             }
             else
             {
-                Value right = eval_or_throw(ctx, expr->binary.right, left);
+                Value right = eval_or_throw(ctx, expr->binary.right);
 
                 result            = copy_value(right);
                 result.tok.lexeme = range_view(left.tok.lexeme, right.tok.lexeme);
-                free_value(right);
             }
         }
         break;
@@ -183,11 +157,10 @@ static Value eval_binary_logical(Ctx *ctx, Expr *expr)
             }
             else
             {
-                Value right = eval_or_throw(ctx, expr->binary.right, left);
+                Value right = eval_or_throw(ctx, expr->binary.right);
 
                 result            = copy_value(right);
                 result.tok.lexeme = range_view(left.tok.lexeme, right.tok.lexeme);
-                free_value(right);
             }
         }
         break;
@@ -197,7 +170,6 @@ static Value eval_binary_logical(Ctx *ctx, Expr *expr)
             break;
     }
 
-    free_value(left);
     return result;
 }
 
@@ -209,7 +181,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
     }
 
     Value left  = eval_or_throw(ctx, expr->binary.left);
-    Value right = eval_or_throw(ctx, expr->binary.right, left);
+    Value right = eval_or_throw(ctx, expr->binary.right);
 
     Value result = copy_value(left);
     if (left.tok.lexeme.chars && right.tok.lexeme.chars)
@@ -356,7 +328,6 @@ Value eval_binary(Ctx *ctx, Expr *expr)
                     .type    = T_bool,
                     .boolean = right.type == T_str && cgs_equal(left.string, right.string)
                 };
-                free_value(result);
                 result = str_equality_result;
             }
             else if (left.type == T_num)
@@ -386,7 +357,6 @@ Value eval_binary(Ctx *ctx, Expr *expr)
                     .type    = T_bool,
                     .boolean = right.type != T_str || !cgs_equal(left.string, right.string)
                 };
-                free_value(result);
                 result = str_equality_result;
             }
             else if (left.type == T_num)
@@ -413,13 +383,9 @@ Value eval_binary(Ctx *ctx, Expr *expr)
             VarMap_value *val = find_var(ctx->scope, var_name.lexeme);
             if (val && !right.error)
             {
-                free_var_value(&val->second);
                 val->second     = copy_value(right);
                 val->second.var = true;
-
-                free_var_value(&result);
-                free_var_value(&left);
-                result = val->second;
+                result          = val->second;
             }
             else
             {
@@ -429,14 +395,12 @@ Value eval_binary(Ctx *ctx, Expr *expr)
         break;
 
         default:
-            result = error_value(&result);
+            result = error_value();
             report_tok_error(
                 ctx, expr->binary.op, "operator %? not yet implemented", tok2str[expr->binary.op.kind]
             );
     }
 
-    free_value(left);
-    free_value(right);
     return result;
 }
 
@@ -514,108 +478,12 @@ Value copy_value(Value from)
 {
     Value ret = from;
     if (from.type == T_str)
-        ret.string = cgs_dup(ret.string, eval_arena_allocator);
+        ret.string = cgs_dup(ret.string, arena_allocator_stack);
     ret.var = false;
     return ret;
 }
 
-void free_value(Value val)
+Value error_value()
 {
-    if (val.var)
-        return;
-    free_var_value(&val);
-}
-
-void free_var_value(Value *val)
-{
-    if (val->tok.lexeme.chars == NULL)
-        return;
-    // if (val->tok->seperate)
-    //     free(val->tok);
-    if (val->type == T_str)
-        cgs_dstr_deinit(&val->string);
-
-    *val = (Value) {};
-}
-
-Value error_value(Value *free_this)
-{
-    if (free_this)
-        free_value(*free_this);
     return (Value) {.error = true};
-}
-
-Value eval_depends_(Ctx *ctx, Expr *expr, Value deps[], int n_deps)
-{
-    Value ret = eval(ctx, expr);
-    if (ret.error)
-    {
-        for (int i = 0; i < n_deps; i++)
-        {
-            free_value(deps[i]);
-        }
-    }
-    return ret;
-}
-
-Arena *begin_eval_arena()
-{
-    return Arenas_push(&active_eval_arenas, (Arena) {});
-}
-
-static void end_eval_arena_node(Arenas_iter it)
-{
-    if (it.ref == NULL)
-        return;
-
-    Arenas_iter next = it;
-    Arenas_next(&next);
-
-    end_eval_arena_node(next);
-    arena_free(it.ref);
-}
-
-void end_eval_arena(Arena *arena)
-{
-    Arenas_iter it = {.ref = arena, ._last = &active_eval_arenas.last};
-    end_eval_arena_node(it);
-}
-
-CGS_Allocation eval_arena_alloc(CGS_Allocator *a, size_t alignment, size_t n)
-{
-    (void)a;
-    (void)alignment;
-
-    Arena *arena = Arenas_back_mut(&active_eval_arenas);
-    void *p      = arena_alloc(arena, n);
-    return (CGS_Allocation) {.ptr = p, .n = n};
-}
-
-void eval_arena_dealloc(CGS_Allocator *a, void *p, size_t n)
-{
-    (void)a;
-    (void)p;
-    (void)n;
-}
-
-CGS_Allocation eval_arena_realloc(CGS_Allocator *a, void *p, size_t alignment, size_t old_n, size_t new_n)
-{
-    (void)p;
-    (void)old_n;
-
-    Arena *arena = Arenas_back_mut(&active_eval_arenas);
-
-    return arena_realloc_callback(arena_allocator(arena), p, alignment, old_n, new_n);
-}
-
-void init_eval_c()
-{
-    Arenas_push(&active_eval_arenas, (Arena) {});
-}
-
-void deinit_eval_c()
-{
-    Arena *front = Arenas_front_mut(&active_eval_arenas);
-    arena_free(front);
-    Arenas_drop(&active_eval_arenas);
 }

@@ -152,11 +152,10 @@ static int repl_loop(Opts opts)
         .file_name = cgs_strv("<repl>"),
         .repl      = true,
         .verbose   = opts.verbose,
-        .scope     = calloc(1, sizeof(Scope)),
         .linemap   = {.cap = 1, .count = 1, .offsets = (int[1]) {0}}
     };
 
-    init_scope(ctx->scope);
+    enter_scope(ctx); // global scope
 
     while (!feof(stdin))
     {
@@ -172,6 +171,8 @@ static int repl_loop(Opts opts)
         }
     }
 
+    exit_scope(ctx); // global scope
+
     for (c_each(line_it, Lines, lines))
     {
         CGS_DStr *line = line_it.ref;
@@ -181,7 +182,6 @@ static int repl_loop(Opts opts)
     StmtList_drop(&ctx->stmts);
     TokensChain_drop(&ctx->toks);
     Lines_drop(&lines);
-    free_scope(ctx->scope);
 
     return EXIT_SUCCESS;
 }
@@ -198,7 +198,6 @@ static int run(Opts opts, CGS_DStr *src)
         .verbose     = opts.verbose,
         .test        = opts.test,
         .passed_test = true,
-        .scope       = calloc(1, sizeof(Scope)),
     };
 
     linemap_fill(&ctx->linemap, ctx->src);
@@ -208,7 +207,7 @@ static int run(Opts opts, CGS_DStr *src)
         parse_tests(ctx);
     }
 
-    init_scope(ctx->scope);
+    enter_scope(ctx);
 
     tokenize(ctx);
     if (ctx->error || tokens_empty(ctx))
@@ -222,6 +221,7 @@ static int run(Opts opts, CGS_DStr *src)
     if (!ctx->error)
         execute_stmts(ctx);
 
+    exit_scope(ctx);
 done:
     for (c_each(it, StmtList, ctx->stmts))
     {
@@ -230,16 +230,18 @@ done:
     StmtList_drop(&ctx->stmts);
 
     TokensChain_drop(&ctx->toks);
-    free_scope(ctx->scope);
     linemap_free(&ctx->linemap);
-    if (ctx->test)
-    {
-        ExpectedErrors_drop(&ctx->expected_errors);
-    }
 
     if (ctx->test)
     {
-        return ctx->passed_test ? EXIT_SUCCESS : EXIT_FAILURE; // 0 is success
+        for (c_each(it, StrViews, ctx->test_data.expected_outputs))
+        {
+            free((void *)it.ref->chars);
+        }
+
+        StrViews_drop(&ctx->test_data.expected_outputs);
+        ExpectedErrors_drop(&ctx->test_data.expected_errors);
+        return ctx->passed_test ? EXIT_SUCCESS : EXIT_FAILURE;
     }
 
     if (ctx->error)
@@ -251,16 +253,11 @@ done:
 static void clox_init()
 {
     // if a specific system needs an init, add its decl here, and call it
-    void init_error_c();
-    void init_eval_c();
+    void init_error_system();
 
-    init_error_c();
-    init_eval_c();
+    init_error_system();
 }
 
 static void clox_deinit()
 {
-    void deinit_eval_c();
-
-    deinit_eval_c();
 }

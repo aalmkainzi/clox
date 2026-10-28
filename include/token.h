@@ -111,6 +111,10 @@ typedef struct Token
 Token *copy_token(Token *token);
 void free_token(Token *tok);
 
+struct Ctx;
+// the only scan_* function exposed, its re-usable
+Token scan_str(struct Ctx *ctx, const char *tok_start, bool *err);
+
 // write functions so Token can be printable
 static inline CGS_Error stringify_token(CGS_Writer *writer, Token tok, CGS_StrView fmt_arg)
 {

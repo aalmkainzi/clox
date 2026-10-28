@@ -69,4 +69,3 @@ bool run_test_on_entry(Nob_Walk_Entry entry)
 
     return true;
 }
-

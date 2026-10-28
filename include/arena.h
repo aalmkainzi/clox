@@ -34,6 +34,8 @@ CGS_Allocation arena_alloc_callback(CGS_Allocator *a, size_t alignment, size_t n
 void arena_dealloc_callback(CGS_Allocator *a, void *p, size_t n);
 CGS_Allocation arena_realloc_callback(CGS_Allocator *a, void *p, size_t alignment, size_t old_n, size_t new_n);
 
+extern CGS_Allocator *arena_allocator_stack;
+
 #define arena_allocator(arena_p)                   \
     ((CGS_Allocator *)&(ArenaAllocator) {          \
         .base =                                    \

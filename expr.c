@@ -24,7 +24,7 @@ Expr *new_unary(Expr *left, Token op)
 
 Expr *alloc_literal_expr(LiteralKind litKind, Token tok)
 {
-    static const TypeKind map[] = {
+    constexpr TypeKind map[] = {
         [LIT_bool] = T_bool,
         [LIT_num]  = T_num,
         [LIT_str]  = T_str,
@@ -104,7 +104,8 @@ void free_expr(Expr *expr)
             free(expr);
             break;
         case EXPR_value:
-            free_value(expr->value);
+            if (expr->value.type == T_str)
+                cgs_dstr_deinit(&expr->value.string);
             free(expr);
             break;
         case EXPR_var:

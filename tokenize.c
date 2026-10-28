@@ -168,7 +168,7 @@ static char handle_escape_sequence(char c)
     return -1;
 }
 
-static Token scan_str(Ctx *ctx, const char *tok_start, bool *err)
+Token scan_str(Ctx *ctx, const char *tok_start, bool *err)
 {
     Token ret = {.kind = TK_none};
 
