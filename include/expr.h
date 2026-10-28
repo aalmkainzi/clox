@@ -5,7 +5,7 @@
 #include "cgs/cgs.h"
 #include "token.h"
 
-typedef enum ExprKind
+typedef enum ExprKind : unsigned char
 {
     EXPR_unary,
     EXPR_binary,
@@ -13,7 +13,7 @@ typedef enum ExprKind
     EXPR_var
 } ExprKind;
 
-typedef enum LiteralKind
+typedef enum LiteralKind : unsigned char
 {
     LIT_bool,
     LIT_num,
@@ -27,7 +27,7 @@ typedef struct Literal
     Token *tok;
 } Literal;
 
-typedef enum TypeKind
+typedef enum TypeKind : unsigned char
 {
     T_none = 0,
     T_bool,

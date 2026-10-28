@@ -240,7 +240,7 @@ done:
             }
             ctx->passed_test = false;
         }
-        
+
         for (c_each(it, StrViews, ctx->test_data.expected_outputs))
         {
             free((void *)it.ref->chars);

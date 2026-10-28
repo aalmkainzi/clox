@@ -4,7 +4,7 @@
 #include "expr.h"
 #include "token.h"
 
-typedef enum StmtKind
+typedef enum StmtKind : unsigned char
 {
     STMT_none = 0,
     STMT_expr,

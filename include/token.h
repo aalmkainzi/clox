@@ -65,7 +65,7 @@ macro(eof, "EOF")
 
 #define make_enum_variant(kind, str) TK_##kind,
 
-typedef enum TokenKind
+typedef enum TokenKind : unsigned char
 {
     TK_none = 0,
     TK_ident,

@@ -3,6 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef ARENA_DEBUG
+    #ifndef NDEBUG
+        #define ARENA_DEBUG 1
+    #endif
+#endif
+
 #define T Arenas, Arena
 #include "stc/list.h"
 
@@ -18,6 +24,8 @@ CGS_Allocator *arena_allocator_stack = &(CGS_Allocator) {
     .dealloc = top_arena_dealloc,
     .realloc = top_arena_realloc,
 };
+
+static Arenas arena_pool;
 
 void arena_init(Arena *arena)
 {
@@ -87,7 +95,7 @@ void *arena_alloc(Arena *arena, size_t n)
 
 void arena_reset(Arena *arena)
 {
-#if !defined(NDEBUG)
+#if ARENA_DEBUG
     arena_free(arena);
 #else
     if (arena->tail)
@@ -158,10 +166,25 @@ static void end_arena_node(Arenas_iter it)
     arena_free(it.ref);
 }
 
+static Arenas_iter iter_of(Arena *a)
+{
+    Arenas_iter it = Arenas_begin(&arena_stack);
+    while (it.ref != a)
+        Arenas_next(&it);
+
+    return it;
+}
+
 void end_arena(Arena *arena)
 {
-    Arenas_iter it = {.ref = arena, ._last = &arena_stack.last};
+    Arenas_iter it = iter_of(arena);
+#if ARENA_DEBUG
     end_arena_node(it);
+    Arenas_erase_range(&arena_stack, it, Arenas_end(&arena_stack));
+#else
+    arena_reset(arena);
+    Arenas_push_front(&arena_pool, *arena);
+#endif
 }
 
 CGS_Allocation top_arena_alloc(CGS_Allocator *a, size_t alignment, size_t n)
