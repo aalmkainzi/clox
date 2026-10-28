@@ -232,6 +232,15 @@ done:
 
     if (ctx->test)
     {
+        if (ctx->test_data.verified_outputs != ctx->test_data.expected_outputs.size)
+        {
+            for (unsigned int i = ctx->test_data.verified_outputs; i < ctx->test_data.expected_outputs.size; i++)
+            {
+                error_message("expected output '%?' did not occur", ctx->test_data.expected_outputs.data[i]);
+            }
+            ctx->passed_test = false;
+        }
+        
         for (c_each(it, StrViews, ctx->test_data.expected_outputs))
         {
             free((void *)it.ref->chars);

@@ -1,4 +1,5 @@
 // expected-output{{"456", "123"}}
+
 var a = 123;
 
 {

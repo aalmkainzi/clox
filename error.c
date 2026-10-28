@@ -140,7 +140,7 @@ int parse_tests(Ctx *ctx)
         after_directive = cgs_skip_any(after_directive, non_newline_whitespace);
         if (!cgs_starts_with(after_directive, "{{"))
         {
-            report_error(ctx, after_directive, "expected {{ ...strs }}, but got %?", after_directive.chars[0]);
+            report_error(ctx, after_directive, "expected {{ ...strs }}");
             return EXIT_FAILURE;
         }
 
@@ -176,6 +176,7 @@ int parse_tests(Ctx *ctx)
         literal_list = cgs_strv(literal_list, 0, after_end_brackets - 2);
 
         CGS_StrView list_walk = literal_list;
+        list_walk             = cgs_skip_any(list_walk, non_newline_whitespace);
 
         bool first = true;
         while (list_walk.len)
@@ -205,12 +206,20 @@ int parse_tests(Ctx *ctx)
                 report_error(ctx, list_walk, "expected string literal");
                 return EXIT_FAILURE;
             }
-            StrViews_push(&ctx->test_data.expected_outputs, cgs_strv(str_tok.data.string));
 
             ptrdiff_t after_tok = (str_tok.lexeme.chars + str_tok.lexeme.len) - list_walk.chars;
+
+            if (after_tok > list_walk.len)
+            {
+                cgs_dstr_deinit(&str_tok.data.string);
+                report_error(ctx, list_walk, "unterminated string literal");
+                return EXIT_FAILURE;
+            }
+
             list_walk.chars += after_tok;
             list_walk.len -= after_tok;
 
+            StrViews_push(&ctx->test_data.expected_outputs, cgs_strv(str_tok.data.string));
             list_walk = cgs_skip_any(list_walk, non_newline_whitespace);
         }
     }
@@ -248,7 +257,7 @@ int parse_tests(Ctx *ctx)
             comment_walk = cgs_skip_any(comment_walk, non_newline_whitespace);
             if (!cgs_starts_with(comment_walk, "{{"))
             {
-                report_error(ctx, comment_walk, "expected {{message}}, but got %?", comment_walk.chars[0]);
+                report_error(ctx, comment_walk, "expected {{message}}");
                 return EXIT_FAILURE;
             }
 
