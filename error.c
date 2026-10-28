@@ -26,8 +26,11 @@ void error_message_()
     cgs_fprintfln(stderr, "%?error:%? %?", error_red_begin, error_color_reset, error_message_buf);
 }
 
-void report_error_(Ctx *ctx, const CGS_StrView error_loc)
+void report_error_(Ctx *ctx, CGS_StrView error_loc)
 {
+    if (error_loc.len == 0)
+        error_loc.len = 1;
+
     ctx->error = true;
 
     int lineno = linemap_get_lineno(&ctx->linemap, error_loc.chars - ctx->src.chars);
@@ -115,7 +118,7 @@ void report_tok_range_error_(Ctx *ctx, Token begin_tok, Token end_tok)
     report_error_(ctx, range_view);
 }
 
-#define comment_whitespace " \f\r\t\v\t"
+#define non_newline_whitespace " \f\r\t\v"
 
 int parse_tests(Ctx *ctx)
 {
@@ -128,12 +131,12 @@ int parse_tests(Ctx *ctx)
 
     // first line may be: // expected-output {{"a", "b", "c"}}
     if (first_line_result.err.ec == CGS_OK &&
-        (found_expected_output = cgs_starts_with_tokens(first_line_result.val, " ", "//", "expected-output"))
+        (found_expected_output = cgs_starts_with_tokens(first_line_result.val, non_newline_whitespace, "//", "expected-output"))
                 .err.ec == CGS_OK)
     {
         CGS_StrView after_directive = cgs_strv(first_line_result.val, found_expected_output.val);
 
-        after_directive = cgs_skip_any(after_directive, comment_whitespace);
+        after_directive = cgs_skip_any(after_directive, non_newline_whitespace);
         if (!cgs_starts_with(after_directive, "{{"))
         {
             report_error(ctx, after_directive, "expected {{ ...strs }}, but got %?", after_directive.chars[0]);
@@ -168,9 +171,9 @@ int parse_tests(Ctx *ctx)
         CGS_StrView list_walk = literal_list;
 
         bool first = true;
-        while (list_walk.chars[0] != '}')
+        while (list_walk.len)
         {
-            list_walk = cgs_skip_any(list_walk, comment_whitespace);
+            list_walk = cgs_skip_any(list_walk, non_newline_whitespace);
             if (first)
             {
                 first = false;
@@ -185,7 +188,7 @@ int parse_tests(Ctx *ctx)
                 list_walk.chars += 1;
                 list_walk.len -= 1;
 
-                list_walk = cgs_skip_any(list_walk, comment_whitespace);
+                list_walk = cgs_skip_any(list_walk, non_newline_whitespace);
             }
 
             bool err      = false;
@@ -201,12 +204,7 @@ int parse_tests(Ctx *ctx)
             list_walk.chars += after_tok;
             list_walk.len -= after_tok;
 
-            list_walk = cgs_skip_any(list_walk, comment_whitespace);
-        }
-        if (list_walk.len != 2 || (list_walk.chars[0] != '}' && list_walk.chars[1] != '}'))
-        {
-            report_error(ctx, list_walk, "expected {{ ...strs }}");
-            return EXIT_FAILURE;
+            list_walk = cgs_skip_any(list_walk, non_newline_whitespace);
         }
     }
     else
@@ -240,7 +238,7 @@ int parse_tests(Ctx *ctx)
             comment_walk.chars += strlen("expected-error");
             comment_walk.len -= strlen("expected-error");
 
-            comment_walk = cgs_skip_any(comment_walk, " \t");
+            comment_walk = cgs_skip_any(comment_walk, non_newline_whitespace);
             if (!cgs_starts_with(comment_walk, "{{"))
             {
                 report_error(ctx, comment_walk, "expected {{message}}, but got %?", comment_walk.chars[0]);

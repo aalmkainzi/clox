@@ -81,7 +81,7 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
                     );
 
                     ctx->test_data.verified_outputs = (unsigned int)-1;
-                    ctx->passed_test = false;
+                    ctx->passed_test                = false;
                 }
                 ctx->test_data.verified_outputs++;
                 cgs_dstr_deinit(&dstr);

@@ -165,7 +165,6 @@ static int repl_loop(Opts opts)
         if (err.ec == CGS_OK)
         {
             line->len -= 1;
-            cgs_append(line, "        "); // HACK delete this
             ctx->src = cgs_strv(line);
             run_repl_line(ctx);
         }
@@ -188,9 +187,6 @@ static int repl_loop(Opts opts)
 
 static int run(Opts opts, CGS_DStr *src)
 {
-    // appending empty spaces in cases we try to match a long keyword
-    cgs_append(src, "        "); // HACK delete this
-
     Ctx *ctx = &(Ctx) {
         .file_name   = cgs_strv(opts.file_name),
         .src         = cgs_strv(src),
@@ -207,16 +203,19 @@ static int run(Opts opts, CGS_DStr *src)
         parse_tests(ctx);
     }
 
-    enter_scope(ctx);
-
     tokenize(ctx);
+
+
     if (ctx->error || tokens_empty(ctx))
         goto done;
     if (ctx->verbose)
     {
         print_tokens(ctx);
     }
+
     parse(ctx);
+
+    enter_scope(ctx);
 
     if (!ctx->error)
         execute_stmts(ctx);
