@@ -205,7 +205,6 @@ static int run(Opts opts, CGS_DStr *src)
 
     tokenize(ctx);
 
-
     if (ctx->error || tokens_empty(ctx))
         goto done;
     if (ctx->verbose)

@@ -131,7 +131,8 @@ int parse_tests(Ctx *ctx)
 
     // first line may be: // expected-output {{"a", "b", "c"}}
     if (first_line_result.err.ec == CGS_OK &&
-        (found_expected_output = cgs_starts_with_tokens(first_line_result.val, non_newline_whitespace, "//", "expected-output"))
+        (found_expected_output =
+             cgs_starts_with_tokens(first_line_result.val, non_newline_whitespace, "//", "expected-output"))
                 .err.ec == CGS_OK)
     {
         CGS_StrView after_directive = cgs_strv(first_line_result.val, found_expected_output.val);
@@ -148,16 +149,22 @@ int parse_tests(Ctx *ctx)
         long long after_end_brackets = -1;
         for (long long i = literal_list.len - 1; i >= 0; i--)
         {
-            if (literal_list.chars[i] != ' ')
+            switch (literal_list.chars[i])
             {
-                if (i == 0 || (literal_list.chars[i] != '}' && literal_list.chars[i - 1] != '}'))
-                {
-                    report_error(ctx, literal_list, "expected {{ ...strs }}");
-                    return EXIT_FAILURE;
-                }
-                after_end_brackets = i + 1;
-                break;
+                case ' ':
+                case '\f':
+                case '\r':
+                case '\t':
+                case '\v':
+                    continue;
             }
+            if (i == 0 || literal_list.chars[i] != '}' || literal_list.chars[i - 1] != '}')
+            {
+                report_error(ctx, literal_list, "expected {{ ...strs }}");
+                return EXIT_FAILURE;
+            }
+            after_end_brackets = i + 1;
+            break;
         }
 
         if (after_end_brackets == -1)

@@ -77,9 +77,14 @@ void free_scope(Scope *scope);
 
 extern _Thread_local char error_message_buf[1024];
 
-#define report_error(ctx, loc, msg, ...) \
-    (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), report_error_(ctx, cgs_strv(loc)))
-
+#ifdef NDEBUG
+    #define report_error(ctx, loc, msg, ...) \
+        (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), report_error_(ctx, cgs_strv(loc)))
+#else
+    #define report_error(ctx, loc, msg, ...)                                              \
+        (cgs_sprintf(error_message_buf, "%?:%?: " msg, __FILE__, __LINE__, __VA_ARGS__), \
+         report_error_(ctx, cgs_strv(loc)))
+#endif
 #define report_tok_error(ctx, tok, msg, ...) \
     (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), report_tok_error_(ctx, tok))
 
