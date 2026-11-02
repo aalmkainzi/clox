@@ -410,7 +410,7 @@ static bool expect_number(Ctx *ctx, Value *obj)
     if (obj->type != T_num)
     {
         obj->error = true;
-        error_at_tok(ctx, obj->tok, "expected number");
+        error_at_tok(ctx, obj->tok, "expected a number");
         return false;
     }
     return true;
