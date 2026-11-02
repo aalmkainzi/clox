@@ -2,6 +2,7 @@
 #define STMT_H
 
 #include "expr.h"
+#include "grow_list.h"
 #include "token.h"
 
 typedef enum StmtKind : unsigned char
@@ -34,8 +35,6 @@ typedef struct StmtWhile
     struct Stmt *body;
 } StmtWhile;
 
-c_declare_vec(StmtList, struct Stmt);
-
 typedef struct Stmt
 {
     StmtKind kind;
@@ -47,7 +46,7 @@ typedef struct Stmt
         Expr *expr;
         Expr *print_expr;
         StmtVar var;
-        StmtList scope_stmts;
+        GrowList scope_stmts;
         StmtIf if_stmt;
         StmtWhile while_stmt;
     } data;
@@ -58,12 +57,5 @@ void execute_stmts(Ctx *ctx);
 
 void exit_scope(Ctx *ctx);
 void enter_scope(Ctx *ctx);
-
-void free_stmt(Stmt *stmt);
-void free_stmts(StmtList *stmts);
-
-#define i_declared
-#define T StmtList, Stmt
-#include "stc/vec.h"
 
 #endif

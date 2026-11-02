@@ -1,4 +1,6 @@
+#include "arena.h"
 #include "clox.h"
+#include "error.h"
 #include "expr.h"
 #include "stmt.h"
 #include "token.h"
@@ -15,6 +17,7 @@ static Expr *multitive(Ctx *ctx);
 static Expr *unary(Ctx *ctx);
 static Expr *primary(Ctx *ctx);
 
+static Stmt parse_scope_stmt(Ctx *ctx);
 static Stmt print_stmt(Ctx *ctx);
 static Stmt parse_expr_stmt(Ctx *ctx);
 static Stmt parse_var_decl(Ctx *ctx);
@@ -39,7 +42,10 @@ void parse_stmts(Ctx *ctx)
     {
         Stmt stmt = parse_stmt(ctx);
         if (stmt.kind != STMT_none)
-            StmtList_push(&ctx->stmts, stmt);
+        {
+            GrowListIter it = grow_list_push(&ctx->stmts);
+            *it.ptr         = stmt;
+        }
     }
 }
 
@@ -55,22 +61,7 @@ static Stmt parse_stmt(Ctx *ctx)
             stmt = parse_var_decl(ctx);
             break;
         case TK_lcurly:
-            advance(ctx);
-            stmt.kind      = STMT_scope;
-            StmtList *list = &stmt.data.scope_stmts;
-            while (ctx->tok->kind != TK_rcurly && ctx->tok->kind != TK_eof)
-            {
-                Stmt scope_stmt = parse_stmt(ctx);
-                if (scope_stmt.kind != STMT_none)
-                    StmtList_push(list, scope_stmt);
-            }
-            if (!skip_tok(ctx, TK_rcurly))
-            {
-                free_stmts(list);
-                return (Stmt) {};
-            }
-            return stmt;
-
+            stmt = parse_scope_stmt(ctx);
             break;
         case TK_if:
             stmt = parse_if_stmt(ctx);
@@ -88,8 +79,37 @@ static Stmt parse_stmt(Ctx *ctx)
     return stmt;
 }
 
+static Stmt parse_scope_stmt(Ctx *ctx)
+{
+    ArenaCheckpoint checkpoint = arena_checkpoint(&ctx->parser_arena);
+
+    Stmt stmt = {.kind = STMT_scope, .data.scope_stmts = grow_list(&ctx->parser_arena)};
+    advance(ctx);
+    GrowList *list = &stmt.data.scope_stmts;
+
+    while (ctx->tok->kind != TK_rcurly && ctx->tok->kind != TK_eof)
+    {
+        Stmt scope_stmt = parse_stmt(ctx);
+        if (scope_stmt.kind != STMT_none)
+        {
+            GrowListIter it = grow_list_push(list);
+            *it.ptr         = scope_stmt;
+        }
+    }
+
+    if (!skip_tok(ctx, TK_rcurly))
+    {
+        arena_rollback(&ctx->parser_arena, checkpoint);
+        return (Stmt) {};
+    }
+
+    return stmt;
+}
+
 static Stmt parse_if_stmt(Ctx *ctx)
 {
+    ArenaCheckpoint checkpoint = arena_checkpoint(&ctx->parser_arena);
+    
     bool err  = false;
     Stmt stmt = {.kind = STMT_if, .begin = ctx->tok};
     advance(ctx);
@@ -98,7 +118,7 @@ static Stmt parse_if_stmt(Ctx *ctx)
         synchronize(ctx, TK_rparen);
         return (Stmt) {};
     }
-
+    
     stmt.data.if_stmt.cond = expression(ctx);
 
     if (!skip_tok(ctx, TK_rparen))
@@ -106,7 +126,7 @@ static Stmt parse_if_stmt(Ctx *ctx)
         err = true; // I think the best recovery is to just pretend ) is there
     }
 
-    stmt.data.if_stmt.if_branch  = calloc(1, sizeof(Stmt));
+    stmt.data.if_stmt.if_branch  = arena_alloc(&ctx->parser_arena, sizeof(Stmt));
     *stmt.data.if_stmt.if_branch = parse_stmt(ctx);
 
     if (stmt.data.if_stmt.if_branch->kind == STMT_none)
@@ -117,7 +137,7 @@ static Stmt parse_if_stmt(Ctx *ctx)
     if (ctx->tok->kind == TK_else)
     {
         advance(ctx);
-        stmt.data.if_stmt.else_branch  = calloc(1, sizeof(Stmt));
+        stmt.data.if_stmt.else_branch  = arena_alloc(&ctx->parser_arena, sizeof(Stmt));
         *stmt.data.if_stmt.else_branch = parse_stmt(ctx);
         if (stmt.data.if_stmt.else_branch->kind == STMT_none)
         {
@@ -127,11 +147,7 @@ static Stmt parse_if_stmt(Ctx *ctx)
 
     if (err)
     {
-        free_expr(stmt.data.expr);
-        free_stmt(stmt.data.if_stmt.else_branch);
-        free_stmt(stmt.data.if_stmt.if_branch);
-        free(stmt.data.if_stmt.if_branch);
-        free(stmt.data.if_stmt.else_branch);
+        arena_rollback(&ctx->parser_arena, checkpoint);
         return (Stmt) {};
     }
 
@@ -140,8 +156,10 @@ static Stmt parse_if_stmt(Ctx *ctx)
 
 static Stmt parse_while_stmt(Ctx *ctx)
 {
+    ArenaCheckpoint checkpoint = arena_checkpoint(&ctx->parser_arena);
+
     bool err  = false;
-    Stmt stmt = {.begin = ctx->tok, .kind = STMT_while};
+    Stmt stmt = {.begin = ctx->tok, .kind = STMT_while,};
 
     advance(ctx);
 
@@ -152,7 +170,7 @@ static Stmt parse_while_stmt(Ctx *ctx)
         err = true;
     }
 
-    w->body  = calloc(1, sizeof(Stmt));
+    w->body  = arena_alloc(&ctx->parser_arena, sizeof(Stmt));
     *w->body = parse_stmt(ctx);
 
     if (w->body->kind == STMT_none)
@@ -162,9 +180,7 @@ static Stmt parse_while_stmt(Ctx *ctx)
 
     if (err)
     {
-        free_stmt(w->body);
-        free(w->body);
-        free_expr(w->cond);
+        arena_rollback(&ctx->parser_arena, checkpoint);
         return (Stmt) {};
     }
 
@@ -173,6 +189,8 @@ static Stmt parse_while_stmt(Ctx *ctx)
 
 static Stmt parse_for_stmt(Ctx *ctx)
 {
+    ArenaCheckpoint checkpoint = arena_checkpoint(&ctx->parser_arena);
+
     bool err = false;
 
     advance(ctx);
@@ -184,7 +202,7 @@ static Stmt parse_for_stmt(Ctx *ctx)
     Stmt scope = {
         .begin            = ctx->tok,
         .kind             = STMT_scope,
-        .data.scope_stmts = StmtList_init(),
+        .data.scope_stmts = grow_list(&ctx->parser_arena),
     };
 
     Stmt init_stmt = {};
@@ -205,7 +223,8 @@ static Stmt parse_for_stmt(Ctx *ctx)
         }
         else
         {
-            StmtList_push(&scope.data.scope_stmts, init_stmt);
+            GrowListIter it = grow_list_push(&scope.data.scope_stmts);
+            *it.ptr         = init_stmt;
         }
     }
     else
@@ -230,7 +249,7 @@ static Stmt parse_for_stmt(Ctx *ctx)
     }
     else
     {
-        w->cond        = calloc(1, sizeof(Expr));
+        w->cond        = arena_alloc(&ctx->parser_arena, sizeof(Expr));
         w->cond->kind  = EXPR_value;
         w->cond->value = (Value) {.type = T_bool, .boolean = true};
         advance(ctx);
@@ -256,11 +275,11 @@ static Stmt parse_for_stmt(Ctx *ctx)
         synchronize(ctx, TK_rparen);
     }
 
-    w->body  = calloc(1, sizeof(Stmt));
+    w->body  = arena_alloc(&ctx->parser_arena, sizeof(Stmt));
     *w->body = (Stmt) {
         .begin            = ctx->tok,
         .kind             = STMT_scope,
-        .data.scope_stmts = StmtList_init(),
+        .data.scope_stmts = grow_list(&ctx->parser_arena),
     };
 
     Stmt body_stmt = parse_stmt(ctx);
@@ -270,22 +289,27 @@ static Stmt parse_for_stmt(Ctx *ctx)
     }
     else
     {
-        StmtList_push(&w->body->data.scope_stmts, body_stmt);
+        GrowListIter it = grow_list_push(&w->body->data.scope_stmts);
+        *it.ptr         = body_stmt;
     }
 
     if (update.kind != STMT_none)
-        StmtList_push(&w->body->data.scope_stmts, update);
+    {
+        GrowListIter it = grow_list_push(&w->body->data.scope_stmts);
+        *it.ptr         = update;
+    }
 
     if (w->body->kind == STMT_none)
     {
         err = true;
     }
 
-    StmtList_push(&scope.data.scope_stmts, loop);
+    GrowListIter it = grow_list_push(&scope.data.scope_stmts);
+    *it.ptr         = loop;
 
     if (err)
     {
-        free_stmt(&scope);
+        arena_rollback(&ctx->parser_arena, checkpoint);
         return (Stmt) {};
     }
 
@@ -294,6 +318,8 @@ static Stmt parse_for_stmt(Ctx *ctx)
 
 static Stmt parse_var_decl(Ctx *ctx)
 {
+    ArenaCheckpoint checkpoint = arena_checkpoint(&ctx->parser_arena);
+    
     Stmt stmt = {.kind = STMT_var, .begin = ctx->tok};
     advance(ctx);
     stmt.data.var.name = ctx->tok;
@@ -311,7 +337,7 @@ static Stmt parse_var_decl(Ctx *ctx)
 
     if (!skip_tok(ctx, TK_semicolon))
     {
-        free_expr(stmt.data.var.rhs);
+        arena_rollback(&ctx->parser_arena, checkpoint);
         return (Stmt) {};
     }
     return stmt;
@@ -319,6 +345,8 @@ static Stmt parse_var_decl(Ctx *ctx)
 
 static Stmt parse_expr_stmt(Ctx *ctx)
 {
+    ArenaCheckpoint checkpoint = arena_checkpoint(&ctx->parser_arena);
+    
     bool err  = false;
     Stmt stmt = {.kind = STMT_expr, .begin = ctx->tok};
 
@@ -338,7 +366,7 @@ static Stmt parse_expr_stmt(Ctx *ctx)
 
     if (err)
     {
-        free_expr(stmt.data.expr);
+        arena_rollback(&ctx->parser_arena, checkpoint);
         return (Stmt) {};
     }
 
@@ -347,6 +375,8 @@ static Stmt parse_expr_stmt(Ctx *ctx)
 
 static Stmt print_stmt(Ctx *ctx)
 {
+    ArenaCheckpoint checkpoint = arena_checkpoint(&ctx->parser_arena);
+    
     Stmt stmt = {.kind = STMT_print, .begin = ctx->tok};
     advance(ctx);
 
@@ -355,7 +385,7 @@ static Stmt print_stmt(Ctx *ctx)
 
     if (!skip_tok(ctx, TK_semicolon))
     {
-        free_expr(stmt.data.print_expr);
+        arena_rollback(&ctx->parser_arena, checkpoint);
         return (Stmt) {};
     }
     return stmt;
@@ -382,7 +412,7 @@ static Expr *assignment(Ctx *ctx)
         Token *op = ctx->tok;
         advance(ctx);
         Expr *right = expression(ctx);
-        return new_binary(left, right, *op);
+        return new_binary(ctx, left, right, *op);
     }
 
     return left;
@@ -398,7 +428,7 @@ static Expr *or_expr(Ctx *ctx)
         advance(ctx);
         Expr *right = and_expr(ctx);
 
-        expr = new_binary(expr, right, *op);
+        expr = new_binary(ctx, expr, right, *op);
     }
 
     return expr;
@@ -414,7 +444,7 @@ static Expr *and_expr(Ctx *ctx)
         advance(ctx);
         Expr *right = equality(ctx);
 
-        expr = new_binary(expr, right, *op);
+        expr = new_binary(ctx, expr, right, *op);
     }
 
     return expr;
@@ -430,7 +460,7 @@ static Expr *equality(Ctx *ctx)
         advance(ctx);
         Expr *right = comparison(ctx);
 
-        expr = new_binary(expr, right, *op);
+        expr = new_binary(ctx, expr, right, *op);
     }
 
     return expr;
@@ -446,7 +476,7 @@ static Expr *comparison(Ctx *ctx)
         advance(ctx);
         Expr *right = additive(ctx);
 
-        expr = new_binary(expr, right, *op);
+        expr = new_binary(ctx, expr, right, *op);
     }
 
     return expr;
@@ -462,7 +492,7 @@ static Expr *additive(Ctx *ctx)
         advance(ctx);
         Expr *right = multitive(ctx);
 
-        expr = new_binary(expr, right, *op);
+        expr = new_binary(ctx, expr, right, *op);
     }
 
     return expr;
@@ -478,7 +508,7 @@ static Expr *multitive(Ctx *ctx)
         advance(ctx);
         Expr *right = unary(ctx);
 
-        expr = new_binary(expr, right, *op);
+        expr = new_binary(ctx, expr, right, *op);
     }
 
     return expr;
@@ -491,7 +521,7 @@ static Expr *unary(Ctx *ctx)
         Token *op = ctx->tok;
         advance(ctx);
         Expr *exp = unary(ctx);
-        Expr *new = new_unary(exp, *op);
+        Expr *new = new_unary(ctx, exp, *op);
         return new;
     }
     else
@@ -516,11 +546,11 @@ static Expr *primary(Ctx *ctx)
 
     if (ctx->tok->kind == TK_ident)
     {
-        expr = new_var(*ctx->tok);
+        expr = new_var(ctx, *ctx->tok);
     }
     else
     {
-        expr = new_literal(*ctx->tok);
+        expr = new_literal(ctx, *ctx->tok);
 
         if (expr == NULL)
         {

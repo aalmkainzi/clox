@@ -15,7 +15,7 @@ typedef struct Scope
 {
     struct Scope *up;
     VarMap vars;
-    Arena *arena;
+    Arenas_iter arena;
 } Scope;
 
 // clang-format off
@@ -29,7 +29,9 @@ typedef struct Ctx
     Token *tok;
 
     Scope *scope;
-    StmtList stmts;
+    GrowList stmts;
+
+    Arena parser_arena;
 
     struct
     {
@@ -57,13 +59,7 @@ CGS_StrView range_view(CGS_StrView begin, CGS_StrView end);
 void tokenize(Ctx *ctx);
 void parse(Ctx *ctx);
 
-void free_expr(Expr *expr);
 void free_tokens(TokenList *toks);
-
-void error_at_(Ctx *ctx, CGS_StrView error_loc);
-void error_at_tok_(Ctx *ctx, Token tok);
-void error_at_tok_range_(Ctx *ctx, Token begin_tok, Token end_tok);
-void error_();
 
 [[nodiscard("syncronize if this returns false")]]
 bool skip_tok(Ctx *ctx, TokenKind kind); // skip `kind` token
@@ -75,22 +71,6 @@ bool consume_any_(Ctx *ctx, TokenKind *kinds, int n_kinds);
 void init_scope(Scope *scope);
 void free_scope(Scope *scope);
 
-extern _Thread_local char error_message_buf[1024];
-
-#ifdef NDEBUG
-    #define error_at(ctx, loc, msg, ...) \
-        (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), error_at_(ctx, cgs_strv(loc)))
-#else
-    #define error_at(ctx, loc, msg, ...)                                             \
-        (cgs_sprintf(error_message_buf, "%?:%?: " msg, __FILE__, __LINE__, __VA_ARGS__), \
-         error_at_(ctx, cgs_strv(loc)))
-#endif
-#define error_at_tok(ctx, tok, msg, ...) \
-    (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), error_at_tok_(ctx, tok))
-
-#define error_at_tok_range(ctx, begin_tok, end_tok, msg, ...) \
-    (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), error_at_tok_range_(ctx, begin_tok, end_tok))
-
 #define check_any(ctx, ...) \
     check_any_(ctx, (TokenKind[]) {__VA_ARGS__}, sizeof((TokenKind[]) {__VA_ARGS__}) / sizeof(TokenKind))
 
@@ -100,8 +80,6 @@ extern _Thread_local char error_message_buf[1024];
     consume_any_(ctx, (TokenKind[]) {__VA_ARGS__}, sizeof((TokenKind[]) {__VA_ARGS__}) / sizeof(TokenKind))
 
 #define consume_tok(ctx, kind) consume_any_(ctx, (TokenKind[1]) {kind}, 1)
-
-#define error(msg, ...) (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), error_())
 
 #define T StrViews, CGS_StrView
 #define i_eq(a, b) cgs_equal(*a, *b)

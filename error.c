@@ -1,3 +1,4 @@
+#include "error.h"
 #include "clox.h"
 #include "linemap.h"
 #include "token.h"
@@ -14,7 +15,8 @@
     #define stderr_fileno STDERR_FILENO
 #endif
 
-_Thread_local char error_message_buf[1024] = {};
+_Thread_local char error_message_buf[1024]  = {};
+_Thread_local char passed_message_buf[1024] = {};
 
 static const char *error_color_reset = "";
 static const char *error_red_begin   = "";
@@ -24,6 +26,11 @@ static const char *error_cyan_begin  = "";
 void error_()
 {
     cgs_fprintfln(stderr, "%?error:%? %?", error_red_begin, error_color_reset, error_message_buf);
+}
+
+void passed_()
+{
+    cgs_fprintfln(stderr, "%?passed%?: %?", error_green_begin, error_color_reset, passed_message_buf);
 }
 
 void error_at_(Ctx *ctx, CGS_StrView error_loc)
@@ -43,13 +50,7 @@ void error_at_(Ctx *ctx, CGS_StrView error_loc)
 
         if (expected_entry && StrViews_contains(&expected_entry->second, cgs_strv(error_message_buf)))
         {
-            cgs_fprintfln(
-                stderr,
-                "%?passed%?: error '%?' has occured",
-                error_green_begin,
-                error_color_reset,
-                error_message_buf
-            );
+            passed("error '%?' has occured", error_message_buf);
             return;
         }
 

@@ -1,4 +1,5 @@
 #include "clox.h"
+#include "error.h"
 #include "expr.h"
 #include "stmt.h"
 #include "token.h"
@@ -129,16 +130,10 @@ static void run_repl_line(Ctx *ctx)
     parse(ctx);
 
     if (ctx->verbose)
-        cgs_printfln("nb statements: %?", ctx->stmts.size);
+        cgs_printfln("nb statements: %?", ctx->stmts.count);
 
     if (!ctx->error)
         execute_stmts(ctx);
-
-    for (c_each(it, StmtList, ctx->stmts))
-    {
-        free_stmt(it.ref);
-    }
-    StmtList_clear(&ctx->stmts);
 }
 
 #define T Lines, CGS_DStr
@@ -154,6 +149,9 @@ static int repl_loop(Opts opts)
         .verbose   = opts.verbose,
         .linemap   = {.cap = 1, .count = 1, .offsets = (int[1]) {0}}
     };
+
+    arena_init(&ctx->parser_arena);
+    ctx->stmts = grow_list(&ctx->parser_arena),
 
     enter_scope(ctx); // global scope
 
@@ -178,15 +176,17 @@ static int repl_loop(Opts opts)
         cgs_dstr_deinit(line);
     }
 
-    StmtList_drop(&ctx->stmts);
     TokensChain_drop(&ctx->toks);
     Lines_drop(&lines);
+
+    arena_free(&ctx->parser_arena);
 
     return EXIT_SUCCESS;
 }
 
 static int run(Opts opts, CGS_DStr *src)
 {
+
     Ctx *ctx = &(Ctx) {
         .file_name   = cgs_strv(opts.file_name),
         .src         = cgs_strv(src),
@@ -195,6 +195,9 @@ static int run(Opts opts, CGS_DStr *src)
         .test        = opts.test,
         .passed_test = true,
     };
+
+    arena_init(&ctx->parser_arena);
+    ctx->stmts = grow_list(&ctx->parser_arena),
 
     linemap_fill(&ctx->linemap, ctx->src);
 
@@ -220,15 +223,12 @@ static int run(Opts opts, CGS_DStr *src)
         execute_stmts(ctx);
 
     exit_scope(ctx);
+
 done:
-    for (c_each(it, StmtList, ctx->stmts))
-    {
-        free_stmt(it.ref);
-    }
-    StmtList_drop(&ctx->stmts);
 
     TokensChain_drop(&ctx->toks);
     linemap_free(&ctx->linemap);
+    arena_free(&ctx->parser_arena);
 
     if (ctx->test)
     {

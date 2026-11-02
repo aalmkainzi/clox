@@ -1,4 +1,5 @@
 #include "clox.h"
+#include "error.h"
 #include "token.h"
 #include <ctype.h>
 #include <math.h>
@@ -354,15 +355,6 @@ void free_token(Token *tok)
     {
         cgs_dstr_deinit(&tok->data.string);
     }
-}
-
-Token *copy_token(Token *token)
-{
-    Token *copy    = malloc(sizeof(Token));
-    *copy          = *token;
-    copy->seperate = true;
-
-    return copy;
 }
 
 CGS_StrView range_view(CGS_StrView begin, CGS_StrView end)

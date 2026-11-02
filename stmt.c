@@ -1,56 +1,14 @@
 #include "stmt.h"
 #include "arena.h"
 #include "clox.h"
+#include "error.h"
 #include "expr.h"
 #include "var.h"
 
-void free_stmts(StmtList *stmts)
-{
-    for (c_each(scit, StmtList, *stmts))
-    {
-        free_stmt(scit.ref);
-    }
+// TODO each Scope stmt must contain a GrowList backed by the same parser_arena
+// and Arena need a checkpoint mechanism
 
-    StmtList_drop(stmts);
-}
-
-void free_stmt(Stmt *stmt)
-{
-    switch (stmt->kind)
-    {
-        case STMT_print:
-            free_expr(stmt->data.print_expr);
-            break;
-        case STMT_expr:
-            free_expr(stmt->data.expr);
-            break;
-        case STMT_var:
-            free_expr(stmt->data.var.rhs);
-            break;
-        case STMT_scope:
-            free_stmts(&stmt->data.scope_stmts);
-            break;
-        case STMT_if:
-            free_expr(stmt->data.if_stmt.cond);
-            free_stmt(stmt->data.if_stmt.if_branch);
-            free(stmt->data.if_stmt.if_branch);
-            if (stmt->data.if_stmt.else_branch)
-            {
-                free_stmt(stmt->data.if_stmt.else_branch);
-                free(stmt->data.if_stmt.else_branch);
-            }
-            break;
-        case STMT_while:
-            free_expr(stmt->data.while_stmt.cond);
-            free_stmt(stmt->data.while_stmt.body);
-            free(stmt->data.while_stmt.body);
-            break;
-
-        case STMT_none:;
-    }
-}
-
-static bool execute_stmt_list(Ctx *ctx, StmtList *stmts);
+static bool execute_stmt_list(Ctx *ctx, GrowList *stmts);
 
 static bool execute_stmt(Ctx *ctx, Stmt stmt)
 {
@@ -82,6 +40,10 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
 
                     ctx->test_data.verified_outputs = (unsigned int)-1;
                     ctx->passed_test                = false;
+                }
+                else
+                {
+                    passed("expected output '%?' has been printed", val);
                 }
                 ctx->test_data.verified_outputs++;
                 cgs_dstr_deinit(&dstr);
@@ -158,11 +120,11 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         case STMT_while:
         {
             StmtWhile *while_stmt = &stmt.data.while_stmt;
-            Arena *arena          = begin_arena();
+            Arenas_iter arena     = begin_arena();
             Value cond;
             for (cond = eval(ctx, while_stmt->cond); is_truthy(cond); cond = eval(ctx, while_stmt->cond))
             {
-                arena_reset(arena);
+                arena_reset(arena.ref);
                 if (ctx->error || !execute_stmt(ctx, *while_stmt->body))
                 {
                     return false;
@@ -179,11 +141,11 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
     return true;
 }
 
-static bool execute_stmt_list(Ctx *ctx, StmtList *stmts)
+static bool execute_stmt_list(Ctx *ctx, GrowList *stmts)
 {
-    for (c_each(it, StmtList, *stmts))
+    for (grow_list_each(it, stmts))
     {
-        Stmt stmt = *it.ref;
+        Stmt stmt = *it.ptr;
         if (!execute_stmt(ctx, stmt))
             return false;
     }
@@ -219,11 +181,11 @@ void exit_scope(Ctx *ctx)
 
 void enter_scope(Ctx *ctx)
 {
-    Arena *scope_arena = begin_arena();
-    Scope *save        = ctx->scope;
+    Arenas_iter scope_arena = begin_arena();
+    Scope *save             = ctx->scope;
 
     // the first allocation in the new arena is the Scope itself
-    ctx->scope = cgs_alloc(arena_allocator_stack, Scope, 1).ptr;
+    ctx->scope = cgs_alloc(arena_stack_allocator, Scope, 1).ptr;
     init_scope(ctx->scope);
     ctx->scope->up    = save;
     ctx->scope->arena = scope_arena;

@@ -9,6 +9,7 @@
     #endif
 #endif
 
+#define i_declared
 #define T Arenas, Arena
 #include "stc/list.h"
 
@@ -19,13 +20,13 @@ CGS_Allocation top_arena_alloc(CGS_Allocator *a, size_t alignment, size_t n);
 void top_arena_dealloc(CGS_Allocator *a, void *p, size_t n);
 CGS_Allocation top_arena_realloc(CGS_Allocator *a, void *p, size_t alignment, size_t old_n, size_t new_n);
 
-CGS_Allocator *arena_allocator_stack = &(CGS_Allocator) {
+CGS_Allocator *arena_stack_allocator = &(CGS_Allocator) {
     .alloc   = top_arena_alloc,
     .dealloc = top_arena_dealloc,
     .realloc = top_arena_realloc,
 };
 
-static Arenas arena_pool;
+static Arenas arena_pool; // If anything, this should be a vector of Arenas_node*
 
 void arena_init(Arena *arena)
 {
@@ -93,6 +94,13 @@ void *arena_alloc(Arena *arena, size_t n)
     return ret;
 }
 
+void *arena_calloc(Arena *arena, size_t n)
+{
+    void *p = arena_alloc(arena, n);
+    memset(p, 0, n);
+    return p;
+}
+
 void arena_reset(Arena *arena)
 {
 #if ARENA_DEBUG
@@ -126,9 +134,29 @@ void arena_free(Arena *arena)
     memset(arena, 0, sizeof(Arena));
 }
 
-Arena *begin_arena()
+Arenas_iter begin_arena()
 {
-    return Arenas_push(&arena_stack, (Arena) {});
+    if (arena_stack.last)
+    {
+        Arenas_node *prev = Arenas_get_node(Arenas_back_mut(&arena_stack));
+        Arena *last       = Arenas_push(&arena_stack, (Arena) {});
+        Arenas_iter it    = {
+            .ref   = last,
+            .prev  = prev,
+            ._last = &arena_stack.last,
+        };
+        return it;
+    }
+    else
+    {
+        Arena *last    = Arenas_push(&arena_stack, (Arena) {});
+        Arenas_iter it = {
+            .ref   = last,
+            .prev  = Arenas_get_node(last),
+            ._last = &arena_stack.last,
+        };
+        return it;
+    }
 }
 
 static void end_arena_node(Arenas_iter it)
@@ -143,25 +171,45 @@ static void end_arena_node(Arenas_iter it)
     arena_free(it.ref);
 }
 
-static Arenas_iter iter_of(Arena *a)
+void end_arena(Arenas_iter arena)
 {
-    Arenas_iter it = Arenas_begin(&arena_stack);
-    while (it.ref != a)
-        Arenas_next(&it);
-
-    return it;
-}
-
-void end_arena(Arena *arena)
-{
-    Arenas_iter it = iter_of(arena);
-#if ARENA_DEBUG
-    end_arena_node(it);
-    Arenas_erase_range(&arena_stack, it, Arenas_end(&arena_stack));
+#if 1 || ARENA_DEBUG
+    end_arena_node(arena);
+    Arenas_erase_range(&arena_stack, arena, Arenas_end(&arena_stack));
 #else
     arena_reset(arena);
     Arenas_push_front(&arena_pool, *arena);
 #endif
+}
+
+ArenaCheckpoint arena_checkpoint(Arena *arena)
+{
+    return (ArenaCheckpoint) {
+        .node   = arena->tail,
+        .offset = arena->offset_in_last_arena,
+    };
+}
+
+void arena_rollback(Arena *arena, ArenaCheckpoint checkpoint)
+{
+    if (arena->tail != checkpoint.node)
+    {
+        if (checkpoint.node)
+        {
+            arena->tail->next     = arena->node_pool;
+            arena->node_pool      = checkpoint.node->next;
+            checkpoint.node->next = NULL;
+            arena->tail           = checkpoint.node;
+        }
+        else
+        {
+            arena->tail->next = arena->node_pool;
+            arena->node_pool = arena->head;
+            arena->head = arena->tail = NULL;
+        }
+    }
+
+    arena->offset_in_last_arena = checkpoint.offset;
 }
 
 CGS_Allocation arena_alloc_callback(CGS_Allocator *a, size_t alignment, size_t n)
@@ -183,7 +231,7 @@ void arena_dealloc_callback(CGS_Allocator *a, void *p, size_t n)
 CGS_Allocation arena_realloc_callback(CGS_Allocator *a, void *p, size_t alignment, size_t old_n, size_t new_n)
 {
     CGS_Allocation new_mem = arena_alloc_callback(a, alignment, new_n);
-    size_t copy_n = old_n < new_n ? old_n : new_n;
+    size_t copy_n          = old_n < new_n ? old_n : new_n;
     if (copy_n)
         memcpy(new_mem.ptr, p, copy_n);
     return new_mem;
@@ -233,5 +281,3 @@ void unset_current_arena()
 {
     manually_set_arena = NULL;
 }
-
-

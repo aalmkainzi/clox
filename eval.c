@@ -1,5 +1,6 @@
 #include "arena.h"
 #include "clox.h"
+#include "error.h"
 #include "expr.h"
 #include "token.h"
 #include "var.h"
@@ -226,17 +227,17 @@ Value eval_binary(Ctx *ctx, Expr *expr)
                 switch (left.type)
                 {
                     case T_bool:
-                        result.string = cgs_asprintf(arena_allocator_stack, "%?%?", left.boolean, right.string);
+                        result.string = cgs_asprintf(arena_stack_allocator, "%?%?", left.boolean, right.string);
                         break;
                     case T_num:
-                        result.string = cgs_asprintf(arena_allocator_stack, "%?%?", left.number, right.string);
+                        result.string = cgs_asprintf(arena_stack_allocator, "%?%?", left.number, right.string);
                         break;
                     case T_str:
                         // not actually possible, previous branch wouldve caught it
-                        result.string = cgs_asprintf(arena_allocator_stack, "%?%?", left.string, right.string);
+                        result.string = cgs_asprintf(arena_stack_allocator, "%?%?", left.string, right.string);
                         break;
                     case T_nil:
-                        result.string = cgs_asprintf(arena_allocator_stack, "%?%?", "nil", right.string);
+                        result.string = cgs_asprintf(arena_stack_allocator, "%?%?", "nil", right.string);
                         break;
                     case T_none:
                         unreachable();
@@ -383,8 +384,8 @@ Value eval_binary(Ctx *ctx, Expr *expr)
             VarMap_value *val = find_var(ctx->scope, var_name.lexeme);
             if (val && !right.error)
             {
-                set_current_arena(val->second.scope->arena);
-                val->second     = eval(ctx, expr->binary.right);
+                set_current_arena(val->second.scope->arena.ref);
+                val->second = eval(ctx, expr->binary.right);
                 unset_current_arena();
                 val->second.var = true;
                 result          = val->second;
@@ -398,9 +399,7 @@ Value eval_binary(Ctx *ctx, Expr *expr)
 
         default:
             result = error_value();
-            error_at_tok(
-                ctx, expr->binary.op, "operator %? not yet implemented", tok2str[expr->binary.op.kind]
-            );
+            error_at_tok(ctx, expr->binary.op, "operator %? not yet implemented", tok2str[expr->binary.op.kind]);
     }
 
     return result;
@@ -480,7 +479,7 @@ Value copy_value(Value from)
 {
     Value ret = from;
     if (from.type == T_str)
-        ret.string = cgs_dup(ret.string, arena_allocator_stack);
+        ret.string = cgs_dup(ret.string, arena_stack_allocator);
     ret.var = false;
     return ret;
 }

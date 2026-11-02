@@ -108,7 +108,6 @@ typedef struct Token
     TokenData data;
 } Token;
 
-Token *copy_token(Token *token);
 void free_token(Token *tok);
 
 struct Ctx;

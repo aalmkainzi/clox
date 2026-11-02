@@ -82,17 +82,15 @@ typedef struct Expr
 void pretty_print(CGS_Writer *sink, Expr *expr);
 void rpn_print(CGS_Writer *sink, Expr *expr);
 
-Expr *new_binary(Expr *left, Expr *right, Token op);
-Expr *new_unary(Expr *left, Token op);
-Expr *new_grouping(Expr *inside);
-Expr *new_literal(Token tok);
-Expr *new_var(Token tok);
+struct Ctx;
+
+Expr *new_binary(struct Ctx *ctx, Expr *left, Expr *right, Token op);
+Expr *new_unary(struct Ctx *ctx, Expr *left, Token op);
+Expr *new_grouping(struct Ctx *ctx, Expr *inside);
+Expr *new_literal(struct Ctx *ctx, Token tok);
+Expr *new_var(struct Ctx *ctx, Token tok);
 Token expr_tok(Expr *expr);
 CGS_StrView expr_view(Expr *expr);
-// void free_value(Value value);
-// void free_var_value(Value *val);
-
-struct Ctx;
 
 Value eval(struct Ctx *ctx, Expr *expr);
 bool is_truthy(Value obj);
@@ -101,14 +99,6 @@ Value copy_value(Value from);
 
 CGS_Error stringify_value(CGS_Writer *writer, Value val, CGS_StrView fmt_arg);
 CGS_Error stringify_literal(CGS_Writer *writer, Literal lit, CGS_StrView fmt_arg);
-
-// begin a region that should be freed together (e.g. scope)
-Arena *begin_arena();
-void end_arena(Arena *arena);
-
-// ignores the current stack of arenas, uses the passed one until unset
-void set_current_arena(Arena *arena);
-void unset_current_arena();
 
 #define ADD_TOSTR (Value, stringify_value)
 #include "cgs/cgs.h"
