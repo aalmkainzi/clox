@@ -5,10 +5,10 @@
 #include "expr.h"
 #include "var.h"
 
-// TODO each Scope stmt must contain a GrowList backed by the same parser_arena
+// TODO each Scope stmt must contain a StmtList backed by the same parser_arena
 // and Arena need a checkpoint mechanism
 
-static bool execute_stmt_list(Ctx *ctx, GrowList *stmts);
+static bool execute_stmt_list(Ctx *ctx, StmtList *stmts);
 
 static bool execute_stmt(Ctx *ctx, Stmt stmt)
 {
@@ -141,9 +141,9 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
     return true;
 }
 
-static bool execute_stmt_list(Ctx *ctx, GrowList *stmts)
+static bool execute_stmt_list(Ctx *ctx, StmtList *stmts)
 {
-    for (grow_list_each(it, stmts))
+    for (stmt_list_each(it, stmts))
     {
         Stmt stmt = *it.ptr;
         if (!execute_stmt(ctx, stmt))

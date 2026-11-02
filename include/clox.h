@@ -29,7 +29,7 @@ typedef struct Ctx
     Token *tok;
 
     Scope *scope;
-    GrowList stmts;
+    StmtList stmts;
 
     Arena parser_arena;
 

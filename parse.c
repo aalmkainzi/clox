@@ -43,7 +43,7 @@ void parse_stmts(Ctx *ctx)
         Stmt stmt = parse_stmt(ctx);
         if (stmt.kind != STMT_none)
         {
-            GrowListIter it = grow_list_push(&ctx->stmts);
+            StmtListIter it = stmt_list_push(&ctx->stmts);
             *it.ptr         = stmt;
         }
     }
@@ -83,16 +83,16 @@ static Stmt parse_scope_stmt(Ctx *ctx)
 {
     ArenaCheckpoint checkpoint = arena_checkpoint(&ctx->parser_arena);
 
-    Stmt stmt = {.kind = STMT_scope, .data.scope_stmts = grow_list(&ctx->parser_arena)};
+    Stmt stmt = {.kind = STMT_scope, .data.scope_stmts = stmt_list(&ctx->parser_arena)};
     advance(ctx);
-    GrowList *list = &stmt.data.scope_stmts;
+    StmtList *list = &stmt.data.scope_stmts;
 
     while (ctx->tok->kind != TK_rcurly && ctx->tok->kind != TK_eof)
     {
         Stmt scope_stmt = parse_stmt(ctx);
         if (scope_stmt.kind != STMT_none)
         {
-            GrowListIter it = grow_list_push(list);
+            StmtListIter it = stmt_list_push(list);
             *it.ptr         = scope_stmt;
         }
     }
@@ -202,7 +202,7 @@ static Stmt parse_for_stmt(Ctx *ctx)
     Stmt scope = {
         .begin            = ctx->tok,
         .kind             = STMT_scope,
-        .data.scope_stmts = grow_list(&ctx->parser_arena),
+        .data.scope_stmts = stmt_list(&ctx->parser_arena),
     };
 
     Stmt init_stmt = {};
@@ -223,7 +223,7 @@ static Stmt parse_for_stmt(Ctx *ctx)
         }
         else
         {
-            GrowListIter it = grow_list_push(&scope.data.scope_stmts);
+            StmtListIter it = stmt_list_push(&scope.data.scope_stmts);
             *it.ptr         = init_stmt;
         }
     }
@@ -279,7 +279,7 @@ static Stmt parse_for_stmt(Ctx *ctx)
     *w->body = (Stmt) {
         .begin            = ctx->tok,
         .kind             = STMT_scope,
-        .data.scope_stmts = grow_list(&ctx->parser_arena),
+        .data.scope_stmts = stmt_list(&ctx->parser_arena),
     };
 
     Stmt body_stmt = parse_stmt(ctx);
@@ -289,13 +289,13 @@ static Stmt parse_for_stmt(Ctx *ctx)
     }
     else
     {
-        GrowListIter it = grow_list_push(&w->body->data.scope_stmts);
+        StmtListIter it = stmt_list_push(&w->body->data.scope_stmts);
         *it.ptr         = body_stmt;
     }
 
     if (update.kind != STMT_none)
     {
-        GrowListIter it = grow_list_push(&w->body->data.scope_stmts);
+        StmtListIter it = stmt_list_push(&w->body->data.scope_stmts);
         *it.ptr         = update;
     }
 
@@ -304,7 +304,7 @@ static Stmt parse_for_stmt(Ctx *ctx)
         err = true;
     }
 
-    GrowListIter it = grow_list_push(&scope.data.scope_stmts);
+    StmtListIter it = stmt_list_push(&scope.data.scope_stmts);
     *it.ptr         = loop;
 
     if (err)

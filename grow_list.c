@@ -1,32 +1,32 @@
-#include "grow_list.h"
+#include "stmt_list.h"
 #include "arena.h"
 #include "stmt.h"
 
-typedef struct GrowListNode
+typedef struct StmtListNode
 {
-    struct GrowListNode *next;
+    struct StmtListNode *next;
     struct Stmt stmts[64];
-} GrowListNode;
+} StmtListNode;
 
-#define grow_list_node_cap(list) ((ptrdiff_t)(sizeof((list)->tail->stmts) / sizeof(Stmt)))
+#define stmt_list_node_cap(list) ((ptrdiff_t)(sizeof((list)->tail->stmts) / sizeof(Stmt)))
 
-GrowList grow_list(Arena *arena)
+StmtList stmt_list(Arena *arena)
 {
-    return (GrowList) {.arena = arena};
+    return (StmtList) {.arena = arena};
 }
 
-static GrowListNode *new_node(GrowList *list)
+static StmtListNode *new_node(StmtList *list)
 {
-    GrowListNode *node = arena_alloc(list->arena, sizeof(GrowListNode));
+    StmtListNode *node = arena_alloc(list->arena, sizeof(StmtListNode));
     node->next         = NULL;
     return node;
 }
 
-GrowListIter grow_list_push(GrowList *list)
+StmtListIter stmt_list_push(StmtList *list)
 {
     if (list->tail)
     {
-        if (list->next_free_slot_in_tail >= grow_list_node_cap(list))
+        if (list->next_free_slot_in_tail >= stmt_list_node_cap(list))
         {
             if (list->pool)
             {
@@ -48,7 +48,7 @@ GrowListIter grow_list_push(GrowList *list)
         assert(list->next_free_slot_in_tail == 0);
     }
 
-    GrowListIter pushed = {
+    StmtListIter pushed = {
         .ptr  = &list->tail->stmts[list->next_free_slot_in_tail],
         .node = list->tail,
     };
@@ -59,61 +59,61 @@ GrowListIter grow_list_push(GrowList *list)
     return pushed;
 }
 
-GrowListIter grow_list_begin(GrowList *list)
+StmtListIter stmt_list_begin(StmtList *list)
 {
-    return (GrowListIter) {
+    return (StmtListIter) {
         .node = list->head,
         .ptr  = list->head ? &list->head->stmts[0] : NULL,
     };
 }
 
-GrowListIter grow_list_end()
+StmtListIter stmt_list_end()
 {
-    return (GrowListIter) {
+    return (StmtListIter) {
         .node = NULL,
         .ptr  = NULL,
     };
 }
 
-GrowListIter grow_list_next(GrowList *list, GrowListIter it)
+StmtListIter stmt_list_next(StmtList *list, StmtListIter it)
 {
-    if ((it.ptr - it.node->stmts) + 1 >= grow_list_node_cap(list))
+    if ((it.ptr - it.node->stmts) + 1 >= stmt_list_node_cap(list))
     {
         if (it.node->next)
         {
-            return (GrowListIter) {
+            return (StmtListIter) {
                 .node = it.node->next,
                 .ptr  = it.node->next->stmts,
             };
         }
         else
         {
-            return grow_list_end();
+            return stmt_list_end();
         }
     }
     else
     {
         if (it.node == list->tail && (it.ptr - it.node->stmts == list->next_free_slot_in_tail - 1))
         {
-            return grow_list_end();
+            return stmt_list_end();
         }
-        return (GrowListIter) {
+        return (StmtListIter) {
             .node = it.node,
             .ptr  = it.ptr + 1,
         };
     }
 }
 
-void grow_list_erase_after(GrowList *list, GrowListIter iter)
+void stmt_list_erase_after(StmtList *list, StmtListIter iter)
 {
-    GrowListNode *node = iter.node;
+    StmtListNode *node = iter.node;
     if (node == list->tail)
     {
         list->next_free_slot_in_tail = (iter.ptr - node->stmts) + 1;
     }
     else
     {
-        GrowListNode *old_tail = list->tail;
+        StmtListNode *old_tail = list->tail;
         old_tail->next         = list->pool;
         list->pool             = node->next;
         list->tail             = node;
@@ -123,8 +123,8 @@ void grow_list_erase_after(GrowList *list, GrowListIter iter)
     }
 }
 
-void grow_list_restore_checkpoint(GrowList *list, GrowListCheckpoint checkpoint)
+void stmt_list_restore_checkpoint(StmtList *list, StmtListCheckpoint checkpoint)
 {
-    grow_list_erase_after(list, checkpoint.it);
+    stmt_list_erase_after(list, checkpoint.it);
     list->count = checkpoint.count;
 }

@@ -2,7 +2,7 @@
 #define STMT_H
 
 #include "expr.h"
-#include "grow_list.h"
+#include "stmt_list.h"
 #include "token.h"
 
 typedef enum StmtKind : unsigned char
@@ -46,7 +46,7 @@ typedef struct Stmt
         Expr *expr;
         Expr *print_expr;
         StmtVar var;
-        GrowList scope_stmts;
+        StmtList scope_stmts;
         StmtIf if_stmt;
         StmtWhile while_stmt;
     } data;

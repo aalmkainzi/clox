@@ -151,7 +151,7 @@ static int repl_loop(Opts opts)
     };
 
     arena_init(&ctx->parser_arena);
-    ctx->stmts = grow_list(&ctx->parser_arena),
+    ctx->stmts = stmt_list(&ctx->parser_arena),
 
     enter_scope(ctx); // global scope
 
@@ -196,7 +196,7 @@ static int run(Opts opts, CGS_DStr *src)
         .passed_test = true,
     };
 
-    ctx->stmts = grow_list(&ctx->parser_arena),
+    ctx->stmts = stmt_list(&ctx->parser_arena),
 
     linemap_fill(&ctx->linemap, ctx->src);
 
