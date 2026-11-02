@@ -1,6 +1,6 @@
-#include "stmt_list.h"
 #include "arena.h"
 #include "stmt.h"
+#include "stmt_list.h"
 
 typedef struct StmtListNode
 {

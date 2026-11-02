@@ -26,17 +26,17 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
             {
                 CGS_DStr dstr = cgs_dstr_init();
                 cgs_tostr(&dstr, val);
+
+                CGS_StrView next_expected_output =
+                    ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs];
+
                 if (ctx->test_data.expected_outputs.size == ctx->test_data.verified_outputs)
                 {
                     error("unexpected output '%?'", dstr);
                 }
-                else if (!cgs_equal(dstr, ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs]))
+                else if (!cgs_equal(dstr, next_expected_output))
                 {
-                    error(
-                        "expected output '%?' but got '%?'",
-                        ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs],
-                        dstr
-                    );
+                    error("expected output '%?' but got '%?'", next_expected_output, dstr);
 
                     ctx->test_data.verified_outputs = (unsigned int)-1;
                     ctx->passed_test                = false;

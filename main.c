@@ -127,6 +127,7 @@ static void run_repl_line(Ctx *ctx)
     if (ctx->verbose)
         print_tokens(ctx);
 
+    ctx->stmts = stmt_list(&ctx->parser_arena);
     parse(ctx);
 
     if (ctx->verbose)
@@ -151,13 +152,13 @@ static int repl_loop(Opts opts)
     };
 
     arena_init(&ctx->parser_arena);
-    ctx->stmts = stmt_list(&ctx->parser_arena),
 
     enter_scope(ctx); // global scope
 
     while (!feof(stdin))
     {
         cgs_printf("> ");
+
         CGS_DStr *line = Lines_push(&lines, cgs_dstr_init());
         CGS_Error err  = cgs_append_fread_until(line, stdin, '\n');
         if (err.ec == CGS_OK)
@@ -186,7 +187,6 @@ static int repl_loop(Opts opts)
 
 static int run(Opts opts, CGS_DStr *src)
 {
-
     Ctx *ctx = &(Ctx) {
         .file_name   = cgs_strv(opts.file_name),
         .src         = cgs_strv(src),
@@ -201,27 +201,25 @@ static int run(Opts opts, CGS_DStr *src)
     linemap_fill(&ctx->linemap, ctx->src);
 
     if (ctx->test)
-    {
         parse_tests(ctx);
-    }
 
     tokenize(ctx);
 
     if (ctx->error || tokens_empty(ctx))
         goto done;
     if (ctx->verbose)
-    {
         print_tokens(ctx);
-    }
 
     parse(ctx);
 
-    enter_scope(ctx);
-
     if (!ctx->error)
+    {
+        enter_scope(ctx);
+
         execute_stmts(ctx);
 
-    exit_scope(ctx);
+        exit_scope(ctx);
+    }
 
 done:
 
