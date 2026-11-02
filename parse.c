@@ -109,7 +109,7 @@ static Stmt parse_scope_stmt(Ctx *ctx)
 static Stmt parse_if_stmt(Ctx *ctx)
 {
     ArenaCheckpoint checkpoint = arena_checkpoint(&ctx->parser_arena);
-    
+
     bool err  = false;
     Stmt stmt = {.kind = STMT_if, .begin = ctx->tok};
     advance(ctx);
@@ -118,7 +118,7 @@ static Stmt parse_if_stmt(Ctx *ctx)
         synchronize(ctx, TK_rparen);
         return (Stmt) {};
     }
-    
+
     stmt.data.if_stmt.cond = expression(ctx);
 
     if (!skip_tok(ctx, TK_rparen))
@@ -159,7 +159,7 @@ static Stmt parse_while_stmt(Ctx *ctx)
     ArenaCheckpoint checkpoint = arena_checkpoint(&ctx->parser_arena);
 
     bool err  = false;
-    Stmt stmt = {.begin = ctx->tok, .kind = STMT_while,};
+    Stmt stmt = {.begin = ctx->tok, .kind = STMT_while};
 
     advance(ctx);
 
@@ -319,7 +319,7 @@ static Stmt parse_for_stmt(Ctx *ctx)
 static Stmt parse_var_decl(Ctx *ctx)
 {
     ArenaCheckpoint checkpoint = arena_checkpoint(&ctx->parser_arena);
-    
+
     Stmt stmt = {.kind = STMT_var, .begin = ctx->tok};
     advance(ctx);
     stmt.data.var.name = ctx->tok;
@@ -346,7 +346,7 @@ static Stmt parse_var_decl(Ctx *ctx)
 static Stmt parse_expr_stmt(Ctx *ctx)
 {
     ArenaCheckpoint checkpoint = arena_checkpoint(&ctx->parser_arena);
-    
+
     bool err  = false;
     Stmt stmt = {.kind = STMT_expr, .begin = ctx->tok};
 
@@ -376,7 +376,7 @@ static Stmt parse_expr_stmt(Ctx *ctx)
 static Stmt print_stmt(Ctx *ctx)
 {
     ArenaCheckpoint checkpoint = arena_checkpoint(&ctx->parser_arena);
-    
+
     Stmt stmt = {.kind = STMT_print, .begin = ctx->tok};
     advance(ctx);
 

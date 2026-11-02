@@ -26,7 +26,7 @@ int main(int argc, char **argv)
     setvbuf(stdout, NULL, _IONBF, 0);
     setvbuf(stderr, NULL, _IONBF, 0);
 
-    if (argc > 3)
+    if (argc > 4)
     {
         cgs_fwriteln(stderr, "usage: clox [script] [options]");
         exit(EXIT_FAILURE);
@@ -196,7 +196,6 @@ static int run(Opts opts, CGS_DStr *src)
         .passed_test = true,
     };
 
-    arena_init(&ctx->parser_arena);
     ctx->stmts = grow_list(&ctx->parser_arena),
 
     linemap_fill(&ctx->linemap, ctx->src);

@@ -26,6 +26,7 @@ CGS_Allocator *arena_stack_allocator = &(CGS_Allocator) {
     .realloc = top_arena_realloc,
 };
 
+[[deprecated]] [[maybe_unused]]
 static Arenas arena_pool; // If anything, this should be a vector of Arenas_node*
 
 void arena_init(Arena *arena)
@@ -204,7 +205,7 @@ void arena_rollback(Arena *arena, ArenaCheckpoint checkpoint)
         else
         {
             arena->tail->next = arena->node_pool;
-            arena->node_pool = arena->head;
+            arena->node_pool  = arena->head;
             arena->head = arena->tail = NULL;
         }
     }

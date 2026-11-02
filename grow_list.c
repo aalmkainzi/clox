@@ -12,7 +12,7 @@ typedef struct GrowListNode
 
 GrowList grow_list(Arena *arena)
 {
-    return (GrowList){.arena = arena};
+    return (GrowList) {.arena = arena};
 }
 
 static GrowListNode *new_node(GrowList *list)
