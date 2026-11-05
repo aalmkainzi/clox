@@ -1,3 +1,7 @@
 
 var a = "a";
-print "hello" and "world";
+{
+    var a = 1;
+    print a;
+}
+print a;

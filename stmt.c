@@ -5,9 +5,6 @@
 #include "expr.h"
 #include "var.h"
 
-// TODO each Scope stmt must contain a StmtList backed by the same parser_arena
-// and Arena need a checkpoint mechanism
-
 static bool execute_stmt_list(Ctx *ctx, StmtList *stmts);
 
 static bool execute_stmt(Ctx *ctx, Stmt stmt)
@@ -27,16 +24,19 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
                 CGS_DStr dstr = cgs_dstr_init();
                 cgs_tostr(&dstr, val);
 
-                CGS_StrView next_expected_output =
-                    ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs];
-
                 if (ctx->test_data.expected_outputs.size == ctx->test_data.verified_outputs)
                 {
                     error("unexpected output '%?'", dstr);
+                    ctx->test_data.verified_outputs = (unsigned int)-1;
+                    ctx->passed_test                = false;
                 }
-                else if (!cgs_equal(dstr, next_expected_output))
+                else if (!cgs_equal(dstr, ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs]))
                 {
-                    error("expected output '%?' but got '%?'", next_expected_output, dstr);
+                    error(
+                        "expected output '%?' but got '%?'",
+                        ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs],
+                        dstr
+                    );
 
                     ctx->test_data.verified_outputs = (unsigned int)-1;
                     ctx->passed_test                = false;
@@ -44,8 +44,8 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
                 else
                 {
                     passed("expected output '%?' has been printed", val);
+                    ctx->test_data.verified_outputs++;
                 }
-                ctx->test_data.verified_outputs++;
                 cgs_dstr_deinit(&dstr);
             }
         }

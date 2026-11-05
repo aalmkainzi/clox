@@ -41,7 +41,7 @@ int main(int argc, char **argv)
         {
             opts.verbose = true;
         }
-        else if (cgs_equal(argv[i], "-t"))
+        else if (cgs_equal(argv[i], "-t") || cgs_equal(argv[i], "-test"))
         {
             opts.test = true;
         }
@@ -82,6 +82,7 @@ static int run(Opts opts, CGS_DStr *line);
 static int run_file(Opts opts)
 {
     FILE *f = fopen(opts.file_name, "r");
+
     if (f == NULL)
     {
         error("could not open file '%?': %?", opts.file_name, strerror(errno));

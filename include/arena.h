@@ -52,10 +52,10 @@ Arenas_iter begin_arena();
 void end_arena(Arenas_iter arena);
 
 // ignores the current stack of arenas, uses the passed one until unset
-void set_current_arena(Arena *arena);
-void unset_current_arena();
+// void set_current_arena(Arena *arena);
+// void unset_current_arena();
 
-extern CGS_Allocator *arena_stack_allocator;
+// extern CGS_Allocator *arena_stack_allocator;
 
 #define arena_allocator(arena_p)                   \
     ((CGS_Allocator *)&(ArenaAllocator) {          \

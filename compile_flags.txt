@@ -2,3 +2,5 @@
 -Iexternal/STC/include
 -Iinclude
 -std=c23
+-DGL_TYPE=int
+-DGL_NAME=ints

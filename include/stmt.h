@@ -2,8 +2,14 @@
 #define STMT_H
 
 #include "expr.h"
-#include "stmt_list.h"
 #include "token.h"
+
+typedef struct Stmt Stmt;
+
+#define GL_TYPE Stmt
+#define GL_NAME StmtList
+#define GL_PREFIX stmt_list
+#include "grow_list.h"
 
 typedef enum StmtKind : unsigned char
 {
@@ -25,17 +31,17 @@ typedef struct StmtVar
 typedef struct StmtIf
 {
     Expr *cond;
-    struct Stmt *if_branch;
-    struct Stmt *else_branch;
+    Stmt *if_branch;
+    Stmt *else_branch;
 } StmtIf;
 
 typedef struct StmtWhile
 {
     Expr *cond;
-    struct Stmt *body;
+    Stmt *body;
 } StmtWhile;
 
-typedef struct Stmt
+struct Stmt
 {
     StmtKind kind;
     Token *begin;
@@ -50,7 +56,7 @@ typedef struct Stmt
         StmtIf if_stmt;
         StmtWhile while_stmt;
     } data;
-} Stmt;
+};
 
 typedef struct Ctx Ctx;
 void execute_stmts(Ctx *ctx);
