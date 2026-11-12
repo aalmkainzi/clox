@@ -15,7 +15,7 @@ typedef struct Scope
 {
     struct Scope *up;
     VarMap vars;
-    Arenas_iter arena;
+    ArenaCheckpoint exit_checkpoint;
 } Scope;
 
 // clang-format off
@@ -32,6 +32,7 @@ typedef struct Ctx
     StmtList stmts;
 
     Arena parser_arena;
+    Arena eval_arena;
 
     struct
     {
@@ -67,9 +68,6 @@ void advance(Ctx *ctx);                  // dequeue
 Token *peek(Ctx *ctx);
 bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds);
 bool consume_any_(Ctx *ctx, TokenKind *kinds, int n_kinds);
-
-void init_scope(Scope *scope);
-void free_scope(Scope *scope);
 
 #define check_any(ctx, ...) \
     check_any_(ctx, (TokenKind[]) {__VA_ARGS__}, sizeof((TokenKind[]) {__VA_ARGS__}) / sizeof(TokenKind))

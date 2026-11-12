@@ -5,6 +5,11 @@
 #include "expr.h"
 #include "var.h"
 
+#define GL_TYPE Stmt
+#define GL_NAME StmtList
+#define GL_IMPL
+#include "grow_list.h"
+
 static bool execute_stmt_list(Ctx *ctx, StmtList *stmts);
 
 static bool execute_stmt(Ctx *ctx, Stmt stmt)
@@ -66,13 +71,19 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
             {
                 val = (Value) {.type = T_nil};
             }
-            val.var   = true;
-            val.scope = ctx->scope;
 
-            VarMap_result res = VarMap_insert(&ctx->scope->vars, name, val);
-            if (!res.inserted)
+            val = var_value(val);
+
+            VarMap_value *v = VarMap_get_mut(&ctx->scope->vars, name);
+            if (v)
             {
-                res.ref->second = val;
+                free_var_value(v->second);
+                v->second = val;
+            }
+            else
+            {
+                VarMap_result res = VarMap_insert(&ctx->scope->vars, name, val);
+                assert(res.inserted); // we already confirmed !v, so there's no way insertion fails
             }
         }
         break;
@@ -120,17 +131,19 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         case STMT_while:
         {
             StmtWhile *while_stmt = &stmt.data.while_stmt;
-            Arenas_iter arena     = begin_arena();
-            Value cond;
-            for (cond = eval(ctx, while_stmt->cond); is_truthy(cond); cond = eval(ctx, while_stmt->cond))
+
+            ArenaCheckpoint before_eval = arena_checkpoint(&ctx->eval_arena);
+            Value cond                  = eval(ctx, while_stmt->cond);
+            while (is_truthy(cond))
             {
-                arena_reset(arena.ref);
                 if (ctx->error || !execute_stmt(ctx, *while_stmt->body))
                 {
                     return false;
                 }
-            };
-            end_arena(arena);
+
+                arena_rollback(&ctx->eval_arena, before_eval);
+                cond = eval(ctx, while_stmt->cond);
+            }
         }
         break;
         case STMT_none:
@@ -143,9 +156,9 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
 
 static bool execute_stmt_list(Ctx *ctx, StmtList *stmts)
 {
-    for (stmt_list_each(it, stmts))
+    for (c_each(it, StmtList, *stmts))
     {
-        Stmt stmt = *it.ptr;
+        Stmt stmt = *it.ref;
         if (!execute_stmt(ctx, stmt))
             return false;
     }
@@ -157,36 +170,34 @@ void execute_stmts(Ctx *ctx)
     execute_stmt_list(ctx, &ctx->stmts);
 }
 
-void init_scope(Scope *scope)
+void init_scope(Ctx *ctx, Scope *scope)
 {
-    scope->vars = VarMap_init();
-    scope->up   = NULL;
-}
-
-void free_scope(Scope *scope)
-{
-    if (scope == NULL)
-        return;
-
-    VarMap_drop(&scope->vars);
+    scope->vars     = (VarMap) {};
+    scope->vars.aux = &ctx->eval_arena;
+    scope->up       = NULL;
 }
 
 void exit_scope(Ctx *ctx)
 {
-    free_scope(ctx->scope);
-    Scope *up = ctx->scope->up;
-    end_arena(ctx->scope->arena);
+    for (c_each(it, VarMap, ctx->scope->vars))
+    {
+        free_var_value(it.ref->second);
+    }
+
+    ArenaCheckpoint checkpoint = ctx->scope->exit_checkpoint;
+    Scope *up                  = ctx->scope->up;
+    arena_rollback(&ctx->eval_arena, checkpoint);
     ctx->scope = up;
 }
 
 void enter_scope(Ctx *ctx)
 {
-    Arenas_iter scope_arena = begin_arena();
-    Scope *save             = ctx->scope;
+    Scope *up = ctx->scope;
 
-    // the first allocation in the new arena is the Scope itself
-    ctx->scope = cgs_alloc(arena_stack_allocator, Scope, 1).ptr;
-    init_scope(ctx->scope);
-    ctx->scope->up    = save;
-    ctx->scope->arena = scope_arena;
+    ArenaCheckpoint checkpoint  = arena_checkpoint(&ctx->eval_arena);
+    ctx->scope                  = arena_alloc(&ctx->eval_arena, sizeof(Scope));
+    ctx->scope->exit_checkpoint = checkpoint;
+
+    init_scope(ctx, ctx->scope);
+    ctx->scope->up = up;
 }

@@ -292,8 +292,9 @@ int parse_tests(Ctx *ctx)
     return 0;
 }
 
-void init_error_system()
+void init_error_system(Ctx *ctx)
 {
+    (void)ctx;
     if (isatty(stderr_fileno))
     {
         error_color_reset = "\x1b[0m";

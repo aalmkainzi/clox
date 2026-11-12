@@ -43,8 +43,8 @@ void parse_stmts(Ctx *ctx)
         Stmt stmt = parse_stmt(ctx);
         if (stmt.kind != STMT_none)
         {
-            StmtList_iter it = stmt_list_push(&ctx->stmts);
-            *it.ptr         = stmt;
+            StmtList_iter it = StmtList_push(&ctx->stmts);
+            *it.ref          = stmt;
         }
     }
 }
@@ -83,7 +83,7 @@ static Stmt parse_scope_stmt(Ctx *ctx)
 {
     ArenaCheckpoint checkpoint = arena_checkpoint(&ctx->parser_arena);
 
-    Stmt stmt = {.kind = STMT_scope, .data.scope_stmts = stmt_list_create(&ctx->parser_arena)};
+    Stmt stmt = {.kind = STMT_scope, .data.scope_stmts = StmtList_init(&ctx->parser_arena)};
     advance(ctx);
     StmtList *list = &stmt.data.scope_stmts;
 
@@ -92,8 +92,8 @@ static Stmt parse_scope_stmt(Ctx *ctx)
         Stmt scope_stmt = parse_stmt(ctx);
         if (scope_stmt.kind != STMT_none)
         {
-            StmtList_iter it = stmt_list_push(list);
-            *it.ptr         = scope_stmt;
+            StmtList_iter it = StmtList_push(list);
+            *it.ref          = scope_stmt;
         }
     }
 
@@ -202,7 +202,7 @@ static Stmt parse_for_stmt(Ctx *ctx)
     Stmt scope = {
         .begin            = ctx->tok,
         .kind             = STMT_scope,
-        .data.scope_stmts = stmt_list_create(&ctx->parser_arena),
+        .data.scope_stmts = StmtList_init(&ctx->parser_arena),
     };
 
     Stmt init_stmt = {};
@@ -223,8 +223,8 @@ static Stmt parse_for_stmt(Ctx *ctx)
         }
         else
         {
-            StmtList_iter it = stmt_list_push(&scope.data.scope_stmts);
-            *it.ptr         = init_stmt;
+            StmtList_iter it = StmtList_push(&scope.data.scope_stmts);
+            *it.ref          = init_stmt;
         }
     }
     else
@@ -279,7 +279,7 @@ static Stmt parse_for_stmt(Ctx *ctx)
     *w->body = (Stmt) {
         .begin            = ctx->tok,
         .kind             = STMT_scope,
-        .data.scope_stmts = stmt_list_create(&ctx->parser_arena),
+        .data.scope_stmts = StmtList_init(&ctx->parser_arena),
     };
 
     Stmt body_stmt = parse_stmt(ctx);
@@ -289,14 +289,14 @@ static Stmt parse_for_stmt(Ctx *ctx)
     }
     else
     {
-        StmtList_iter it = stmt_list_push(&w->body->data.scope_stmts);
-        *it.ptr         = body_stmt;
+        StmtList_iter it = StmtList_push(&w->body->data.scope_stmts);
+        *it.ref          = body_stmt;
     }
 
     if (update.kind != STMT_none)
     {
-        StmtList_iter it = stmt_list_push(&w->body->data.scope_stmts);
-        *it.ptr         = update;
+        StmtList_iter it = StmtList_push(&w->body->data.scope_stmts);
+        *it.ref          = update;
     }
 
     if (w->body->kind == STMT_none)
@@ -304,8 +304,8 @@ static Stmt parse_for_stmt(Ctx *ctx)
         err = true;
     }
 
-    StmtList_iter it = stmt_list_push(&scope.data.scope_stmts);
-    *it.ptr         = loop;
+    StmtList_iter it = StmtList_push(&scope.data.scope_stmts);
+    *it.ref          = loop;
 
     if (err)
     {

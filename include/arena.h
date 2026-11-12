@@ -32,7 +32,6 @@ typedef struct ArenaAllocator
     Arena *arena;
 } ArenaAllocator;
 
-void arena_init(Arena *arena);
 void *arena_alloc(Arena *arena, size_t n);
 void *arena_calloc(Arena *arena, size_t n);
 void arena_reset(Arena *arena);
@@ -47,16 +46,7 @@ CGS_Allocation arena_realloc_callback(CGS_Allocator *a, void *p, size_t alignmen
 
 c_declare_list(Arenas, Arena);
 
-// begin a region that should be freed together (e.g. scope)
-Arenas_iter begin_arena();
-void end_arena(Arenas_iter arena);
-
-// ignores the current stack of arenas, uses the passed one until unset
-// void set_current_arena(Arena *arena);
-// void unset_current_arena();
-
-// extern CGS_Allocator *arena_stack_allocator;
-
+// WARN: don't return this from a function
 #define arena_allocator(arena_p)                   \
     ((CGS_Allocator *)&(ArenaAllocator) {          \
         .base =                                    \

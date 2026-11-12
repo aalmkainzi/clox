@@ -6,9 +6,6 @@
 #ifndef GL_NAME
     #error "define GL_NAME before including"
 #endif
-#ifndef GL_PREFIX
-    #define GL_PREFIX GL_NAME
-#endif
 
 #include "arena.h"
 #include "stc/common.h"
@@ -31,29 +28,30 @@ typedef struct GL_NAME
 
 typedef struct GL_ITER
 {
+    typeof(GL_TYPE) *ref;
     GL_NODE *node;
-    typeof(GL_TYPE) *ptr;
+    unsigned int next_free_slot_in_tail; // this is needed to know when to stop
 } GL_ITER;
 
-GL_NAME c_JOIN(GL_PREFIX, _create)(Arena *arena);
-GL_ITER c_JOIN(GL_PREFIX, _push)(GL_NAME *list);
-GL_ITER c_JOIN(GL_PREFIX, _begin)(GL_NAME *list);
-GL_ITER c_JOIN(GL_PREFIX, _end)();
-GL_ITER c_JOIN(GL_PREFIX, _next)(GL_NAME *list, GL_ITER it);
+GL_NAME c_JOIN(GL_NAME, _init)(Arena *arena);
+GL_ITER c_JOIN(GL_NAME, _push)(GL_NAME *list);
+GL_ITER c_JOIN(GL_NAME, _begin)(GL_NAME *list);
+GL_ITER c_JOIN(GL_NAME, _end)();
+void c_JOIN(GL_NAME, _next)(GL_ITER *it);
 
-#if defined(GROW_LIST_IMPL)
+#if defined(GL_IMPL)
 
 struct GL_NODE
 {
     GL_NODE *next;
-    typeof(GL_TYPE) elms[(512 - sizeof(void*)) / sizeof(GL_TYPE)];
+    typeof(GL_TYPE) elms[(512 - sizeof(void *)) / sizeof(GL_TYPE)];
 };
 
-static_assert(sizeof(GL_NODE) <= 512 && sizeof(GL_NODE) != sizeof(void*));
+static_assert(sizeof(GL_NODE) <= 512 && sizeof(GL_NODE) != sizeof(void *));
 
-#define gl_node_cap(list) ((ptrdiff_t)(sizeof((list)->tail->elms) / sizeof(GL_TYPE)))
+    #define gl_node_cap(node) ((ptrdiff_t)(sizeof((node)->elms) / sizeof(GL_TYPE)))
 
-GL_NAME c_JOIN(GL_PREFIX, _create)(Arena *arena)
+GL_NAME c_JOIN(GL_NAME, _init)(Arena *arena)
 {
     return (GL_NAME) {.arena = arena};
 }
@@ -65,11 +63,11 @@ static GL_NODE *c_JOIN(GL_NAME, _new_node)(GL_NAME *list)
     return node;
 }
 
-GL_ITER c_JOIN(GL_PREFIX, _push)(GL_NAME *list)
+GL_ITER c_JOIN(GL_NAME, _push)(GL_NAME *list)
 {
     if (list->tail)
     {
-        if (list->next_free_slot_in_tail >= gl_node_cap(list))
+        if (list->next_free_slot_in_tail >= gl_node_cap(list->tail))
         {
             if (list->pool)
             {
@@ -92,8 +90,9 @@ GL_ITER c_JOIN(GL_PREFIX, _push)(GL_NAME *list)
     }
 
     GL_ITER pushed = {
-        .ptr  = &list->tail->elms[list->next_free_slot_in_tail],
-        .node = list->tail,
+        .ref                    = &list->tail->elms[list->next_free_slot_in_tail],
+        .node                   = list->tail,
+        .next_free_slot_in_tail = list->next_free_slot_in_tail
     };
 
     list->count++;
@@ -102,48 +101,48 @@ GL_ITER c_JOIN(GL_PREFIX, _push)(GL_NAME *list)
     return pushed;
 }
 
-GL_ITER c_JOIN(GL_PREFIX, _begin)(GL_NAME *list)
+GL_ITER c_JOIN(GL_NAME, _begin)(GL_NAME *list)
 {
     return (GL_ITER) {
-        .node = list->head,
-        .ptr  = list->head ? &list->head->elms[0] : NULL,
+        .ref                    = list->head ? &list->head->elms[0] : NULL,
+        .node                   = list->head,
+        .next_free_slot_in_tail = list->next_free_slot_in_tail
     };
 }
 
-GL_ITER c_JOIN(GL_PREFIX, _end)()
+GL_ITER c_JOIN(GL_NAME, _end)()
 {
     return (GL_ITER) {
+        .ref  = NULL,
         .node = NULL,
-        .ptr  = NULL,
     };
 }
 
-GL_ITER c_JOIN(GL_PREFIX, _next)(GL_NAME *list, GL_ITER it)
+void c_JOIN(GL_NAME, _next)(GL_ITER *it)
 {
-    if ((it.ptr - it.node->elms) + 1 >= gl_node_cap(list))
+    if ((it->ref - it->node->elms) + 1 >= gl_node_cap(it->node))
     {
-        if (it.node->next)
+        if (it->node->next)
         {
-            return (GL_ITER) {
-                .node = it.node->next,
-                .ptr  = it.node->next->elms,
-            };
+            it->ref  = it->node->next->elms;
+            it->node = it->node->next;
         }
         else
         {
-            return c_JOIN(GL_PREFIX, _end)();
+            *it = c_JOIN(GL_NAME, _end)();
         }
     }
     else
     {
-        if (it.node == list->tail && (it.ptr - it.node->elms == list->next_free_slot_in_tail - 1))
+        // we are at tail, and next slot is the next free slot = next is the end
+        if (it->node->next == NULL && (it->ref - it->node->elms == it->next_free_slot_in_tail - 1))
         {
-            return c_JOIN(GL_PREFIX, _end)();
+            *it = c_JOIN(GL_NAME, _end)();
         }
-        return (GL_ITER) {
-            .node = it.node,
-            .ptr  = it.ptr + 1,
-        };
+        else
+        {
+            it->ref += 1;
+        }
     }
 }
 
@@ -151,6 +150,6 @@ GL_ITER c_JOIN(GL_PREFIX, _next)(GL_NAME *list, GL_ITER it)
 
 #undef GL_NAME
 #undef GL_TYPE
-#undef GL_PREFIX
 #undef GL_NODE
 #undef GL_ITER
+#undef GL_IMPL

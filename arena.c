@@ -13,22 +13,6 @@
 #define T Arenas, Arena
 #include "stc/list.h"
 
-static Arenas arena_stack;
-static Arena *manually_set_arena;
-
-CGS_Allocation top_arena_alloc(CGS_Allocator *a, size_t alignment, size_t n);
-void top_arena_dealloc(CGS_Allocator *a, void *p, size_t n);
-CGS_Allocation top_arena_realloc(CGS_Allocator *a, void *p, size_t alignment, size_t old_n, size_t new_n);
-
-CGS_Allocator *arena_stack_allocator = &(CGS_Allocator) {
-    .alloc   = top_arena_alloc,
-    .dealloc = top_arena_dealloc,
-    .realloc = top_arena_realloc,
-};
-
-[[deprecated]] [[maybe_unused]]
-static Arenas arena_pool; // If anything, this should be a vector of Arenas_node*
-
 void arena_init(Arena *arena)
 {
     memset(arena, 0, sizeof(Arena));
@@ -135,54 +119,6 @@ void arena_free(Arena *arena)
     memset(arena, 0, sizeof(Arena));
 }
 
-Arenas_iter begin_arena()
-{
-    if (arena_stack.last)
-    {
-        Arenas_node *prev = Arenas_get_node(Arenas_back_mut(&arena_stack));
-        Arena *last       = Arenas_push(&arena_stack, (Arena) {});
-        Arenas_iter it    = {
-            .ref   = last,
-            .prev  = prev,
-            ._last = &arena_stack.last,
-        };
-        return it;
-    }
-    else
-    {
-        Arena *last    = Arenas_push(&arena_stack, (Arena) {});
-        Arenas_iter it = {
-            .ref   = last,
-            .prev  = Arenas_get_node(last),
-            ._last = &arena_stack.last,
-        };
-        return it;
-    }
-}
-
-static void end_arena_node(Arenas_iter it)
-{
-    if (it.ref == NULL)
-        return;
-
-    Arenas_iter next = it;
-    Arenas_next(&next);
-
-    end_arena_node(next);
-    arena_free(it.ref);
-}
-
-void end_arena(Arenas_iter arena)
-{
-#if 1 || ARENA_DEBUG
-    end_arena_node(arena);
-    Arenas_erase_range(&arena_stack, arena, Arenas_end(&arena_stack));
-#else
-    arena_reset(arena);
-    Arenas_push_front(&arena_pool, *arena);
-#endif
-}
-
 ArenaCheckpoint arena_checkpoint(Arena *arena)
 {
     return (ArenaCheckpoint) {
@@ -236,49 +172,4 @@ CGS_Allocation arena_realloc_callback(CGS_Allocator *a, void *p, size_t alignmen
     if (copy_n)
         memcpy(new_mem.ptr, p, copy_n);
     return new_mem;
-}
-
-CGS_Allocation top_arena_alloc(CGS_Allocator *a, size_t alignment, size_t n)
-{
-    (void)a;
-    (void)alignment;
-
-    Arena *arena;
-    if (manually_set_arena)
-        arena = manually_set_arena;
-    else
-        arena = Arenas_back_mut(&arena_stack);
-    void *p = arena_alloc(arena, n);
-    return (CGS_Allocation) {.ptr = p, .n = n};
-}
-
-void top_arena_dealloc(CGS_Allocator *a, void *p, size_t n)
-{
-    (void)a;
-    (void)p;
-    (void)n;
-}
-
-CGS_Allocation top_arena_realloc(CGS_Allocator *a, void *p, size_t alignment, size_t old_n, size_t new_n)
-{
-    (void)a;
-    (void)old_n;
-
-    Arena *arena;
-    if (manually_set_arena)
-        arena = manually_set_arena;
-    else
-        arena = Arenas_back_mut(&arena_stack);
-
-    return arena_realloc_callback(arena_allocator(arena), p, alignment, old_n, new_n);
-}
-
-void set_current_arena(Arena *arena)
-{
-    manually_set_arena = arena;
-}
-
-void unset_current_arena()
-{
-    manually_set_arena = NULL;
 }

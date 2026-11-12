@@ -37,6 +37,8 @@ bool is_truthy(Value obj);
 Value copy_value(Value from);
 Value error_value();
 
+static CGS_Allocator *eval_arena_allocator = arena_allocator(0); //(CGS_Allocator*)&(ArenaAllocator){};
+
 static VarMap_entry *find_var(Scope *scope, CGS_StrView name);
 
 Value eval(Ctx *ctx, Expr *expr)
@@ -54,20 +56,19 @@ Value eval(Ctx *ctx, Expr *expr)
 
         case EXPR_var:
         {
-            const VarMap_value *var = find_var(ctx->scope, expr->ident.lexeme);
-            if (var == NULL)
+            const VarMap_value *var_entry = find_var(ctx->scope, expr->ident.lexeme);
+            if (var_entry == NULL)
             {
                 error_at_tok(ctx, expr_tok(expr), "undefined variable '%?'", expr->ident.lexeme);
                 return error_value();
             }
-            else if (var->second.type == T_none)
+            else if (var_entry->second.type == T_none)
             {
                 error_at_tok(ctx, expr_tok(expr), "variable not initialized");
                 return error_value();
             }
-            Value var_val = copy_value(var->second);
-            // free(var_val.tok);
-            var_val.tok = expr->ident;
+            Value var_val = copy_value(var_entry->second);
+            var_val.tok   = expr->ident;
             assert(!var_val.var);
             return var_val;
         }
@@ -227,17 +228,17 @@ Value eval_binary(Ctx *ctx, Expr *expr)
                 switch (left.type)
                 {
                     case T_bool:
-                        result.string = cgs_asprintf(arena_stack_allocator, "%?%?", left.boolean, right.string);
+                        result.string = cgs_asprintf(eval_arena_allocator, "%?%?", left.boolean, right.string);
                         break;
                     case T_num:
-                        result.string = cgs_asprintf(arena_stack_allocator, "%?%?", left.number, right.string);
+                        result.string = cgs_asprintf(eval_arena_allocator, "%?%?", left.number, right.string);
                         break;
                     case T_str:
                         // not actually possible, previous branch wouldve caught it
-                        result.string = cgs_asprintf(arena_stack_allocator, "%?%?", left.string, right.string);
+                        result.string = cgs_asprintf(eval_arena_allocator, "%?%?", left.string, right.string);
                         break;
                     case T_nil:
-                        result.string = cgs_asprintf(arena_stack_allocator, "%?%?", "nil", right.string);
+                        result.string = cgs_asprintf(eval_arena_allocator, "%?%?", "nil", right.string);
                         break;
                     case T_none:
                         unreachable();
@@ -380,15 +381,14 @@ Value eval_binary(Ctx *ctx, Expr *expr)
 
         case TK_equal:
         {
-            Token var_name    = expr->binary.left->ident;
-            VarMap_value *val = find_var(ctx->scope, var_name.lexeme);
-            if (val && !right.error)
+            Token var_name          = expr->binary.left->ident;
+            VarMap_value *var_entry = find_var(ctx->scope, var_name.lexeme);
+            if (var_entry && !right.error)
             {
-                set_current_arena(val->second.scope->arena.ref);
-                val->second = eval(ctx, expr->binary.right);
-                unset_current_arena();
-                val->second.var = true;
-                result          = val->second;
+                free_var_value(var_entry->second);
+                Value var_val     = var_value(right);
+                var_entry->second = var_val;
+                result            = var_entry->second;
             }
             else
             {
@@ -475,16 +475,44 @@ CGS_Error stringify_literal(CGS_Writer *writer, Literal lit, CGS_StrView fmt_arg
     }
 }
 
+void free_var_value(Value v)
+{
+    assert(v.var);
+    if (v.type == T_str)
+    {
+        cgs_dstr_deinit(&v.string);
+    }
+}
+
 Value copy_value(Value from)
 {
     Value ret = from;
     if (from.type == T_str)
-        ret.string = cgs_dup(ret.string, arena_stack_allocator);
+        ret.string = cgs_dup(ret.string, eval_arena_allocator);
     ret.var = false;
     return ret;
+}
+
+Value var_value(Value val)
+{
+    val.var = true;
+    if (val.type == T_str)
+    {
+        Value v  = val;
+        v.string = cgs_dstr_init_from(val.string);
+        return v;
+    }
+    return val;
 }
 
 Value error_value()
 {
     return (Value) {.error = true};
+}
+
+// TODO maybe a better is if Ctx has the allocators, more powerful than holding the Arena (the Arena can be in the
+// stack frame in main.c)
+void init_eval_system(Ctx *ctx)
+{
+    ((ArenaAllocator *)eval_arena_allocator)->arena = &ctx->eval_arena;
 }

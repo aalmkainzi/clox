@@ -44,7 +44,7 @@ typedef struct Value
     bool error;
 
     // only not null in case of `.var = true`, and it represents the scope in which the var is declared
-    struct Scope *scope;
+    // struct Scope *scope;
 
     union
     {
@@ -95,7 +95,18 @@ CGS_StrView expr_view(Expr *expr);
 Value eval(struct Ctx *ctx, Expr *expr);
 bool is_truthy(Value obj);
 
-Value copy_value(Value from);
+void free_var_value(Value v);
+
+// the returned Value's lifetime doesn't end with current scope, but an explicit free_var_value call
+Value var_value(Value val);
+
+#define scoped_eval_(id, name, expr)                                                                \
+    for (ArenaCheckpoint c_JOIN(eval_lifetime_cp_, id) = arena_checkpoint(&ctx->eval_arena); false; \
+         arena_rollback(&ctx->eval_arena, c_JOIN(eval_lifetime_cp_, id)))                           \
+        for (name = eval(ctx, expr); false;)
+
+// checkpoint is created before the next statement, and restore after it
+#define scoped_eval(name, expr) scoped_eval_(__COUNTER__, name, expr)
 
 CGS_Error stringify_value(CGS_Writer *writer, Value val, CGS_StrView fmt_arg);
 CGS_Error stringify_literal(CGS_Writer *writer, Literal lit, CGS_StrView fmt_arg);

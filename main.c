@@ -18,21 +18,16 @@ typedef struct
 static int run_file(Opts opts);
 static int repl_loop(Opts opts);
 
-static void clox_init();
+static void clox_init(Ctx *ctx);
 static void clox_deinit();
 
 int main(int argc, char **argv)
 {
-    setvbuf(stdout, NULL, _IONBF, 0);
-    setvbuf(stderr, NULL, _IONBF, 0);
-
     if (argc > 4)
     {
         cgs_fwriteln(stderr, "usage: clox [script] [options]");
         exit(EXIT_FAILURE);
     }
-
-    clox_init();
 
     Opts opts = {};
     for (int i = 1; i < argc; i++)
@@ -128,7 +123,7 @@ static void run_repl_line(Ctx *ctx)
     if (ctx->verbose)
         print_tokens(ctx);
 
-    ctx->stmts = stmt_list(&ctx->parser_arena);
+    ctx->stmts = StmtList_init(&ctx->parser_arena);
     parse(ctx);
 
     if (ctx->verbose)
@@ -139,12 +134,14 @@ static void run_repl_line(Ctx *ctx)
 }
 
 #define T Lines, CGS_DStr
-#include "stc/vec.h"
+#define i_aux Arena *
+#define i_malloc(n) arena_alloc(self->aux, n)
+#define i_free(p, n) ((void)0)
+#define i_realloc(p, old_n, new_n) NULL
+#include "stc/list.h"
 
 static int repl_loop(Opts opts)
 {
-    Lines lines = Lines_init();
-
     Ctx *ctx = &(Ctx) {
         .file_name = cgs_strv("<repl>"),
         .repl      = true,
@@ -152,7 +149,10 @@ static int repl_loop(Opts opts)
         .linemap   = {.cap = 1, .count = 1, .offsets = (int[1]) {0}}
     };
 
-    arena_init(&ctx->parser_arena);
+    Lines lines = {};
+    lines.aux   = &ctx->parser_arena;
+
+    clox_init(ctx);
 
     enter_scope(ctx); // global scope
 
@@ -160,7 +160,7 @@ static int repl_loop(Opts opts)
     {
         cgs_printf("> ");
 
-        CGS_DStr *line = Lines_push(&lines, cgs_dstr_init());
+        CGS_DStr *line = Lines_push(&lines, cgs_dstr_init(0, arena_allocator(&ctx->parser_arena)));
         CGS_Error err  = cgs_append_fread_until(line, stdin, '\n');
         if (err.ec == CGS_OK)
         {
@@ -181,6 +181,7 @@ static int repl_loop(Opts opts)
     TokensChain_drop(&ctx->toks);
     Lines_drop(&lines);
 
+    arena_free(&ctx->eval_arena);
     arena_free(&ctx->parser_arena);
 
     return EXIT_SUCCESS;
@@ -196,8 +197,9 @@ static int run(Opts opts, CGS_DStr *src)
         .test        = opts.test,
         .passed_test = true,
     };
+    clox_init(ctx);
 
-    ctx->stmts = stmt_list(&ctx->parser_arena),
+    ctx->stmts = StmtList_init(&ctx->parser_arena),
 
     linemap_fill(&ctx->linemap, ctx->src);
 
@@ -213,20 +215,21 @@ static int run(Opts opts, CGS_DStr *src)
 
     parse(ctx);
 
-    if (!ctx->error)
-    {
-        enter_scope(ctx);
+    if (ctx->error)
+        goto done;
 
-        execute_stmts(ctx);
+    enter_scope(ctx);
 
-        exit_scope(ctx);
-    }
+    execute_stmts(ctx);
+
+    exit_scope(ctx);
 
 done:
 
     TokensChain_drop(&ctx->toks);
     linemap_free(&ctx->linemap);
     arena_free(&ctx->parser_arena);
+    arena_free(&ctx->eval_arena);
 
     if (ctx->test)
     {
@@ -255,12 +258,14 @@ done:
         return EXIT_SUCCESS;
 }
 
-static void clox_init()
+static void clox_init(Ctx *ctx)
 {
     // if a specific system needs an init, add its decl here, and call it
-    void init_error_system();
+    void init_error_system(Ctx * ctx);
+    void init_eval_system(Ctx * ctx);
 
-    init_error_system();
+    init_error_system(ctx);
+    init_eval_system(ctx);
 }
 
 static void clox_deinit()
