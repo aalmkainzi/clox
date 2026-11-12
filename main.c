@@ -172,12 +172,6 @@ static int repl_loop(Opts opts)
 
     exit_scope(ctx); // global scope
 
-    for (c_each(line_it, Lines, lines))
-    {
-        CGS_DStr *line = line_it.ref;
-        cgs_dstr_deinit(line);
-    }
-
     TokensChain_drop(&ctx->toks);
     Lines_drop(&lines);
 

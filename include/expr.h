@@ -100,10 +100,11 @@ void free_var_value(Value v);
 // the returned Value's lifetime doesn't end with current scope, but an explicit free_var_value call
 Value var_value(Value val);
 
-#define scoped_eval_(id, name, expr)                                                                \
-    for (ArenaCheckpoint c_JOIN(eval_lifetime_cp_, id) = arena_checkpoint(&ctx->eval_arena); false; \
-         arena_rollback(&ctx->eval_arena, c_JOIN(eval_lifetime_cp_, id)))                           \
-        for (name = eval(ctx, expr); false;)
+#define scoped_eval_(id, name, expr)                                                                              \
+    for (bool c_JOIN(b1_, id) = true, c_JOIN(b2_, id) = true; c_JOIN(b1_, id) && c_JOIN(b2_, id);)                \
+        for (ArenaCheckpoint c_JOIN(eval_lifetime_cp_, id) = arena_checkpoint(&ctx->eval_arena); c_JOIN(b2_, id); \
+             arena_rollback(&ctx->eval_arena, c_JOIN(eval_lifetime_cp_, id)), c_JOIN(b2_, id) = false)            \
+            for (name = eval(ctx, expr); c_JOIN(b1_, id); c_JOIN(b1_, id) = false)
 
 // checkpoint is created before the next statement, and restore after it
 #define scoped_eval(name, expr) scoped_eval_(__COUNTER__, name, expr)

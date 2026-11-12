@@ -18,40 +18,44 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
     {
         case STMT_print:
         {
-            Value val = eval(ctx, stmt.data.print_expr);
-            if (ctx->error)
+            scoped_eval(Value val, stmt.data.print_expr)
             {
-                return false;
-            }
-            cgs_writeln_tostr(val);
-            if (ctx->test && (ctx->test_data.verified_outputs != (unsigned int)-1))
-            {
-                CGS_DStr dstr = cgs_dstr_init();
-                cgs_tostr(&dstr, val);
+                if (ctx->error)
+                {
+                    return false;
+                }
+                cgs_writeln_tostr(val);
+                if (ctx->test && (ctx->test_data.verified_outputs != (unsigned int)-1))
+                {
+                    CGS_DStr dstr = cgs_dstr_init();
+                    cgs_tostr(&dstr, val);
 
-                if (ctx->test_data.expected_outputs.size == ctx->test_data.verified_outputs)
-                {
-                    error("unexpected output '%?'", dstr);
-                    ctx->test_data.verified_outputs = (unsigned int)-1;
-                    ctx->passed_test                = false;
-                }
-                else if (!cgs_equal(dstr, ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs]))
-                {
-                    error(
-                        "expected output '%?' but got '%?'",
-                        ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs],
-                        dstr
-                    );
+                    if (ctx->test_data.expected_outputs.size == ctx->test_data.verified_outputs)
+                    {
+                        error("unexpected output '%?'", dstr);
+                        ctx->test_data.verified_outputs = (unsigned int)-1;
+                        ctx->passed_test                = false;
+                    }
+                    else if (!cgs_equal(
+                                 dstr, ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs]
+                             ))
+                    {
+                        error(
+                            "expected output '%?' but got '%?'",
+                            ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs],
+                            dstr
+                        );
 
-                    ctx->test_data.verified_outputs = (unsigned int)-1;
-                    ctx->passed_test                = false;
+                        ctx->test_data.verified_outputs = (unsigned int)-1;
+                        ctx->passed_test                = false;
+                    }
+                    else
+                    {
+                        passed("expected output '%?' has been printed", val);
+                        ctx->test_data.verified_outputs++;
+                    }
+                    cgs_dstr_deinit(&dstr);
                 }
-                else
-                {
-                    passed("expected output '%?' has been printed", val);
-                    ctx->test_data.verified_outputs++;
-                }
-                cgs_dstr_deinit(&dstr);
             }
         }
         break;
@@ -72,7 +76,7 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
                 val = (Value) {.type = T_nil};
             }
 
-            val = var_value(val);
+            val = var_value(val); // copies the val from the eval_arena to malloc heap
 
             VarMap_value *v = VarMap_get_mut(&ctx->scope->vars, name);
             if (v)
@@ -89,14 +93,16 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         break;
         case STMT_expr:
         {
-            Value val = eval(ctx, stmt.data.expr);
-            if (ctx->error)
+            scoped_eval(Value val, stmt.data.expr)
             {
-                return false;
-            }
+                if (ctx->error)
+                {
+                    return false;
+                }
 
-            if (ctx->repl)
-                cgs_writeln_tostr(val);
+                if (ctx->repl)
+                    cgs_writeln_tostr(val);
+            }
         }
         break;
         case STMT_scope:
@@ -110,22 +116,24 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         case STMT_if:
         {
             StmtIf *if_stmt = &stmt.data.if_stmt;
-            Value cond      = eval(ctx, if_stmt->cond);
-            if (ctx->error)
+            scoped_eval(Value cond, if_stmt->cond)
             {
-                return false;
-            }
+                if (ctx->error)
+                {
+                    return false;
+                }
 
-            bool ret = true;
-            if (is_truthy(cond))
-            {
-                ret = execute_stmt(ctx, *if_stmt->if_branch);
+                bool ret = true;
+                if (is_truthy(cond))
+                {
+                    ret = execute_stmt(ctx, *if_stmt->if_branch);
+                }
+                else if (if_stmt->else_branch)
+                {
+                    ret = execute_stmt(ctx, *if_stmt->else_branch);
+                }
+                return ret;
             }
-            else if (if_stmt->else_branch)
-            {
-                ret = execute_stmt(ctx, *if_stmt->else_branch);
-            }
-            return ret;
         }
         break;
         case STMT_while:
@@ -174,7 +182,8 @@ void init_scope(Ctx *ctx, Scope *scope)
 {
     scope->vars     = (VarMap) {};
     scope->vars.aux = &ctx->eval_arena;
-    scope->up       = NULL;
+    VarMap_reserve(&scope->vars, 8);
+    scope->up = NULL;
 }
 
 void exit_scope(Ctx *ctx)
