@@ -9,10 +9,6 @@
     #endif
 #endif
 
-#define i_declared
-#define T Arenas, Arena
-#include "stc/list.h"
-
 void arena_init(Arena *arena)
 {
     memset(arena, 0, sizeof(Arena));
