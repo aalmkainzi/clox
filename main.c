@@ -3,6 +3,7 @@
 #include "expr.h"
 #include "stmt.h"
 #include "token.h"
+#include "test.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -189,7 +190,7 @@ static int run(Opts opts, CGS_DStr *src)
         .repl        = false,
         .verbose     = opts.verbose,
         .test        = opts.test,
-        .passed_test = true,
+        .failed_test = false,
     };
     clox_init(ctx);
 
@@ -227,29 +228,13 @@ done:
 
     if (ctx->test)
     {
-        if (ctx->test_data.verified_outputs != ctx->test_data.expected_outputs.size)
-        {
-            for (unsigned int i = ctx->test_data.verified_outputs; i < ctx->test_data.expected_outputs.size; i++)
-            {
-                error("expected output '%?' did not occur", ctx->test_data.expected_outputs.data[i]);
-            }
-            ctx->passed_test = false;
-        }
+        check_remaining_expected_output(ctx);
 
-        for (c_each(it, StrViews, ctx->test_data.expected_outputs))
-        {
-            free((void *)it.ref->chars);
-        }
-
-        StrViews_drop(&ctx->test_data.expected_outputs);
-        ExpectedErrors_drop(&ctx->test_data.expected_errors);
-        return ctx->passed_test ? EXIT_SUCCESS : EXIT_FAILURE;
+        free_tests(ctx);
+        return ctx->failed_test ? EXIT_FAILURE : EXIT_SUCCESS;
     }
 
-    if (ctx->error)
-        return EXIT_FAILURE;
-    else
-        return EXIT_SUCCESS;
+    return ctx->error ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
 static void clox_init(Ctx *ctx)

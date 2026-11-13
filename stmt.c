@@ -3,6 +3,7 @@
 #include "clox.h"
 #include "error.h"
 #include "expr.h"
+#include "test.h"
 #include "var.h"
 
 #define GL_TYPE Stmt
@@ -18,45 +19,24 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
     {
         case STMT_print:
         {
-            scoped_eval(Value val, stmt.data.print_expr)
+            ArenaCheckpoint before_eval = arena_checkpoint(&ctx->eval_arena);
+            Value val                   = eval(ctx, stmt.data.print_expr);
+
+            if (ctx->error)
             {
-                if (ctx->error)
-                {
-                    return false;
-                }
-                cgs_writeln_tostr(val);
-                if (ctx->test && (ctx->test_data.verified_outputs != (unsigned int)-1))
-                {
-                    CGS_DStr dstr = cgs_dstr_init();
-                    cgs_tostr(&dstr, val);
-
-                    if (ctx->test_data.expected_outputs.size == ctx->test_data.verified_outputs)
-                    {
-                        error("unexpected output '%?'", dstr);
-                        ctx->test_data.verified_outputs = (unsigned int)-1;
-                        ctx->passed_test                = false;
-                    }
-                    else if (!cgs_equal(
-                                 dstr, ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs]
-                             ))
-                    {
-                        error(
-                            "expected output '%?' but got '%?'",
-                            ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs],
-                            dstr
-                        );
-
-                        ctx->test_data.verified_outputs = (unsigned int)-1;
-                        ctx->passed_test                = false;
-                    }
-                    else
-                    {
-                        passed("expected output '%?' has been printed", val);
-                        ctx->test_data.verified_outputs++;
-                    }
-                    cgs_dstr_deinit(&dstr);
-                }
+                arena_rollback(&ctx->eval_arena, before_eval);
+                return false;
             }
+            cgs_writeln_tostr(val);
+            if (ctx->test && !ctx->failed_test)
+            {
+                CGS_DStr as_str = cgs_asprintf("%?", val);
+
+                verify_expected_output(ctx, as_str);
+
+                cgs_dstr_deinit(&as_str);
+            }
+            arena_rollback(&ctx->eval_arena, before_eval);
         }
         break;
         case STMT_var:
@@ -93,16 +73,19 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         break;
         case STMT_expr:
         {
-            scoped_eval(Value val, stmt.data.expr)
-            {
-                if (ctx->error)
-                {
-                    return false;
-                }
+            ArenaCheckpoint before_eval = arena_checkpoint(&ctx->eval_arena);
+            Value val                   = eval(ctx, stmt.data.expr);
 
-                if (ctx->repl)
-                    cgs_writeln_tostr(val);
+            if (ctx->error)
+            {
+                arena_rollback(&ctx->eval_arena, before_eval);
+                return false;
             }
+
+            if (ctx->repl)
+                cgs_writeln_tostr(val);
+
+            arena_rollback(&ctx->eval_arena, before_eval);
         }
         break;
         case STMT_scope:
@@ -116,24 +99,28 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         case STMT_if:
         {
             StmtIf *if_stmt = &stmt.data.if_stmt;
-            scoped_eval(Value cond, if_stmt->cond)
-            {
-                if (ctx->error)
-                {
-                    return false;
-                }
 
-                bool ret = true;
-                if (is_truthy(cond))
-                {
-                    ret = execute_stmt(ctx, *if_stmt->if_branch);
-                }
-                else if (if_stmt->else_branch)
-                {
-                    ret = execute_stmt(ctx, *if_stmt->else_branch);
-                }
-                return ret;
+            ArenaCheckpoint before_eval = arena_checkpoint(&ctx->eval_arena);
+            Value cond                  = eval(ctx, if_stmt->cond);
+
+            if (ctx->error)
+            {
+                arena_rollback(&ctx->eval_arena, before_eval);
+                return false;
             }
+
+            bool ret = true;
+            if (is_truthy(cond))
+            {
+                ret = execute_stmt(ctx, *if_stmt->if_branch);
+            }
+            else if (if_stmt->else_branch)
+            {
+                ret = execute_stmt(ctx, *if_stmt->else_branch);
+            }
+
+            arena_rollback(&ctx->eval_arena, before_eval);
+            return ret;
         }
         break;
         case STMT_while:
@@ -142,15 +129,32 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
 
             ArenaCheckpoint before_eval = arena_checkpoint(&ctx->eval_arena);
             Value cond                  = eval(ctx, while_stmt->cond);
-            while (is_truthy(cond))
+            if (ctx->error)
             {
-                if (ctx->error || !execute_stmt(ctx, *while_stmt->body))
+                arena_rollback(&ctx->eval_arena, before_eval);
+                return false;
+            }
+
+#define check_truthy_and_rollback(cond, checkpoint)   \
+    __extension__({                                   \
+        bool res = is_truthy(cond);                   \
+        arena_rollback(&ctx->eval_arena, checkpoint); \
+        res;                                          \
+    })
+            // check if truthy, then rollback the arena to re-use the memory next eval
+            while (check_truthy_and_rollback(cond, before_eval))
+            {
+                if (!execute_stmt(ctx, *while_stmt->body))
                 {
                     return false;
                 }
 
-                arena_rollback(&ctx->eval_arena, before_eval);
                 cond = eval(ctx, while_stmt->cond);
+                if (ctx->error)
+                {
+                    arena_rollback(&ctx->eval_arena, before_eval);
+                    return false;
+                }
             }
         }
         break;

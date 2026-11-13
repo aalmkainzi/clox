@@ -45,13 +45,11 @@ typedef struct Ctx
 
     bool verbose     : 1;
     bool test        : 1;
-    bool passed_test : 1;
+    bool failed_test : 1;
     bool error       : 1;
     bool repl        : 1;
 } Ctx;
 // clang-format on
-
-int parse_tests(Ctx *ctx);
 
 // "abc" ... "h"
 // -> "abcdefgh"

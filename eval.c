@@ -27,15 +27,13 @@
     })
 // clang-format on
 
-Value eval_unary(Ctx *ctx, Expr *expr);
-Value eval_binary(Ctx *ctx, Expr *expr);
+static Value eval_unary(Ctx *ctx, Expr *expr);
+static Value eval_binary(Ctx *ctx, Expr *expr);
 
 static bool expect_number(Ctx *ctx, Value *obj);
 
-bool is_truthy(Value obj);
-
-Value copy_value(Value from);
-Value error_value();
+static Value copy_value(Value from);
+static Value error_value();
 
 static CGS_Allocator *eval_arena_allocator = arena_allocator(0); //(CGS_Allocator*)&(ArenaAllocator){};
 
@@ -89,7 +87,7 @@ static VarMap_entry *find_var(Scope *scope, CGS_StrView name)
     return NULL;
 }
 
-Value eval_unary(Ctx *ctx, Expr *expr)
+static Value eval_unary(Ctx *ctx, Expr *expr)
 {
     Value obj = eval_or_throw(ctx, expr->unary.expr);
 
@@ -175,7 +173,7 @@ static Value eval_binary_logical(Ctx *ctx, Expr *expr)
     return result;
 }
 
-Value eval_binary(Ctx *ctx, Expr *expr)
+static Value eval_binary(Ctx *ctx, Expr *expr)
 {
     if (expr->binary.op.kind == TK_and || expr->binary.op.kind == TK_or)
     {
@@ -484,7 +482,7 @@ void free_var_value(Value v)
     }
 }
 
-Value copy_value(Value from)
+static Value copy_value(Value from)
 {
     Value ret = from;
     if (from.type == T_str)
@@ -505,7 +503,7 @@ Value var_value(Value val)
     return val;
 }
 
-Value error_value()
+static Value error_value()
 {
     return (Value) {.error = true};
 }

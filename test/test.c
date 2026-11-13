@@ -36,16 +36,6 @@ bool run_test_on_entry(Nob_Walk_Entry entry)
     if (entry.type != NOB_FILE_REGULAR)
         return true;
 
-    FILE *f = fopen(entry.path, "r");
-    if (f == NULL)
-        return true;
-
-    CGS_DStr first_line = cgs_dstr_init();
-    CGS_Error err       = cgs_fread_until(&first_line, f, '\n');
-    fclose(f);
-    if (err.ec != CGS_OK)
-        return true;
-
     Cmd cmd = {};
     cmd_append(&cmd, "./clox", entry.path, "-t");
     bool success = cmd_run(&cmd, .stdout_path = "/dev/null");
@@ -53,7 +43,6 @@ bool run_test_on_entry(Nob_Walk_Entry entry)
     cgs_putc(stderr, '\n');
 
     cmd_free(cmd);
-    cgs_dstr_deinit(&first_line);
 
     if (!success)
     {
