@@ -133,13 +133,20 @@ static inline CGS_Error stringify_token_ptr(CGS_Writer *writer, Token *tok, CGS_
 #define ADD_TOSTR (Token *, stringify_token_ptr)
 #include "cgs/cgs.h"
 
+#define i_header
 #define i_no_clone
 #define i_keydrop free_token
 #define T TokenList, Token
-#include "stc/vec.h"
+#include "grow_list.h"
 
+#define i_header
 #define i_no_clone
 #define i_keydrop TokenList_drop
+#define i_aux Arena*
+#define i_aux Arena*
+#define i_malloc(n) arena_alloc(self->arena, n)
+#define i_free(p, n) ((void)0)
+#define i_realloc(p, old_n, new_n) assert(0)
 #define T TokensChain, TokenList
 #include "stc/list.h"
 

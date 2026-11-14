@@ -1,8 +1,8 @@
 #include "error.h"
 #include "clox.h"
 #include "linemap.h"
-#include "token.h"
 #include "test.h"
+#include "token.h"
 #include <stdlib.h>
 
 #ifdef _WIN32
@@ -94,11 +94,9 @@ void error_at_tok_(Ctx *ctx, Token tok)
 {
     if (tok.kind == TK_eof)
     {
-        TokenList *toks     = TokensChain_back_mut(&ctx->toks);
-        Token *end          = TokenList_back_mut(toks);
-        Token *prev_tok     = end - 1;
-        const char *eof_loc = prev_tok->lexeme.chars + prev_tok->lexeme.len;
-        error_at_(ctx, (CGS_StrView) {.chars = eof_loc, .len = 1});
+        TokenList *toks = TokensChain_back_mut(&ctx->toks);
+        Token *end      = TokenList_back(toks).ref;
+        error_at_(ctx, (CGS_StrView) {.chars = end->lexeme.chars, .len = 1});
     }
     else
     {

@@ -15,8 +15,8 @@ int parse_tests(Ctx *ctx)
     // first line may be: // expected-output {{"a", "b", "c"}}
     if (first_line_result.err.ec == CGS_OK &&
         (found_expected_output =
-        cgs_starts_with_tokens(first_line_result.val, non_newline_whitespace, "//", "expected-output"))
-        .err.ec == CGS_OK)
+             cgs_starts_with_tokens(first_line_result.val, non_newline_whitespace, "//", "expected-output"))
+                .err.ec == CGS_OK)
     {
         CGS_StrView after_directive = cgs_strv(first_line_result.val, found_expected_output.val);
 
@@ -27,7 +27,7 @@ int parse_tests(Ctx *ctx)
             return EXIT_FAILURE;
         }
 
-        CGS_StrView literal_list = cgs_strv(after_directive, 2); // message}}
+        CGS_StrView literal_list = cgs_strv(after_directive, 2); // ...}}
 
         long long after_end_brackets = -1;
         for (long long i = literal_list.len - 1; i >= 0; i--)
@@ -57,6 +57,7 @@ int parse_tests(Ctx *ctx)
         }
 
         literal_list = cgs_strv(literal_list, 0, after_end_brackets - 2);
+        // literal list is now just the comma seperated list
 
         CGS_StrView list_walk = literal_list;
         list_walk             = cgs_skip_any(list_walk, non_newline_whitespace);
@@ -163,7 +164,7 @@ int parse_tests(Ctx *ctx)
             else
             {
                 ExpectedErrors_result res =
-                ExpectedErrors_insert(&ctx->test_data.expected_errors, lineno, StrViews_init());
+                    ExpectedErrors_insert(&ctx->test_data.expected_errors, lineno, StrViews_init());
                 StrViews_push(&res.ref->second, msg);
             }
 

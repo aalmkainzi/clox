@@ -6,9 +6,8 @@
 #include "test.h"
 #include "var.h"
 
-#define GL_TYPE Stmt
-#define GL_NAME StmtList
-#define GL_IMPL
+#define T StmtList, Stmt
+#define i_implement
 #include "grow_list.h"
 
 static bool execute_stmt_list(Ctx *ctx, StmtList *stmts);
@@ -19,12 +18,12 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
     {
         case STMT_print:
         {
-            ArenaCheckpoint before_eval = arena_checkpoint(&ctx->eval_arena);
+            ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
             Value val                   = eval(ctx, stmt.data.print_expr);
 
             if (ctx->error)
             {
-                arena_rollback(&ctx->eval_arena, before_eval);
+                arena_rollback(ctx->eval_arena, before_eval);
                 return false;
             }
             cgs_writeln_tostr(val);
@@ -36,7 +35,7 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
 
                 cgs_dstr_deinit(&as_str);
             }
-            arena_rollback(&ctx->eval_arena, before_eval);
+            arena_rollback(ctx->eval_arena, before_eval);
         }
         break;
         case STMT_var:
@@ -73,19 +72,19 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         break;
         case STMT_expr:
         {
-            ArenaCheckpoint before_eval = arena_checkpoint(&ctx->eval_arena);
+            ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
             Value val                   = eval(ctx, stmt.data.expr);
 
             if (ctx->error)
             {
-                arena_rollback(&ctx->eval_arena, before_eval);
+                arena_rollback(ctx->eval_arena, before_eval);
                 return false;
             }
 
             if (ctx->repl)
                 cgs_writeln_tostr(val);
 
-            arena_rollback(&ctx->eval_arena, before_eval);
+            arena_rollback(ctx->eval_arena, before_eval);
         }
         break;
         case STMT_scope:
@@ -100,12 +99,12 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         {
             StmtIf *if_stmt = &stmt.data.if_stmt;
 
-            ArenaCheckpoint before_eval = arena_checkpoint(&ctx->eval_arena);
+            ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
             Value cond                  = eval(ctx, if_stmt->cond);
 
             if (ctx->error)
             {
-                arena_rollback(&ctx->eval_arena, before_eval);
+                arena_rollback(ctx->eval_arena, before_eval);
                 return false;
             }
 
@@ -119,7 +118,7 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
                 ret = execute_stmt(ctx, *if_stmt->else_branch);
             }
 
-            arena_rollback(&ctx->eval_arena, before_eval);
+            arena_rollback(ctx->eval_arena, before_eval);
             return ret;
         }
         break;
@@ -127,19 +126,19 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         {
             StmtWhile *while_stmt = &stmt.data.while_stmt;
 
-            ArenaCheckpoint before_eval = arena_checkpoint(&ctx->eval_arena);
+            ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
             Value cond                  = eval(ctx, while_stmt->cond);
             if (ctx->error)
             {
-                arena_rollback(&ctx->eval_arena, before_eval);
+                arena_rollback(ctx->eval_arena, before_eval);
                 return false;
             }
 
-#define check_truthy_and_rollback(cond, checkpoint)   \
-    __extension__({                                   \
-        bool res = is_truthy(cond);                   \
-        arena_rollback(&ctx->eval_arena, checkpoint); \
-        res;                                          \
+#define check_truthy_and_rollback(cond, checkpoint)  \
+    __extension__({                                  \
+        bool res = is_truthy(cond);                  \
+        arena_rollback(ctx->eval_arena, checkpoint); \
+        res;                                         \
     })
             // check if truthy, then rollback the arena to re-use the memory next eval
             while (check_truthy_and_rollback(cond, before_eval))
@@ -152,7 +151,7 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
                 cond = eval(ctx, while_stmt->cond);
                 if (ctx->error)
                 {
-                    arena_rollback(&ctx->eval_arena, before_eval);
+                    arena_rollback(ctx->eval_arena, before_eval);
                     return false;
                 }
             }
@@ -185,7 +184,7 @@ void execute_stmts(Ctx *ctx)
 void init_scope(Ctx *ctx, Scope *scope)
 {
     scope->vars     = (VarMap) {};
-    scope->vars.aux = &ctx->eval_arena;
+    scope->vars.aux = ctx->eval_arena;
     VarMap_reserve(&scope->vars, 8);
     scope->up = NULL;
 }
@@ -199,7 +198,7 @@ void exit_scope(Ctx *ctx)
 
     ArenaCheckpoint checkpoint = ctx->scope->exit_checkpoint;
     Scope *up                  = ctx->scope->up;
-    arena_rollback(&ctx->eval_arena, checkpoint);
+    arena_rollback(ctx->eval_arena, checkpoint);
     ctx->scope = up;
 }
 
@@ -207,8 +206,8 @@ void enter_scope(Ctx *ctx)
 {
     Scope *up = ctx->scope;
 
-    ArenaCheckpoint checkpoint  = arena_checkpoint(&ctx->eval_arena);
-    ctx->scope                  = arena_alloc(&ctx->eval_arena, sizeof(Scope));
+    ArenaCheckpoint checkpoint  = arena_checkpoint(ctx->eval_arena);
+    ctx->scope                  = arena_alloc(ctx->eval_arena, sizeof(Scope));
     ctx->scope->exit_checkpoint = checkpoint;
 
     init_scope(ctx, ctx->scope);

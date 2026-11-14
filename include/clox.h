@@ -23,16 +23,18 @@ typedef struct Ctx
 {
     CGS_StrView file_name;
     CGS_StrView src;
+    LineMap linemap; // mapping from line number to file offset
 
     TokensChain toks;
-
-    Token *tok;
+    TokenList_iter tok;
 
     Scope *scope;
     StmtList stmts;
 
-    Arena parser_arena;
-    Arena eval_arena;
+    Arena *parse_arena;
+    Arena *eval_arena;
+    CGS_Allocator *parse_allocator;
+    CGS_Allocator *eval_allocator;
 
     struct
     {
@@ -41,8 +43,6 @@ typedef struct Ctx
         unsigned int verified_outputs;
     } test_data;
 
-    LineMap linemap;
-
     bool verbose     : 1;
     bool test        : 1;
     bool failed_test : 1;
@@ -50,6 +50,8 @@ typedef struct Ctx
     bool repl        : 1;
 } Ctx;
 // clang-format on
+
+#define curtok(ctx) (ctx)->tok.ref
 
 // "abc" ... "h"
 // -> "abcdefgh"
@@ -61,9 +63,8 @@ void parse(Ctx *ctx);
 void free_tokens(TokenList *toks);
 
 [[nodiscard("syncronize if this returns false")]]
-bool skip_tok(Ctx *ctx, TokenKind kind); // skip `kind` token
-void advance(Ctx *ctx);                  // dequeue
-Token *peek(Ctx *ctx);
+bool skip_tok(Ctx *ctx, TokenKind kind); // skip `kind` token. reports error if current token is not `kind`
+void advance(Ctx *ctx);
 bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds);
 bool consume_any_(Ctx *ctx, TokenKind *kinds, int n_kinds);
 

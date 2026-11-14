@@ -6,8 +6,8 @@
 
 typedef struct Stmt Stmt;
 
-#define GL_TYPE Stmt
-#define GL_NAME StmtList
+#define T StmtList, Stmt
+#define i_header
 #include "grow_list.h"
 
 typedef enum StmtKind : unsigned char

@@ -4,6 +4,23 @@
 #include <ctype.h>
 #include <math.h>
 
+#define i_implement
+#define i_no_clone
+#define i_keydrop free_token
+#define T TokenList, Token
+#include "grow_list.h"
+
+#define i_implement
+#define i_body
+#define i_no_clone
+#define i_keydrop TokenList_drop
+#define i_aux Arena *
+#define i_malloc(n) arena_alloc(self->aux, n)
+#define i_free(p, n) ((void)0)
+#define i_realloc(p, old_n, new_n) assert(0)
+#define T TokensChain, TokenList
+#include "stc/list.h"
+
 static bool is_ident_char(char c)
 {
     return isalnum(c) || c == '_';
@@ -48,7 +65,7 @@ static Token scan_ident(Ctx *ctx, const char *tok_start, bool *err)
 
     if (isalpha(tok_start[0]) || tok_start[0] == '_')
     {
-        int len = 1;
+        unsigned int len = 1;
         while (is_ident_char(tok_start[len]))
             len += 1;
 
@@ -99,10 +116,10 @@ static Token scan_num(Ctx *ctx, const char *tok_start, bool *err)
 
     Token ret = {.kind = TK_none};
 
-    int scanned = 0;
+    unsigned int scanned = 0;
     if (isnum(tok_start[0]))
     {
-        int len = 1;
+        unsigned int len = 1;
         while (isnum(tok_start[len]))
             len += 1;
 
@@ -112,8 +129,8 @@ static Token scan_num(Ctx *ctx, const char *tok_start, bool *err)
         ret.lexeme = lexeme;
 
         char *end;
-        unsigned long long ull = strtoull(tok_start, &end, 10);
-        ret.data.dbl           = ull;
+        uint64_t integer = strtoull(tok_start, &end, 10);
+        ret.data.dbl     = (double)integer;
 
         assert(end == lexeme.chars + lexeme.len);
 
@@ -122,13 +139,7 @@ static Token scan_num(Ctx *ctx, const char *tok_start, bool *err)
 
     if (tok_start[scanned] == '.' && isnum(tok_start[scanned + 1]))
     {
-        uint64_t integer = 0;
-        if (ret.kind == TK_num)
-        {
-            integer = ret.data.dbl;
-        }
-
-        int len = 2;
+        unsigned int len = 2;
         while (isnum(tok_start[scanned + len]))
             len += 1;
 
@@ -138,10 +149,10 @@ static Token scan_num(Ctx *ctx, const char *tok_start, bool *err)
         ret.lexeme = lexeme;
 
         char *end;
-        uint64_t decimal = strtoull(tok_start + scanned + 1, &end, 10);
-        uint64_t div     = ceil(log10(decimal));
+        double decimal = (double)strtoull(tok_start + scanned + 1, &end, 10);
+        double div     = ceil(log10(decimal));
 
-        ret.data.dbl = integer + (decimal / pow(10, div));
+        ret.data.dbl += (decimal / pow(10, div));
 
         assert(end == lexeme.chars + lexeme.len);
     }
@@ -180,7 +191,7 @@ Token scan_str(Ctx *ctx, const char *tok_start, bool *err)
 
     CGS_DStr string_data = cgs_dstr_init();
 
-    int it = 2;
+    unsigned int it = 2;
 
     while (tok_start[it - 1] != '\"')
     {
@@ -242,7 +253,7 @@ Token scan_one_token(Ctx *ctx, const char *tok_start, bool *err)
 
 void tokenize(Ctx *ctx)
 {
-    TokenList *toks = TokensChain_push(&ctx->toks, TokenList_init());
+    TokenList *toks = TokensChain_push(&ctx->toks, TokenList_init(ctx->parse_arena));
 
     CGS_StrView src_walk = cgs_strv(ctx->src);
 
@@ -267,7 +278,8 @@ void tokenize(Ctx *ctx)
 
         if (src_walk.len == 0)
         {
-            TokenList_push(toks, (Token) {.kind = TK_eof, .lexeme = src_walk});
+            TokenList_iter it = TokenList_push(toks);
+            *it.ref           = (Token) {.kind = TK_eof, .lexeme = src_walk};
             return;
         }
 
@@ -290,7 +302,7 @@ void tokenize(Ctx *ctx)
 
         else
         {
-            TokenList_push(toks, scanned_tok);
+            *TokenList_push(toks).ref = scanned_tok;
 
             src_walk.chars += scanned_tok.lexeme.len;
             src_walk.len -= scanned_tok.lexeme.len;
@@ -303,9 +315,9 @@ void tokenize(Ctx *ctx)
 [[nodiscard("synchronize if this returns false")]]
 bool skip_tok(Ctx *ctx, TokenKind kind)
 {
-    if (ctx->tok->kind != kind)
+    if (curtok(ctx)->kind != kind)
     {
-        error_at_tok(ctx, *ctx->tok, "expected %?, but got %?", tok2str[kind], tok2str[ctx->tok->kind]);
+        error_at_tok(ctx, *curtok(ctx), "expected %?, but got %?", tok2str[kind], tok2str[curtok(ctx)->kind]);
         return false;
     }
 
@@ -317,7 +329,7 @@ bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds)
 {
     for (int i = 0; i < n_kinds; i++)
     {
-        if (ctx->tok->kind == kinds[i])
+        if (curtok(ctx)->kind == kinds[i])
             return true;
     }
     return false;
@@ -325,17 +337,10 @@ bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds)
 
 void advance(Ctx *ctx)
 {
-    if (ctx->tok->kind == TK_eof)
+    if (curtok(ctx)->kind == TK_eof)
         return;
 
-    ctx->tok += 1;
-}
-
-Token *peek(Ctx *ctx)
-{
-    if (ctx->tok->kind == TK_eof)
-        return ctx->tok;
-    return ctx->tok + 1;
+    TokenList_next(&ctx->tok);
 }
 
 bool consume_any_(Ctx *ctx, TokenKind *kinds, int n_kinds)
@@ -360,6 +365,6 @@ void free_token(Token *tok)
 CGS_StrView range_view(CGS_StrView begin, CGS_StrView end)
 {
     CGS_StrView ret = begin;
-    ret.len         = (end.chars - begin.chars) + end.len;
+    ret.len         = (unsigned int)(end.chars - begin.chars) + end.len;
     return ret;
 }

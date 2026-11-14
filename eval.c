@@ -32,10 +32,8 @@ static Value eval_binary(Ctx *ctx, Expr *expr);
 
 static bool expect_number(Ctx *ctx, Value *obj);
 
-static Value copy_value(Value from);
+static Value copy_value(Ctx *ctx, Value from);
 static Value error_value();
-
-static CGS_Allocator *eval_arena_allocator = arena_allocator(0); //(CGS_Allocator*)&(ArenaAllocator){};
 
 static VarMap_entry *find_var(Scope *scope, CGS_StrView name);
 
@@ -50,7 +48,7 @@ Value eval(Ctx *ctx, Expr *expr)
             return eval_binary(ctx, expr);
 
         case EXPR_value:
-            return copy_value(expr->value);
+            return copy_value(ctx, expr->value);
 
         case EXPR_var:
         {
@@ -65,7 +63,7 @@ Value eval(Ctx *ctx, Expr *expr)
                 error_at_tok(ctx, expr_tok(expr), "variable not initialized");
                 return error_value();
             }
-            Value var_val = copy_value(var_entry->second);
+            Value var_val = copy_value(ctx, var_entry->second);
             var_val.tok   = expr->ident;
             assert(!var_val.var);
             return var_val;
@@ -100,7 +98,7 @@ static Value eval_unary(Ctx *ctx, Expr *expr)
                 return error_value();
             }
 
-            Value result = copy_value(obj);
+            Value result = copy_value(ctx, obj);
             result.number *= -1;
 
             return result;
@@ -111,7 +109,7 @@ static Value eval_unary(Ctx *ctx, Expr *expr)
             Value tmp = obj;
             tmp.type  = T_bool; // to avoid deep copy in copy_value if original type is T_str
 
-            Value result   = copy_value(tmp);
+            Value result   = copy_value(ctx, tmp);
             result.boolean = !is_truthy(obj);
 
             return result;
@@ -136,13 +134,13 @@ static Value eval_binary_logical(Ctx *ctx, Expr *expr)
             bool left_truthy = is_truthy(left);
             if (left_truthy)
             {
-                result = copy_value(left);
+                result = copy_value(ctx, left);
             }
             else
             {
                 Value right = eval_or_throw(ctx, expr->binary.right);
 
-                result            = copy_value(right);
+                result            = copy_value(ctx, right);
                 result.tok.lexeme = range_view(left.tok.lexeme, right.tok.lexeme);
             }
         }
@@ -153,13 +151,13 @@ static Value eval_binary_logical(Ctx *ctx, Expr *expr)
             bool left_truthy = is_truthy(left);
             if (!left_truthy)
             {
-                result = copy_value(left);
+                result = copy_value(ctx, left);
             }
             else
             {
                 Value right = eval_or_throw(ctx, expr->binary.right);
 
-                result            = copy_value(right);
+                result            = copy_value(ctx, right);
                 result.tok.lexeme = range_view(left.tok.lexeme, right.tok.lexeme);
             }
         }
@@ -183,7 +181,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
     Value left  = eval_or_throw(ctx, expr->binary.left);
     Value right = eval_or_throw(ctx, expr->binary.right);
 
-    Value result = copy_value(left);
+    Value result = copy_value(ctx, left);
     if (left.tok.lexeme.chars && right.tok.lexeme.chars)
         result.tok.lexeme = range_view(left.tok.lexeme, right.tok.lexeme);
 
@@ -226,17 +224,17 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
                 switch (left.type)
                 {
                     case T_bool:
-                        result.string = cgs_asprintf(eval_arena_allocator, "%?%?", left.boolean, right.string);
+                        result.string = cgs_asprintf(ctx->eval_allocator, "%?%?", left.boolean, right.string);
                         break;
                     case T_num:
-                        result.string = cgs_asprintf(eval_arena_allocator, "%?%?", left.number, right.string);
+                        result.string = cgs_asprintf(ctx->eval_allocator, "%?%?", left.number, right.string);
                         break;
                     case T_str:
                         // not actually possible, previous branch wouldve caught it
-                        result.string = cgs_asprintf(eval_arena_allocator, "%?%?", left.string, right.string);
+                        result.string = cgs_asprintf(ctx->eval_allocator, "%?%?", left.string, right.string);
                         break;
                     case T_nil:
-                        result.string = cgs_asprintf(eval_arena_allocator, "%?%?", "nil", right.string);
+                        result.string = cgs_asprintf(ctx->eval_allocator, "%?%?", "nil", right.string);
                         break;
                     case T_none:
                         unreachable();
@@ -482,11 +480,11 @@ void free_var_value(Value v)
     }
 }
 
-static Value copy_value(Value from)
+static Value copy_value(Ctx *ctx, Value from)
 {
     Value ret = from;
     if (from.type == T_str)
-        ret.string = cgs_dup(ret.string, eval_arena_allocator);
+        ret.string = cgs_dup(ret.string, ctx->eval_allocator);
     ret.var = false;
     return ret;
 }
@@ -506,11 +504,4 @@ Value var_value(Value val)
 static Value error_value()
 {
     return (Value) {.error = true};
-}
-
-// TODO maybe a better is if Ctx has the allocators, more powerful than holding the Arena (the Arena can be in the
-// stack frame in main.c)
-void init_eval_system(Ctx *ctx)
-{
-    ((ArenaAllocator *)eval_arena_allocator)->arena = &ctx->eval_arena;
 }

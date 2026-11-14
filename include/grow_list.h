@@ -1,69 +1,76 @@
 // never reallocates a buffer when growing. made to be backed by an arena allocator
+// mimics STC style containers
 
-#ifndef GL_TYPE
-    #error "define GL_TYPE before including"
-#endif
-#ifndef GL_NAME
-    #error "define GL_NAME before including"
-#endif
+#include "stc/common.h"
+#include "stc/priv/linkage.h"
+#include "stc/types.h"
 
 #include "arena.h"
-#include "stc/common.h"
 #include <stddef.h>
 
-#define GL_ITER c_JOIN(GL_NAME, _iter)
-#define GL_NODE c_JOIN(GL_NAME, _node)
+#ifndef _i_prefix
+    #define _i_prefix glist_
+#endif
+
+#include "stc/priv/template.h"
+
+#define GL_ITER _c_MEMB(_iter)
+#define GL_NODE _c_MEMB(_node)
 
 typedef struct GL_NODE GL_NODE;
 
-typedef struct GL_NAME
+typedef i_key _m_value;
+
+typedef struct Self
 {
     Arena *arena;
     GL_NODE *head;
     GL_NODE *tail;
     GL_NODE *pool;
     unsigned int next_free_slot_in_tail;
-    size_t count;
-} GL_NAME;
+    size_t size;
+} Self;
 
 typedef struct GL_ITER
 {
-    typeof(GL_TYPE) *ref;
+    typeof(_m_value) *ref;
     GL_NODE *node;
     unsigned int next_free_slot_in_tail; // this is needed to know when to stop
 } GL_ITER;
 
-GL_NAME c_JOIN(GL_NAME, _init)(Arena *arena);
-GL_ITER c_JOIN(GL_NAME, _push)(GL_NAME *list);
-GL_ITER c_JOIN(GL_NAME, _begin)(GL_NAME *list);
-GL_ITER c_JOIN(GL_NAME, _end)();
-void c_JOIN(GL_NAME, _next)(GL_ITER *it);
+Self _c_MEMB(_init)(Arena *arena);
+GL_ITER _c_MEMB(_push)(Self *list);
+GL_ITER _c_MEMB(_back)(const Self *list);
+void _c_MEMB(_drop)(Self *list);
+GL_ITER _c_MEMB(_begin)(const Self *list);
+GL_ITER _c_MEMB(_end)();
+void _c_MEMB(_next)(GL_ITER *it);
 
-#if defined(GL_IMPL)
+#if defined i_implement
 
 struct GL_NODE
 {
     GL_NODE *next;
-    typeof(GL_TYPE) elms[(512 - sizeof(void *)) / sizeof(GL_TYPE)];
+    typeof(_m_value) elms[(512 - sizeof(void *)) / sizeof(_m_value)];
 };
 
 static_assert(sizeof(GL_NODE) <= 512 && sizeof(GL_NODE) != sizeof(void *));
 
-    #define gl_node_cap(node) ((ptrdiff_t)(sizeof((node)->elms) / sizeof(GL_TYPE)))
+    #define gl_node_cap(node) ((ptrdiff_t)(sizeof((node)->elms) / sizeof(_m_value)))
 
-GL_NAME c_JOIN(GL_NAME, _init)(Arena *arena)
+Self _c_MEMB(_init)(Arena *arena)
 {
-    return (GL_NAME) {.arena = arena};
+    return (Self) {.arena = arena};
 }
 
-static GL_NODE *c_JOIN(GL_NAME, _new_node)(GL_NAME *list)
+static GL_NODE *_c_MEMB(_new_node)(Self *list)
 {
     GL_NODE *node = arena_alloc(list->arena, sizeof(GL_NODE));
     node->next    = NULL;
     return node;
 }
 
-GL_ITER c_JOIN(GL_NAME, _push)(GL_NAME *list)
+GL_ITER _c_MEMB(_push)(Self *list)
 {
     if (list->tail)
     {
@@ -77,7 +84,7 @@ GL_ITER c_JOIN(GL_NAME, _push)(GL_NAME *list)
             }
             else
             {
-                list->tail = list->tail->next = c_JOIN(GL_NAME, _new_node)(list);
+                list->tail = list->tail->next = _c_MEMB(_new_node)(list);
             }
             list->next_free_slot_in_tail = 0;
         }
@@ -85,7 +92,7 @@ GL_ITER c_JOIN(GL_NAME, _push)(GL_NAME *list)
     else
     {
         assert(list->head == NULL);
-        list->head = list->tail = c_JOIN(GL_NAME, _new_node)(list);
+        list->head = list->tail = _c_MEMB(_new_node)(list);
         assert(list->next_free_slot_in_tail == 0);
     }
 
@@ -95,13 +102,35 @@ GL_ITER c_JOIN(GL_NAME, _push)(GL_NAME *list)
         .next_free_slot_in_tail = list->next_free_slot_in_tail
     };
 
-    list->count++;
+    list->size++;
     list->next_free_slot_in_tail++;
 
     return pushed;
 }
 
-GL_ITER c_JOIN(GL_NAME, _begin)(GL_NAME *list)
+GL_ITER _c_MEMB(_back)(const Self *list)
+{
+    if (list->size == 0)
+        return _c_MEMB(_end)();
+
+    return (GL_ITER) {
+        .ref                    = &list->tail->elms[list->next_free_slot_in_tail - 1],
+        .node                   = list->tail,
+        .next_free_slot_in_tail = list->next_free_slot_in_tail
+    };
+}
+
+void _c_MEMB(_drop)(Self *list)
+{
+    #ifdef i_keydrop
+    for (c_each(it, Self, *list))
+    {
+        i_keydrop(it.ref);
+    }
+    #endif
+}
+
+GL_ITER _c_MEMB(_begin)(const Self *list)
 {
     return (GL_ITER) {
         .ref                    = list->head ? &list->head->elms[0] : NULL,
@@ -110,7 +139,7 @@ GL_ITER c_JOIN(GL_NAME, _begin)(GL_NAME *list)
     };
 }
 
-GL_ITER c_JOIN(GL_NAME, _end)()
+GL_ITER _c_MEMB(_end)()
 {
     return (GL_ITER) {
         .ref  = NULL,
@@ -118,7 +147,7 @@ GL_ITER c_JOIN(GL_NAME, _end)()
     };
 }
 
-void c_JOIN(GL_NAME, _next)(GL_ITER *it)
+void _c_MEMB(_next)(GL_ITER *it)
 {
     if ((it->ref - it->node->elms) + 1 >= gl_node_cap(it->node))
     {
@@ -129,7 +158,7 @@ void c_JOIN(GL_NAME, _next)(GL_ITER *it)
         }
         else
         {
-            *it = c_JOIN(GL_NAME, _end)();
+            *it = _c_MEMB(_end)();
         }
     }
     else
@@ -137,7 +166,7 @@ void c_JOIN(GL_NAME, _next)(GL_ITER *it)
         // we are at tail, and next slot is the next free slot = next is the end
         if (it->node->next == NULL && (it->ref - it->node->elms == it->next_free_slot_in_tail - 1))
         {
-            *it = c_JOIN(GL_NAME, _end)();
+            *it = _c_MEMB(_end)();
         }
         else
         {
@@ -148,8 +177,4 @@ void c_JOIN(GL_NAME, _next)(GL_ITER *it)
 
 #endif // IMPL
 
-#undef GL_NAME
-#undef GL_TYPE
-#undef GL_NODE
-#undef GL_ITER
-#undef GL_IMPL
+#include "stc/sys/finalize.h"

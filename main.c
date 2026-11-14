@@ -1,9 +1,10 @@
+#include "arena.h"
 #include "clox.h"
 #include "error.h"
 #include "expr.h"
 #include "stmt.h"
-#include "token.h"
 #include "test.h"
+#include "token.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,9 +12,10 @@
 
 typedef struct
 {
+    const char *file_name;
     bool verbose;
     bool test;
-    const char *file_name;
+    bool repl;
 } Opts;
 
 static int run_file(Opts opts);
@@ -73,6 +75,46 @@ int main(int argc, char **argv)
     return ret;
 }
 
+// Ctx holds pointers to these, they need to be stored somewhere. This struct represents their storage
+typedef struct CtxState
+{
+    Arena parse_arena;
+    Arena eval_arena;
+    ArenaAllocator parse_arena_allocator;
+    ArenaAllocator eval_arena_allocator;
+} CtxState;
+
+static void fill_ctx(Ctx *ctx, Opts opts, CGS_StrView src, CtxState *state)
+{
+    state->parse_arena_allocator = arena_allocator(&state->parse_arena);
+    state->eval_arena_allocator  = arena_allocator(&state->eval_arena);
+
+    ctx->verbose         = opts.verbose;
+    ctx->test            = opts.test;
+    ctx->parse_arena     = &state->parse_arena;
+    ctx->eval_arena      = &state->eval_arena;
+    ctx->parse_allocator = (CGS_Allocator *)&state->parse_arena_allocator;
+    ctx->eval_allocator  = (CGS_Allocator *)&state->eval_arena_allocator;
+    ctx->toks.aux        = ctx->parse_arena;
+    ctx->src             = src;
+    ctx->linemap.arena   = ctx->parse_arena;
+
+    if (opts.repl)
+    {
+        ctx->file_name = cgs_strv("<repl>");
+        ctx->repl      = true;
+
+        ctx->linemap.count      = 1;
+        ctx->linemap.offsets    = arena_alloc(ctx->parse_arena, sizeof(int));
+        ctx->linemap.offsets[0] = 0;
+    }
+    else
+    {
+        ctx->file_name = cgs_strv(opts.file_name);
+        linemap_fill(&ctx->linemap, ctx->src);
+    }
+}
+
 static int run(Opts opts, CGS_DStr *line);
 
 static int run_file(Opts opts)
@@ -124,11 +166,11 @@ static void run_repl_line(Ctx *ctx)
     if (ctx->verbose)
         print_tokens(ctx);
 
-    ctx->stmts = StmtList_init(&ctx->parser_arena);
+    ctx->stmts = StmtList_init(ctx->parse_arena);
     parse(ctx);
 
     if (ctx->verbose)
-        cgs_printfln("nb statements: %?", ctx->stmts.count);
+        cgs_printfln("nb statements: %?", ctx->stmts.size);
 
     if (!ctx->error)
         execute_stmts(ctx);
@@ -143,15 +185,10 @@ static void run_repl_line(Ctx *ctx)
 
 static int repl_loop(Opts opts)
 {
-    Ctx *ctx = &(Ctx) {
-        .file_name = cgs_strv("<repl>"),
-        .repl      = true,
-        .verbose   = opts.verbose,
-        .linemap   = {.cap = 1, .count = 1, .offsets = (int[1]) {0}}
-    };
+    Ctx *ctx = &(Ctx) {};
+    fill_ctx(ctx, opts, (CGS_StrView) {}, &(CtxState) {});
 
-    Lines lines = {};
-    lines.aux   = &ctx->parser_arena;
+    Lines lines = {.aux = ctx->parse_arena};
 
     clox_init(ctx);
 
@@ -161,7 +198,7 @@ static int repl_loop(Opts opts)
     {
         cgs_printf("> ");
 
-        CGS_DStr *line = Lines_push(&lines, cgs_dstr_init(0, arena_allocator(&ctx->parser_arena)));
+        CGS_DStr *line = Lines_push(&lines, cgs_dstr_init(0, ctx->parse_allocator));
         CGS_Error err  = cgs_append_fread_until(line, stdin, '\n');
         if (err.ec == CGS_OK)
         {
@@ -176,27 +213,20 @@ static int repl_loop(Opts opts)
     TokensChain_drop(&ctx->toks);
     Lines_drop(&lines);
 
-    arena_free(&ctx->eval_arena);
-    arena_free(&ctx->parser_arena);
+    arena_free(ctx->eval_arena);
+    arena_free(ctx->parse_arena);
 
     return EXIT_SUCCESS;
 }
 
 static int run(Opts opts, CGS_DStr *src)
 {
-    Ctx *ctx = &(Ctx) {
-        .file_name   = cgs_strv(opts.file_name),
-        .src         = cgs_strv(src),
-        .repl        = false,
-        .verbose     = opts.verbose,
-        .test        = opts.test,
-        .failed_test = false,
-    };
+    Ctx *ctx = &(Ctx) {};
+    fill_ctx(ctx, opts, cgs_strv(*src), &(CtxState) {});
+
     clox_init(ctx);
 
-    ctx->stmts = StmtList_init(&ctx->parser_arena),
-
-    linemap_fill(&ctx->linemap, ctx->src);
+    ctx->stmts = StmtList_init(ctx->parse_arena);
 
     if (ctx->test)
         parse_tests(ctx);
@@ -222,9 +252,8 @@ static int run(Opts opts, CGS_DStr *src)
 done:
 
     TokensChain_drop(&ctx->toks);
-    linemap_free(&ctx->linemap);
-    arena_free(&ctx->parser_arena);
-    arena_free(&ctx->eval_arena);
+    arena_free(ctx->parse_arena);
+    arena_free(ctx->eval_arena);
 
     if (ctx->test)
     {
@@ -241,10 +270,8 @@ static void clox_init(Ctx *ctx)
 {
     // if a specific system needs an init, add its decl here, and call it
     void init_error_system(Ctx * ctx);
-    void init_eval_system(Ctx * ctx);
 
     init_error_system(ctx);
-    init_eval_system(ctx);
 }
 
 static void clox_deinit()

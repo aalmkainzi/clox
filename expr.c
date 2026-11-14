@@ -3,7 +3,7 @@
 
 Expr *new_binary(Ctx *ctx, Expr *left, Expr *right, Token op)
 {
-    Expr *ret         = arena_calloc(&ctx->parser_arena, sizeof(Expr));
+    Expr *ret         = arena_calloc(ctx->parse_arena, sizeof(Expr));
     ret->kind         = EXPR_binary;
     ret->binary.left  = left;
     ret->binary.right = right;
@@ -14,7 +14,7 @@ Expr *new_binary(Ctx *ctx, Expr *left, Expr *right, Token op)
 
 Expr *new_unary(Ctx *ctx, Expr *left, Token op)
 {
-    Expr *ret       = arena_calloc(&ctx->parser_arena, sizeof(Expr));
+    Expr *ret       = arena_calloc(ctx->parse_arena, sizeof(Expr));
     ret->kind       = EXPR_unary;
     ret->unary.expr = left;
     ret->unary.op   = op;
@@ -33,7 +33,7 @@ static Expr *alloc_literal_expr(Ctx *ctx, LiteralKind litKind, Token tok)
 
     TypeKind type = map[litKind];
 
-    Expr *ret       = arena_calloc(&ctx->parser_arena, sizeof(Expr));
+    Expr *ret       = arena_calloc(ctx->parse_arena, sizeof(Expr));
     ret->kind       = EXPR_value;
     ret->value.tok  = tok;
     ret->value.type = type;
@@ -47,7 +47,7 @@ static Expr *alloc_literal_expr(Ctx *ctx, LiteralKind litKind, Token tok)
             ret->value.number = tok.data.dbl;
             break;
         case T_str:
-            ret->value.string = cgs_dup(tok.data.string, arena_allocator(&ctx->parser_arena));
+            ret->value.string = cgs_dup(tok.data.string, ctx->parse_allocator);
             break;
         case T_nil:
             break;
@@ -81,7 +81,7 @@ Expr *new_literal(Ctx *ctx, Token tok)
 
 Expr *new_var(Ctx *ctx, Token tok)
 {
-    Expr *ret  = arena_calloc(&ctx->parser_arena, sizeof(Expr));
+    Expr *ret  = arena_calloc(ctx->parse_arena, sizeof(Expr));
     ret->kind  = EXPR_var;
     ret->ident = tok;
     return ret;
