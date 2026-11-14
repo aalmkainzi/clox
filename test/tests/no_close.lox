@@ -1,0 +1,2 @@
+(; // expected-error{{expected expression, but got ;}} expected-error{{expected ), but got ;}}
+1;

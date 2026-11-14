@@ -10,16 +10,16 @@
 #define i_implement
 #include "grow_list.h"
 
-static bool execute_stmt_list(Ctx *ctx, StmtList *stmts);
+static bool execute_stmt_list(Ctx *ctx, const StmtList *stmts);
 
-static bool execute_stmt(Ctx *ctx, Stmt stmt)
+static bool execute_stmt(Ctx *ctx, const Stmt *stmt)
 {
-    switch (stmt.kind)
+    switch (stmt->kind)
     {
         case STMT_print:
         {
             ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
-            Value val                   = eval(ctx, stmt.data.print_expr);
+            Value val                   = eval(ctx, stmt->data.print_expr);
 
             if (ctx->error)
             {
@@ -40,11 +40,11 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         break;
         case STMT_var:
         {
-            CGS_StrView name = stmt.data.var.name->lexeme;
+            CGS_StrView name = stmt->data.var.name->lexeme;
             Value val        = {};
-            if (stmt.data.var.rhs)
+            if (stmt->data.var.rhs)
             {
-                val = eval(ctx, stmt.data.var.rhs);
+                val = eval(ctx, stmt->data.var.rhs);
                 if (ctx->error)
                 {
                     return false;
@@ -73,7 +73,7 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         case STMT_expr:
         {
             ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
-            Value val                   = eval(ctx, stmt.data.expr);
+            Value val                   = eval(ctx, stmt->data.expr);
 
             if (ctx->error)
             {
@@ -90,14 +90,14 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         case STMT_scope:
         {
             enter_scope(ctx);
-            bool ret = execute_stmt_list(ctx, &stmt.data.scope_stmts);
+            bool ret = execute_stmt_list(ctx, &stmt->data.scope_stmts);
             exit_scope(ctx);
             return ret;
         }
         break;
         case STMT_if:
         {
-            StmtIf *if_stmt = &stmt.data.if_stmt;
+            const StmtIf *if_stmt = &stmt->data.if_stmt;
 
             ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
             Value cond                  = eval(ctx, if_stmt->cond);
@@ -111,11 +111,11 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
             bool ret = true;
             if (is_truthy(cond))
             {
-                ret = execute_stmt(ctx, *if_stmt->if_branch);
+                ret = execute_stmt(ctx, if_stmt->if_branch);
             }
             else if (if_stmt->else_branch)
             {
-                ret = execute_stmt(ctx, *if_stmt->else_branch);
+                ret = execute_stmt(ctx, if_stmt->else_branch);
             }
 
             arena_rollback(ctx->eval_arena, before_eval);
@@ -124,36 +124,25 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
         break;
         case STMT_while:
         {
-            StmtWhile *while_stmt = &stmt.data.while_stmt;
-
+            const StmtWhile *while_stmt = &stmt->data.while_stmt;
             ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
-            Value cond                  = eval(ctx, while_stmt->cond);
-            if (ctx->error)
-            {
-                arena_rollback(ctx->eval_arena, before_eval);
-                return false;
-            }
 
-#define check_truthy_and_rollback(cond, checkpoint)  \
-    __extension__({                                  \
-        bool res = is_truthy(cond);                  \
-        arena_rollback(ctx->eval_arena, checkpoint); \
-        res;                                         \
-    })
-            // check if truthy, then rollback the arena to re-use the memory next eval
-            while (check_truthy_and_rollback(cond, before_eval))
+            while (1)
             {
-                if (!execute_stmt(ctx, *while_stmt->body))
-                {
-                    return false;
-                }
-
-                cond = eval(ctx, while_stmt->cond);
+                Value cond = eval(ctx, while_stmt->cond);
                 if (ctx->error)
                 {
                     arena_rollback(ctx->eval_arena, before_eval);
                     return false;
                 }
+
+                bool truthy = is_truthy(cond);
+                arena_rollback(ctx->eval_arena, before_eval);
+
+                if (!truthy)
+                    break;
+                if (!execute_stmt(ctx, while_stmt->body))
+                    return false;
             }
         }
         break;
@@ -165,12 +154,11 @@ static bool execute_stmt(Ctx *ctx, Stmt stmt)
     return true;
 }
 
-static bool execute_stmt_list(Ctx *ctx, StmtList *stmts)
+static bool execute_stmt_list(Ctx *ctx, const StmtList *stmts)
 {
     for (c_each(it, StmtList, *stmts))
     {
-        Stmt stmt = *it.ref;
-        if (!execute_stmt(ctx, stmt))
+        if (!execute_stmt(ctx, it.ref))
             return false;
     }
     return true;
