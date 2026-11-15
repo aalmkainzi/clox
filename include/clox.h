@@ -18,7 +18,7 @@ typedef struct Scope
     ArenaCheckpoint exit_checkpoint;
 } Scope;
 
-typedef struct
+typedef struct Opts
 {
     CGS_ZStrView file_name;
     bool verbose;
@@ -32,7 +32,7 @@ typedef struct Ctx
 {
     Opts opts;
     CGS_StrView src;
-    LineMap linemap; // mapping from line number to file offset
+    LineMap linemap; // mapping from/to line number to/from file offset.
 
     TokensChain toks;
     TokenList_iter tok;
