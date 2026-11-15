@@ -1,83 +1,119 @@
+#include "arena.h"
 #include "clox.h"
+#include "error.h"
 #include "expr.h"
 #include "stmt.h"
+#include "test.h"
 #include "token.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct
-{
-    bool verbose;
-    bool test;
-    const char *file_name;
-} Opts;
+static int run_file(Ctx *ctx, Opts opts);
+static int repl_loop(Ctx *ctx, Opts opts);
 
-static int run_file(Opts opts);
-static int repl_loop(Opts opts);
+static void clox_init(Ctx *ctx);
+static void clox_deinit();
 
 int main(int argc, char **argv)
 {
-    setvbuf(stdout, NULL, _IONBF, 0);
-    setvbuf(stderr, NULL, _IONBF, 0);
-
-    if (argc > 3)
-    {
-        cgs_fwriteln(stderr, "usage: clox [script] [options]");
-        exit(EXIT_FAILURE);
-    }
-
-    clox_init();
-
     Opts opts = {};
+    Ctx *ctx = &(Ctx){};
+    clox_init(ctx);
+    
     for (int i = 1; i < argc; i++)
     {
         if (cgs_equal(argv[i], "-v"))
         {
             opts.verbose = true;
         }
-        else if (cgs_equal(argv[i], "-t"))
+        else if (cgs_equal(argv[i], "-t") || cgs_equal(argv[i], "-test"))
         {
             opts.test = true;
+        }
+        else if (cgs_equal(argv[i], "-ext"))
+        {
+            opts.ext = true;
         }
         else
         {
             if (argv[i][0] == '-')
             {
-                error_message("unsupported flag '%?'", argv[i]);
+                error(ctx, "unsupported flag '%?'", argv[i]);
                 return EXIT_FAILURE;
             }
-            if (opts.file_name)
+            if (opts.file_name.chars)
             {
-                error_message("only one file");
+                error(ctx, "only one file");
                 return EXIT_FAILURE;
             }
-            opts.file_name = argv[i];
+            opts.file_name = cgs_zstrv(argv[i]);
         }
     }
 
     if (opts.verbose)
         cgs_printfln("verbose = %?", opts.verbose);
 
-    if (opts.file_name)
+    int ret;
+    if (opts.file_name.chars)
     {
-        return run_file(opts);
+        ret = run_file(ctx, opts);
     }
     else
     {
-        return repl_loop(opts);
+        opts.repl      = true;
+        opts.file_name = cgs_zstrv("<repl>");
+        ret            = repl_loop(ctx, opts);
+    }
+    clox_deinit();
+    return ret;
+}
+
+// Ctx holds pointers to these, they need to be stored somewhere. This struct represents their storage
+typedef struct CtxState
+{
+    Arena parse_arena;
+    Arena eval_arena;
+    ArenaAllocator parse_arena_allocator;
+    ArenaAllocator eval_arena_allocator;
+} CtxState;
+
+static void fill_ctx(Ctx *ctx, Opts opts, CGS_StrView src, CtxState *state)
+{
+    state->parse_arena_allocator = arena_allocator(&state->parse_arena);
+    state->eval_arena_allocator  = arena_allocator(&state->eval_arena);
+
+    ctx->opts            = opts;
+    ctx->parse_arena     = &state->parse_arena;
+    ctx->eval_arena      = &state->eval_arena;
+    ctx->parse_allocator = (CGS_Allocator *)&state->parse_arena_allocator;
+    ctx->eval_allocator  = (CGS_Allocator *)&state->eval_arena_allocator;
+    ctx->toks.aux        = ctx->parse_arena;
+    ctx->src             = src;
+    ctx->linemap.arena   = ctx->parse_arena;
+
+    if (opts.repl)
+    {
+        ctx->linemap.count      = 1;
+        ctx->linemap.offsets    = arena_alloc(ctx->parse_arena, sizeof(int));
+        ctx->linemap.offsets[0] = 0;
+    }
+    else
+    {
+        linemap_fill(&ctx->linemap, ctx->src);
     }
 }
 
-static int run(Opts opts, CGS_DStr *line);
+static int run(Ctx *ctx, Opts opts, CGS_DStr *line);
 
-static int run_file(Opts opts)
+static int run_file(Ctx *ctx, Opts opts)
 {
-    FILE *f = fopen(opts.file_name, "r");
+    FILE *f = fopen(opts.file_name.chars, "r");
+
     if (f == NULL)
     {
-        error_message("could not open file '%?': %?", opts.file_name, strerror(errno));
+        error(ctx, "could not open file '%?': %?", opts.file_name, strerror(errno));
         return EXIT_FAILURE;
     }
     CGS_DStr file_data = cgs_dstr_init();
@@ -85,11 +121,11 @@ static int run_file(Opts opts)
     CGS_Error err = cgs_append_fread_until(&file_data, f, EOF);
     if (err.ec != CGS_OK)
     {
-        error_message("could not read file %?: %?: %?\n", opts.file_name, err, strerror(errno));
+        error(ctx, "could not read file %?: %?: %?\n", opts.file_name, err, strerror(errno));
         return EXIT_FAILURE;
     }
 
-    int return_err = run(opts, &file_data);
+    int return_err = run(ctx ,opts, &file_data);
     cgs_dstr_deinit(&file_data);
     return return_err;
 }
@@ -117,127 +153,111 @@ static void run_repl_line(Ctx *ctx)
     if (ctx->error || tokens_empty(ctx))
         return;
 
-    if (ctx->verbose)
+    if (ctx->opts.verbose)
         print_tokens(ctx);
 
+    ctx->stmts = StmtList_init(ctx->parse_arena);
     parse(ctx);
 
-    if (ctx->verbose)
+    if (ctx->opts.verbose)
         cgs_printfln("nb statements: %?", ctx->stmts.size);
 
     if (!ctx->error)
         execute_stmts(ctx);
-
-    for (c_each(it, StmtList, ctx->stmts))
-    {
-        free_stmt(it.ref);
-    }
-    StmtList_clear(&ctx->stmts);
 }
 
 #define T Lines, CGS_DStr
-#include "stc/vec.h"
+#define i_aux Arena *
+#define i_malloc(n) arena_alloc(self->aux, n)
+#define i_free(p, n) ((void)0)
+#define i_realloc(p, old_n, new_n) NULL
+#include "stc/list.h"
 
-static int repl_loop(Opts opts)
+static int repl_loop(Ctx *ctx, Opts opts)
 {
-    Lines lines = Lines_init();
+    fill_ctx(ctx, opts, (CGS_StrView) {}, &(CtxState) {});
 
-    Ctx *ctx = &(Ctx) {
-        .file_name = cgs_strv("<repl>"),
-        .repl      = true,
-        .verbose   = opts.verbose,
-        .scope     = calloc(1, sizeof(Scope)),
-        .linemap = {.cap = 1, .count = 1, .offsets = (int[1]){0}}
-    };
+    Lines lines = {.aux = ctx->parse_arena};
 
-    init_scope(ctx->scope);
+    enter_scope(ctx); // global scope
 
     while (!feof(stdin))
     {
         cgs_printf("> ");
-        CGS_DStr *line = Lines_push(&lines, cgs_dstr_init());
+
+        CGS_DStr *line = Lines_push(&lines, cgs_dstr_init(0, ctx->parse_allocator));
         CGS_Error err  = cgs_append_fread_until(line, stdin, '\n');
         if (err.ec == CGS_OK)
         {
             line->len -= 1;
-            cgs_append(line, "        "); // HACK delete this
             ctx->src = cgs_strv(line);
             run_repl_line(ctx);
         }
     }
 
-    for (c_each(line_it, Lines, lines))
-    {
-        CGS_DStr *line = line_it.ref;
-        cgs_dstr_deinit(line);
-    }
+    exit_scope(ctx); // global scope
 
-    StmtList_drop(&ctx->stmts);
     TokensChain_drop(&ctx->toks);
     Lines_drop(&lines);
-    free_scope(ctx->scope);
+
+    arena_free(ctx->eval_arena);
+    arena_free(ctx->parse_arena);
 
     return EXIT_SUCCESS;
 }
 
-static int run(Opts opts, CGS_DStr *src)
+static int run(Ctx *ctx, Opts opts, CGS_DStr *src)
 {
-    // appending empty spaces in cases we try to match a long keyword
-    cgs_append(src, "        "); // HACK delete this
+    fill_ctx(ctx, opts, cgs_strv(*src), &(CtxState) {});
 
-    Ctx *ctx = &(Ctx) {
-        .file_name   = cgs_strv(opts.file_name),
-        .src         = cgs_strv(src),
-        .repl        = false,
-        .verbose     = opts.verbose,
-        .test        = opts.test,
-        .passed_test = true,
-        .scope       = calloc(1, sizeof(Scope)),
-    };
+    ctx->stmts = StmtList_init(ctx->parse_arena);
 
-    linemap_fill(&ctx->linemap, ctx->src);
-
-    if (ctx->test)
-    {
+    if (ctx->opts.test)
         parse_tests(ctx);
-    }
-
-    init_scope(ctx->scope);
 
     tokenize(ctx);
+
     if (ctx->error || tokens_empty(ctx))
         goto done;
-    if (ctx->verbose)
-    {
+    if (ctx->opts.verbose)
         print_tokens(ctx);
-    }
+
     parse(ctx);
 
-    if (!ctx->error)
-        execute_stmts(ctx);
+    if (ctx->error)
+        goto done;
+
+    enter_scope(ctx);
+
+    execute_stmts(ctx);
+
+    exit_scope(ctx);
 
 done:
-    for (c_each(it, StmtList, ctx->stmts))
-    {
-        free_stmt(it.ref);
-    }
-    StmtList_drop(&ctx->stmts);
 
     TokensChain_drop(&ctx->toks);
-    free_scope(ctx->scope);
-    linemap_free(&ctx->linemap);
-    if (ctx->test)
+    arena_free(ctx->parse_arena);
+    arena_free(ctx->eval_arena);
+
+    if (ctx->opts.test)
     {
-        ExpectedErrors_drop(&ctx->expected_errors);
+        check_remaining_expected_output(ctx);
+
+        free_tests(ctx);
+        return ctx->test_data.failed_test ? EXIT_FAILURE : EXIT_SUCCESS;
     }
 
-    if (ctx->test)
-    {
-        return ctx->passed_test ? EXIT_SUCCESS : EXIT_FAILURE; // 0 is success
-    }
+    return ctx->error ? EXIT_FAILURE : EXIT_SUCCESS;
+}
 
-    if (ctx->error)
-        return EXIT_FAILURE;
-    else
-        return EXIT_SUCCESS;
+static void clox_init(Ctx *ctx)
+{
+    // if a specific system needs an init, add its decl here, and call it
+    void init_error_system(Ctx * ctx);
+
+    init_error_system(ctx);
+}
+
+static void clox_deinit()
+{
 }

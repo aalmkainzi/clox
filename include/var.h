@@ -6,6 +6,7 @@
 #include "token.h"
 
 #define i_header
+#define i_aux Arena *
 #define T VarMap, CGS_StrView, Value
 #include "stc/hashmap.h"
 

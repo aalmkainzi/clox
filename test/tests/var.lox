@@ -1,3 +1,0 @@
-// expected: ok
-var a = "a";
-print a;

@@ -1,0 +1,15 @@
+
+// expected-output {{"world", "world", "world", "hello", "hello", "hello", "false"}}
+
+var a = "hello";
+var b = "world";
+
+print a and b;
+print a and b;
+print a and b;
+
+print a or b;
+print a or b;
+print a or b;
+
+print (a and false);

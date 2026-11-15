@@ -47,6 +47,7 @@ macro(function, "fun"  )          \
 macro(var     , "var"  )          \
 macro(class   , "class")          \
 macro(print   , "print")          \
+macro(break   , "break")          \
 macro(nil     , "nil"  )
 
 #define LITERAL_TOKEN_LIST(macro) \
@@ -65,7 +66,7 @@ macro(eof, "EOF")
 
 #define make_enum_variant(kind, str) TK_##kind,
 
-typedef enum TokenKind
+typedef enum TokenKind : unsigned char
 {
     TK_none = 0,
     TK_ident,
@@ -108,8 +109,11 @@ typedef struct Token
     TokenData data;
 } Token;
 
-Token *copy_token(Token *token);
 void free_token(Token *tok);
+
+struct Ctx;
+// the only scan_* function exposed, its re-usable
+Token scan_str(struct Ctx *ctx, const char *tok_start, bool *err);
 
 // write functions so Token can be printable
 static inline CGS_Error stringify_token(CGS_Writer *writer, Token tok, CGS_StrView fmt_arg)
@@ -130,13 +134,20 @@ static inline CGS_Error stringify_token_ptr(CGS_Writer *writer, Token *tok, CGS_
 #define ADD_TOSTR (Token *, stringify_token_ptr)
 #include "cgs/cgs.h"
 
+#define i_header
 #define i_no_clone
 #define i_keydrop free_token
 #define T TokenList, Token
-#include "stc/vec.h"
+#include "grow_list.h"
 
+#define i_header
 #define i_no_clone
 #define i_keydrop TokenList_drop
+#define i_aux Arena*
+#define i_aux Arena*
+#define i_malloc(n) arena_alloc(self->arena, n)
+#define i_free(p, n) ((void)0)
+#define i_realloc(p, old_n, new_n) assert(0)
 #define T TokensChain, TokenList
 #include "stc/list.h"
 

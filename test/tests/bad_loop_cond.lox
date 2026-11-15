@@ -1,0 +1,6 @@
+for (var a = 10; ac <= 100; a = a + 2) // expected-error{{undefined variable 'ac'}}
+{
+    print a * 2;
+}
+
+var a;

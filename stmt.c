@@ -1,180 +1,186 @@
 #include "stmt.h"
+#include "arena.h"
 #include "clox.h"
+#include "error.h"
 #include "expr.h"
+#include "test.h"
 #include "var.h"
 
-static void enter_scope(Ctx *ctx);
-static void exit_scope(Ctx *ctx);
+#define T StmtList, Stmt
+#define i_implement
+#include "grow_list.h"
 
-void free_stmts(StmtList *stmts)
+typedef enum : unsigned char
 {
-    for (c_each(scit, StmtList, *stmts))
-    {
-        free_stmt(scit.ref);
-    }
+    ES_FAIL,
+    ES_OK,
+    ES_BREAK
+} ExecuteStmtResult;
 
-    StmtList_drop(stmts);
-}
+static ExecuteStmtResult execute_stmt_list(Ctx *ctx, const StmtList *stmts);
 
-void free_stmt(Stmt *stmt)
+static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
 {
     switch (stmt->kind)
     {
         case STMT_print:
-            free_expr(stmt->data.print_expr);
-            break;
-        case STMT_expr:
-            free_expr(stmt->data.expr);
-            break;
-        case STMT_var:
-            free_expr(stmt->data.var.rhs);
-            break;
-        case STMT_scope:
-            free_stmts(&stmt->data.scope_stmts);
-            break;
-        case STMT_if:
-            free_expr(stmt->data.if_stmt.cond);
-            free_stmt(stmt->data.if_stmt.if_branch);
-            free(stmt->data.if_stmt.if_branch);
-            if (stmt->data.if_stmt.else_branch)
-            {
-                free_stmt(stmt->data.if_stmt.else_branch);
-                free(stmt->data.if_stmt.else_branch);
-            }
-            break;
-        case STMT_while:
-            free_expr(stmt->data.while_stmt.cond);
-            free_stmt(stmt->data.while_stmt.body);
-            free(stmt->data.while_stmt.body);
-            break;
-
-        case STMT_none:;
-    }
-}
-
-static bool execute_stmt_list(Ctx *ctx, StmtList *stmts);
-
-static bool execute_stmt(Ctx *ctx, Stmt stmt)
-{
-    switch (stmt.kind)
-    {
-        case STMT_print:
         {
-            Value val = eval(ctx, stmt.data.print_expr);
+            ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
+            Value val                   = eval(ctx, stmt->data.print_expr);
+
             if (ctx->error)
             {
-                free_value(val);
-                return false;
+                arena_rollback(ctx->eval_arena, before_eval);
+                return ES_FAIL;
             }
             cgs_writeln_tostr(val);
-            free_value(val);
+            if (ctx->opts.test && !ctx->test_data.failed_test)
+            {
+                CGS_DStr as_str = cgs_asprintf("%?", val);
+
+                verify_expected_output(ctx, as_str);
+
+                cgs_dstr_deinit(&as_str);
+            }
+            arena_rollback(ctx->eval_arena, before_eval);
         }
         break;
         case STMT_var:
         {
-            CGS_StrView name = stmt.data.var.name->lexeme;
-            Value val        = {};
-            if (stmt.data.var.rhs)
+            CGS_StrView name            = stmt->data.var.name->lexeme;
+            Value val                   = {};
+            ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
+            if (stmt->data.var.rhs)
             {
-                val = eval(ctx, stmt.data.var.rhs);
+                val = eval(ctx, stmt->data.var.rhs);
                 if (ctx->error)
                 {
-                    free_value(val);
-                    return false;
+                    arena_rollback(ctx->eval_arena, before_eval);
+                    return ES_FAIL;
                 }
             }
             else
             {
                 val = (Value) {.type = T_nil};
             }
-            val.var = true;
 
-            VarMap_result res = VarMap_insert(&ctx->scope->vars, name, val);
-            if (!res.inserted)
+            val = var_value(val); // copies the val from the eval_arena to malloc heap
+            arena_rollback(ctx->eval_arena, before_eval);
+
+            VarMap_value *v = VarMap_get_mut(&ctx->scope->vars, name);
+            if (v)
             {
-                free_var_value(&res.ref->second);
-                res.ref->second = val;
+                free_var_value(v->second);
+                v->second = val;
+            }
+            else
+            {
+                VarMap_result res = VarMap_insert(&ctx->scope->vars, name, val);
+                assert(res.inserted); // we already confirmed !v, so there's no way insertion fails
             }
         }
         break;
         case STMT_expr:
         {
-            Value val = eval(ctx, stmt.data.expr);
+            ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
+            Value val                   = eval(ctx, stmt->data.expr);
+            (void)val;
+
             if (ctx->error)
             {
-                free_value(val);
-                return false;
+                arena_rollback(ctx->eval_arena, before_eval);
+                return ES_FAIL;
             }
 
-            if (ctx->repl)
-                cgs_writeln_tostr(val);
-            free_value(val);
+            arena_rollback(ctx->eval_arena, before_eval);
         }
         break;
         case STMT_scope:
         {
             enter_scope(ctx);
-            bool ret = execute_stmt_list(ctx, &stmt.data.scope_stmts);
+            ExecuteStmtResult result = execute_stmt_list(ctx, &stmt->data.scope_stmts);
             exit_scope(ctx);
-            return ret;
+            return result;
         }
         break;
         case STMT_if:
         {
-            StmtIf *if_stmt = &stmt.data.if_stmt;
-            Value cond      = eval(ctx, if_stmt->cond);
+            const StmtIf *if_stmt = &stmt->data.if_stmt;
+
+            ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
+            Value cond                  = eval(ctx, if_stmt->cond);
+
             if (ctx->error)
             {
-                free_value(cond);
-                return false;
+                arena_rollback(ctx->eval_arena, before_eval);
+                return ES_FAIL;
             }
 
-            bool ret = true;
-            if (is_truthy(cond))
+            bool truthy = is_truthy(cond);
+            arena_rollback(ctx->eval_arena, before_eval);
+
+            ExecuteStmtResult result = ES_OK;
+            if (truthy)
             {
-                ret = execute_stmt(ctx, *if_stmt->if_branch);
+                result = execute_stmt(ctx, if_stmt->if_branch);
             }
             else if (if_stmt->else_branch)
             {
-                ret = execute_stmt(ctx, *if_stmt->else_branch);
+                result = execute_stmt(ctx, if_stmt->else_branch);
             }
-            free_value(cond);
-            return ret;
+
+            return result;
         }
         break;
         case STMT_while:
         {
-            StmtWhile *while_stmt = &stmt.data.while_stmt;
-            Value cond;
-            for (cond = eval(ctx, while_stmt->cond); is_truthy(cond);
-                 free_value(cond), cond = eval(ctx, while_stmt->cond))
+            const StmtWhile *while_stmt = &stmt->data.while_stmt;
+            ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
+
+            while (1)
             {
-                if (ctx->error || !execute_stmt(ctx, *while_stmt->body))
+                Value cond = eval(ctx, while_stmt->cond);
+                if (ctx->error)
                 {
-                    free_value(cond);
-                    return false;
+                    arena_rollback(ctx->eval_arena, before_eval);
+                    return ES_FAIL;
                 }
-            };
-            free_value(cond); // free the false value
+
+                bool truthy = is_truthy(cond);
+                arena_rollback(ctx->eval_arena, before_eval);
+
+                if (!truthy)
+                    break;
+
+                ExecuteStmtResult result = execute_stmt(ctx, while_stmt->body);
+
+                if (result == ES_BREAK)
+                    return ES_OK;
+                if (result != ES_OK)
+                    return result;
+            }
         }
         break;
+        case STMT_break:
+            return ES_BREAK;
+
         case STMT_none:
         default:
             unreachable();
-            return false;
+            return ES_FAIL;
     }
-    return true;
+    return ES_OK;
 }
 
-static bool execute_stmt_list(Ctx *ctx, StmtList *stmts)
+static ExecuteStmtResult execute_stmt_list(Ctx *ctx, const StmtList *stmts)
 {
     for (c_each(it, StmtList, *stmts))
     {
-        Stmt stmt = *it.ref;
-        if (!execute_stmt(ctx, stmt))
-            return false;
+        ExecuteStmtResult result = execute_stmt(ctx, it.ref);
+        if (result == ES_FAIL || result == ES_BREAK)
+            return result;
     }
-    return true;
+    return ES_OK;
 }
 
 void execute_stmts(Ctx *ctx)
@@ -182,35 +188,35 @@ void execute_stmts(Ctx *ctx)
     execute_stmt_list(ctx, &ctx->stmts);
 }
 
-void init_scope(Scope *scope)
+void init_scope(Ctx *ctx, Scope *scope)
 {
-    scope->vars = VarMap_init();
-    scope->up   = NULL;
+    scope->vars     = (VarMap) {};
+    scope->vars.aux = ctx->eval_arena;
+    VarMap_reserve(&scope->vars, 8);
+    scope->up = NULL;
 }
 
-void free_scope(Scope *scope)
+void exit_scope(Ctx *ctx)
 {
-    if (scope == NULL)
-        return;
-    for (c_each(vit, VarMap, scope->vars))
+    for (c_each(it, VarMap, ctx->scope->vars))
     {
-        free_var_value(&vit.ref->second);
+        free_var_value(it.ref->second);
     }
-    VarMap_drop(&scope->vars);
-    free(scope);
-}
 
-static void exit_scope(Ctx *ctx)
-{
-    Scope *up = ctx->scope->up;
-    free_scope(ctx->scope);
+    ArenaCheckpoint checkpoint = ctx->scope->exit_checkpoint;
+    Scope *up                  = ctx->scope->up;
+    arena_rollback(ctx->eval_arena, checkpoint);
     ctx->scope = up;
 }
 
-static void enter_scope(Ctx *ctx)
+void enter_scope(Ctx *ctx)
 {
-    Scope *save = ctx->scope;
-    ctx->scope  = calloc(1, sizeof(Scope));
-    init_scope(ctx->scope);
-    ctx->scope->up = save;
+    Scope *up = ctx->scope;
+
+    ArenaCheckpoint checkpoint  = arena_checkpoint(ctx->eval_arena);
+    ctx->scope                  = arena_alloc(ctx->eval_arena, sizeof(Scope));
+    ctx->scope->exit_checkpoint = checkpoint;
+
+    init_scope(ctx, ctx->scope);
+    ctx->scope->up = up;
 }

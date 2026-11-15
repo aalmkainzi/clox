@@ -1,47 +1,38 @@
 #include "linemap.h"
+#include "arena.h"
 #include <assert.h>
-#include <stdlib.h>
-#include <string.h>
 
-void linemap_put(LineMap *lm, int line_begin_file_offset)
+static void linemap_put(LineMap *lm, int line_begin_file_offset)
 {
-    if (lm->count >= lm->cap)
-    {
-        if (lm->cap == 0)
-        {
-            lm->cap     = 16;
-            lm->offsets = malloc(lm->cap * sizeof(lm->offsets[0]));
-        }
-        else
-        {
-            lm->cap *= 2;
-            lm->offsets = realloc(lm->offsets, lm->cap * sizeof(lm->offsets[0]));
-        }
-    }
-
     lm->offsets[lm->count++] = line_begin_file_offset;
-
     assert(lm->count == 1 || (lm->offsets[lm->count - 1] > lm->offsets[lm->count - 2]));
 }
 
 int linemap_get_lineno(LineMap *lm, int file_offset)
 {
-    for (size_t i = 0; i < lm->count - 1; i++)
+    int left  = 0;
+    int right = lm->count - 1;
+    int mid;
+
+    while (left <= right)
     {
-        if (file_offset >= lm->offsets[i])
-        {
-            if (file_offset < lm->offsets[i + 1])
-            {
-                return i + 1; // line numbers start from 1
-            }
-        }
+        mid = left + (right - left) / 2;
+        if (lm->offsets[mid] < file_offset)
+            left = mid + 1;
+        else if (lm->offsets[mid] > file_offset)
+            right = mid - 1;
+        else
+            return mid + 1;
     }
 
-    return lm->count;
+    return right + 1;
 }
 
 void linemap_fill(LineMap *lm, CGS_StrView src)
 {
+    int n_lines = cgs_count(src, '\n') + 1;
+    lm->offsets = arena_alloc(lm->arena, n_lines * sizeof(*lm->offsets));
+
     CGS_StrView walk = src;
     linemap_put(lm, 0);
 
@@ -56,10 +47,4 @@ void linemap_fill(LineMap *lm, CGS_StrView src)
     {
         linemap_put(lm, 0);
     }
-}
-
-void linemap_free(LineMap *lm)
-{
-    free(lm->offsets);
-    memset(lm, 0, sizeof(LineMap));
 }

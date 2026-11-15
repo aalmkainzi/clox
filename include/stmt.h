@@ -4,7 +4,13 @@
 #include "expr.h"
 #include "token.h"
 
-typedef enum StmtKind
+typedef struct Stmt Stmt;
+
+#define T StmtList, Stmt
+#define i_header
+#include "grow_list.h"
+
+typedef enum StmtKind : unsigned char
 {
     STMT_none = 0,
     STMT_expr,
@@ -13,6 +19,7 @@ typedef enum StmtKind
     STMT_scope,
     STMT_if,
     STMT_while,
+    STMT_break,
 } StmtKind;
 
 typedef struct StmtVar
@@ -24,19 +31,17 @@ typedef struct StmtVar
 typedef struct StmtIf
 {
     Expr *cond;
-    struct Stmt *if_branch;
-    struct Stmt *else_branch;
+    Stmt *if_branch;
+    Stmt *else_branch;
 } StmtIf;
 
 typedef struct StmtWhile
 {
     Expr *cond;
-    struct Stmt *body;
+    Stmt *body;
 } StmtWhile;
 
-declare_vec(StmtList, struct Stmt);
-
-typedef struct Stmt
+struct Stmt
 {
     StmtKind kind;
     Token *begin;
@@ -51,16 +56,12 @@ typedef struct Stmt
         StmtIf if_stmt;
         StmtWhile while_stmt;
     } data;
-} Stmt;
+};
 
 typedef struct Ctx Ctx;
 void execute_stmts(Ctx *ctx);
 
-void free_stmt(Stmt *stmt);
-void free_stmts(StmtList *stmts);
-
-#define i_declared
-#define T StmtList, Stmt
-#include "stc/vec.h"
+void exit_scope(Ctx *ctx);
+void enter_scope(Ctx *ctx);
 
 #endif

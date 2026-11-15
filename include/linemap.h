@@ -6,13 +6,12 @@
 
 typedef struct LineMap
 {
+    struct Arena *arena;
     int *offsets;
-    size_t count, cap;
+    int count;
 } LineMap;
 
-void linemap_put(LineMap *lm, int line_begin_file_offset);
-int linemap_get_lineno(LineMap *lm, int file_offset);
 void linemap_fill(LineMap *lm, CGS_StrView src);
-void linemap_free(LineMap *lm);
+int linemap_get_lineno(LineMap *lm, int file_offset);
 
 #endif

@@ -2,3 +2,4 @@
 -Iexternal/STC/include
 -Iinclude
 -std=c23
+-DT=ints,int
