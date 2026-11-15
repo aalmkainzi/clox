@@ -19,9 +19,9 @@ static void clox_deinit();
 int main(int argc, char **argv)
 {
     Opts opts = {};
-    Ctx *ctx = &(Ctx){};
+    Ctx *ctx  = &(Ctx) {};
     clox_init(ctx);
-    
+
     for (int i = 1; i < argc; i++)
     {
         if (cgs_equal(argv[i], "-v"))
@@ -125,7 +125,7 @@ static int run_file(Ctx *ctx, Opts opts)
         return EXIT_FAILURE;
     }
 
-    int return_err = run(ctx ,opts, &file_data);
+    int return_err = run(ctx, opts, &file_data);
     cgs_dstr_deinit(&file_data);
     return return_err;
 }

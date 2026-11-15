@@ -1,6 +1,10 @@
 #include "expr.h"
 #include "clox.h"
 
+#define T ExprList, Expr *
+#define i_implement
+#include "grow_list.h"
+
 Expr *new_binary(Ctx *ctx, Expr *left, Expr *right, Token op)
 {
     Expr *ret         = arena_calloc(ctx->parse_arena, sizeof(Expr));
@@ -22,6 +26,18 @@ Expr *new_unary(Ctx *ctx, Expr *left, Token op)
     return ret;
 }
 
+Expr *new_call(Ctx *ctx, Expr *left, ExprList args, Token lparen, Token rparen)
+{
+    Expr *ret        = arena_calloc(ctx->parse_arena, sizeof(Expr));
+    ret->kind        = EXPR_call;
+    ret->call.left   = left;
+    ret->call.args   = args;
+    ret->call.lparen = lparen;
+    ret->call.rparen = rparen;
+
+    return ret;
+}
+
 static Expr *alloc_literal_expr(Ctx *ctx, LiteralKind litKind, Token tok)
 {
     constexpr TypeKind map[] = {
@@ -31,7 +47,8 @@ static Expr *alloc_literal_expr(Ctx *ctx, LiteralKind litKind, Token tok)
         [LIT_nil]  = T_nil,
     };
 
-    TypeKind type = map[litKind];
+    TypeKind type = litKind + 1;
+    assert(type == map[litKind]);
 
     Expr *ret       = arena_calloc(ctx->parse_arena, sizeof(Expr));
     ret->kind       = EXPR_value;
@@ -99,6 +116,8 @@ Token expr_tok(Expr *expr)
             return expr->value.tok;
         case EXPR_var:
             return expr->ident;
+        case EXPR_call:
+            return expr->call.left_paren;
     }
     unreachable();
 }
@@ -115,6 +134,8 @@ CGS_StrView expr_view(Expr *expr)
             return expr->value.tok.lexeme;
         case EXPR_var:
             return expr->ident.lexeme;
+        case EXPR_call:
+            return range_view(expr->call.left_paren.lexeme, expr->call.right_paren.lexeme);
     }
     unreachable();
 }

@@ -15,6 +15,7 @@ static Expr *comparison(Ctx *ctx);
 static Expr *additive(Ctx *ctx);
 static Expr *multitive(Ctx *ctx);
 static Expr *unary(Ctx *ctx);
+static Expr *call(Ctx *ctx);
 static Expr *primary(Ctx *ctx);
 
 static Stmt parse_scope_stmt(Ctx *ctx);
@@ -557,8 +558,47 @@ static Expr *unary(Ctx *ctx)
     }
     else
     {
-        return primary(ctx);
+        return call(ctx);
     }
+}
+
+static Expr *call(Ctx *ctx)
+{
+    Expr *left = primary(ctx);
+
+    if (curtok(ctx)->kind == TK_lparen)
+    {
+        Token *lparen = curtok(ctx);
+        advance(ctx);
+        ExprList args = ExprList_init(ctx->parse_arena);
+        // thinking about it, aren't the Exprs already ordered correctly in the arena's memory.
+        // could we utilize that property instead of storing a list of pointers to each one?
+
+        bool first = true;
+        while (curtok(ctx)->kind != TK_rparen)
+        {
+            if (first)
+            {
+                first = false;
+            }
+            else
+            {
+                if (!skip_tok(ctx, TK_comma))
+                {
+                    synchronize(ctx, TK_semicolon);
+                    advance(ctx);
+                    return NULL;
+                }
+            }
+
+            Expr *arg                 = expression(ctx);
+            *ExprList_push(&args).ref = arg;
+        }
+        Expr *call_expr = new_call(ctx, left, args, *lparen, *curtok(ctx));
+        advance(ctx);
+        return call_expr;
+    }
+    return left;
 }
 
 static Expr *primary(Ctx *ctx)

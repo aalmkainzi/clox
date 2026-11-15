@@ -10,7 +10,8 @@ typedef enum ExprKind : unsigned char
     EXPR_unary,
     EXPR_binary,
     EXPR_value,
-    EXPR_var
+    EXPR_var,
+    EXPR_call
 } ExprKind;
 
 typedef enum LiteralKind : unsigned char
@@ -54,6 +55,10 @@ typedef struct Value
     };
 } Value;
 
+#define T ExprList, struct Expr *
+#define i_header
+#include "grow_list.h"
+
 typedef struct Expr
 {
     ExprKind kind;
@@ -76,6 +81,14 @@ typedef struct Expr
         Value value;
 
         Token ident;
+
+        struct
+        {
+            Token lparen;
+            Token rparen;
+            struct Expr *left;
+            ExprList args;
+        } call;
     };
 } Expr;
 
@@ -86,6 +99,7 @@ struct Ctx;
 
 Expr *new_binary(struct Ctx *ctx, Expr *left, Expr *right, Token op);
 Expr *new_unary(struct Ctx *ctx, Expr *left, Token op);
+Expr *new_call(struct Ctx *ctx, Expr *left, ExprList args, Token lparen, Token rparen);
 Expr *new_grouping(struct Ctx *ctx, Expr *inside);
 Expr *new_literal(struct Ctx *ctx, Token tok);
 Expr *new_var(struct Ctx *ctx, Token tok);
