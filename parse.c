@@ -433,11 +433,12 @@ static Expr *assignment(Ctx *ctx)
 
     if (curtok(ctx)->kind == TK_equal)
     {
-        Token *lhs_end = curtok(ctx);
+        TokenList_iter lhs_end = ctx->tok;
+        TokenList_prev(&lhs_end);
 
         if (left->kind != EXPR_var)
         {
-            error_at_tok_range(ctx, *lhs_begin, *lhs_end, "not a variable");
+            error_at_tok_range(ctx, *lhs_begin, *lhs_end.ref, "not a variable");
         }
         Token *op = curtok(ctx);
         advance(ctx);

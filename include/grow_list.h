@@ -45,16 +45,18 @@ void _c_MEMB(_drop)(Self *list);
 GL_ITER _c_MEMB(_begin)(const Self *list);
 GL_ITER _c_MEMB(_end)();
 void _c_MEMB(_next)(GL_ITER *it);
+void _c_MEMB(_prev)(GL_ITER *it);
 
 #if defined i_implement
 
 struct GL_NODE
 {
     GL_NODE *next;
-    typeof(_m_value) elms[(512 - sizeof(void *)) / sizeof(_m_value)];
+    GL_NODE *prev;
+    typeof(_m_value) elms[(512 - sizeof(void *[2])) / sizeof(_m_value)];
 };
 
-static_assert(sizeof(GL_NODE) <= 512 && sizeof(GL_NODE) != sizeof(void *));
+static_assert(sizeof(GL_NODE) <= 512 && sizeof(GL_NODE) != sizeof(void *[2]));
 
     #define gl_node_cap(node) ((ptrdiff_t)(sizeof((node)->elms) / sizeof(_m_value)))
 
@@ -78,13 +80,17 @@ GL_ITER _c_MEMB(_push)(Self *list)
         {
             if (list->pool)
             {
-                list->tail = list->tail->next = list->pool;
+                list->tail->next = list->pool;
+                list->tail->next->prev = list->tail;
+                list->tail = list->tail->next;
                 list->pool                    = list->pool->next;
                 list->tail->next              = NULL;
             }
             else
             {
-                list->tail = list->tail->next = _c_MEMB(_new_node)(list);
+                list->tail->next = _c_MEMB(_new_node)(list);
+                list->tail->next->prev = list->tail;
+                list->tail =  list->tail->next;
             }
             list->next_free_slot_in_tail = 0;
         }
@@ -92,7 +98,16 @@ GL_ITER _c_MEMB(_push)(Self *list)
     else
     {
         assert(list->head == NULL);
-        list->head = list->tail = _c_MEMB(_new_node)(list);
+        if (list->pool)
+        {
+            list->head = list->tail = list->pool;
+            list->pool = list->pool->next;
+            list->head->next = NULL;
+        }
+        else
+        {
+            list->head = list->tail = _c_MEMB(_new_node)(list);
+        }
         assert(list->next_free_slot_in_tail == 0);
     }
 
@@ -175,6 +190,22 @@ void _c_MEMB(_next)(GL_ITER *it)
     }
 }
 
-#endif // IMPL
+void _c_MEMB(_prev)(GL_ITER *it)
+{
+    if (it->ref - it->node->elms == 0)
+    {
+        it->node = it->node->prev;
+        if (it->node)
+            it->ref = &it->node->elms[gl_node_cap(it->node) - 1];
+        else
+            it->ref = NULL;
+    }
+    else
+    {
+        it->ref -= 1;
+    }
+}
+
+#endif // i_implement
 
 #include "stc/sys/finalize.h"
