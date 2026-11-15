@@ -3,32 +3,27 @@
 
 #include "clox.h"
 
-void error_at_(Ctx *ctx, CGS_StrView error_loc);
-void error_at_tok_(Ctx *ctx, Token tok);
-void error_at_tok_range_(Ctx *ctx, Token begin_tok, Token end_tok);
-void error_();
+void error_at_(Ctx *ctx, CGS_StrView error_loc, CGS_DStr messsage);
+void error_at_tok_(Ctx *ctx, Token tok, CGS_DStr messsage);
+void error_at_tok_range_(Ctx *ctx, Token begin_tok, Token end_tok, CGS_DStr messsage);
+void error_(CGS_DStr messsage);
 
-void passed_();
-
-extern _Thread_local char error_message_buf[1024];
-extern _Thread_local char passed_message_buf[1024];
+void passed_(CGS_DStr messsage);
 
 #ifdef NDEBUG
     #define error_at(ctx, loc, msg, ...) \
-        (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), error_at_(ctx, cgs_strv(loc)))
+        error_at_(ctx, cgs_strv(loc), cgs_asprintf("%?:%?: " msg, __FILE__, __LINE__, __VA_ARGS__))
 #else
-    #define error_at(ctx, loc, msg, ...)                                                 \
-        (cgs_sprintf(error_message_buf, "%?:%?: " msg, __FILE__, __LINE__, __VA_ARGS__), \
-         error_at_(ctx, cgs_strv(loc)))
+    #define error_at(ctx, loc, msg, ...) error_at_(ctx, cgs_strv(loc), cgs_asprintf(msg, __VA_ARGS__))
 #endif
-#define error_at_tok(ctx, tok, msg, ...) \
-    (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), error_at_tok_(ctx, tok))
+
+#define error_at_tok(ctx, tok, msg, ...) error_at_tok_(ctx, tok, cgs_asprintf(msg, __VA_ARGS__))
 
 #define error_at_tok_range(ctx, begin_tok, end_tok, msg, ...) \
-    (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), error_at_tok_range_(ctx, begin_tok, end_tok))
+    error_at_tok_range_(ctx, begin_tok, end_tok, cgs_asprintf(msg, __VA_ARGS__))
 
-#define error(msg, ...) (cgs_sprintf(error_message_buf, msg, __VA_ARGS__), error_())
+#define error(msg, ...) error_(cgs_asprintf(msg, __VA_ARGS__))
 
-#define passed(msg, ...) (cgs_sprintf(passed_message_buf, msg, __VA_ARGS__), passed_())
+#define passed(msg, ...) passed_(cgs_asprintf(msg, __VA_ARGS__))
 
 #endif

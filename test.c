@@ -209,7 +209,7 @@ bool verify_expected_error(Ctx *ctx, CGS_StrView error_loc, CGS_StrView error_me
 
     if (expected_entry && StrViews_contains(&expected_entry->second, error_message))
     {
-        passed("error '%?' has occured", error_message_buf);
+        passed("error '%?' has occured", error_message);
         return true;
     }
 

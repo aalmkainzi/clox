@@ -9,9 +9,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-#define COMBINE_(a, b) a##b
-#define COMBINE(a, b) COMBINE_(a, b)
-
 #define NOPT(a, ...) COMBINE(NOPT_IMPL_, __VA_OPT__(0))(a)
 
 #define NOPT_IMPL_0(...)
@@ -68,8 +65,10 @@ Value eval(Ctx *ctx, Expr *expr)
             assert(!var_val.var);
             return var_val;
         }
+
+        default:
+            unreachable();
     }
-    unreachable();
 }
 
 static VarMap_entry *find_var(Scope *scope, CGS_StrView name)
@@ -165,7 +164,6 @@ static Value eval_binary_logical(Ctx *ctx, Expr *expr)
 
         default:
             unreachable();
-            break;
     }
 
     return result;
@@ -442,7 +440,6 @@ CGS_Error stringify_value(CGS_Writer *writer, Value val, CGS_StrView fmt_arg)
         case T_nil:
             return cgs_append(writer, "nil");
             break;
-
         default:
             unreachable();
     }

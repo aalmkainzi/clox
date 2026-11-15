@@ -69,6 +69,7 @@ int main(int argc, char **argv)
     }
     else
     {
+        opts.repl = true;
         ret = repl_loop(opts);
     }
     clox_deinit();

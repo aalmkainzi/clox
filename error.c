@@ -16,25 +16,24 @@
     #define stderr_fileno STDERR_FILENO
 #endif
 
-_Thread_local char error_message_buf[1024]  = {};
-_Thread_local char passed_message_buf[1024] = {};
-
 static const char *error_color_reset = "";
 static const char *error_red_begin   = "";
 static const char *error_green_begin = "";
 static const char *error_cyan_begin  = "";
 
-void error_()
+void error_(CGS_DStr message)
 {
-    cgs_fprintfln(stderr, "%?error:%? %?", error_red_begin, error_color_reset, error_message_buf);
+    cgs_fprintfln(stderr, "%?error:%? %?", error_red_begin, error_color_reset, message);
+    cgs_dstr_deinit(&message);
 }
 
-void passed_()
+void passed_(CGS_DStr message)
 {
-    cgs_fprintfln(stderr, "%?passed%?: %?", error_green_begin, error_color_reset, passed_message_buf);
+    cgs_fprintfln(stderr, "%?passed%?: %?", error_green_begin, error_color_reset, message);
+    cgs_dstr_deinit(&message);
 }
 
-void error_at_(Ctx *ctx, CGS_StrView error_loc)
+void error_at_(Ctx *ctx, CGS_StrView error_loc, CGS_DStr message)
 {
     if (error_loc.len == 0)
         error_loc.len = 1;
@@ -45,8 +44,9 @@ void error_at_(Ctx *ctx, CGS_StrView error_loc)
 
     if (ctx->test)
     {
-        if (verify_expected_error(ctx, error_loc, cgs_strv(error_message_buf)))
+        if (verify_expected_error(ctx, error_loc, cgs_strv(message)))
         {
+            cgs_dstr_deinit(&message);
             return;
         }
     }
@@ -75,7 +75,7 @@ void error_at_(Ctx *ctx, CGS_StrView error_loc)
         cgs_appendf(stderr, "%?:%?:%?: ", ctx->file_name, lineno, offset);
     }
 
-    error_();
+    error_(message);
 
     cgs_appendf(&stderr_writer_and_len_counter, "%?| ", cgs_alignfmt(lineno, LEFT, 3));
     cgs_appendf(stderr, "%?\n", line);
@@ -90,26 +90,26 @@ void error_at_(Ctx *ctx, CGS_StrView error_loc)
     );
 }
 
-void error_at_tok_(Ctx *ctx, Token tok)
+void error_at_tok_(Ctx *ctx, Token tok, CGS_DStr message)
 {
     if (tok.kind == TK_eof)
     {
         TokenList *toks = TokensChain_back_mut(&ctx->toks);
         Token *end      = TokenList_back(toks).ref;
-        error_at_(ctx, (CGS_StrView) {.chars = end->lexeme.chars, .len = 1});
+        error_at_(ctx, (CGS_StrView) {.chars = end->lexeme.chars, .len = 1}, message);
     }
     else
     {
-        error_at_(ctx, tok.lexeme);
+        error_at_(ctx, tok.lexeme, message);
     }
 }
 
-void error_at_tok_range_(Ctx *ctx, Token begin_tok, Token end_tok)
+void error_at_tok_range_(Ctx *ctx, Token begin_tok, Token end_tok, CGS_DStr message)
 {
     CGS_StrView range_view;
     range_view.chars = begin_tok.lexeme.chars;
     range_view.len   = (end_tok.lexeme.chars - begin_tok.lexeme.chars) + end_tok.lexeme.len;
-    error_at_(ctx, range_view);
+    error_at_(ctx, range_view, message);
 }
 
 void init_error_system(Ctx *ctx)

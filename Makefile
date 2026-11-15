@@ -7,7 +7,7 @@ OBJ := $(addprefix build/obj/,$(notdir $(SRC:.c=.o)))
 DEP := $(OBJ:.o=.d)
 VPATH := external/cgs
 
-TEST_SRC := test/test.c
+TEST_SRC := test/runner.c
 
 SANITIZE := -fsanitize=address,undefined
 CFLAGS := -std=gnu23 -Wall -Wextra -ggdb $(SANITIZE)
@@ -29,10 +29,10 @@ build/obj/%.o: %.c | build/obj
 build/obj:
 	mkdir -p $@
 
-test/test:
-	$(CC) $(TEST_SRC) $(CGS_SRC) $(CFLAGS) $(INCLUDE_DIRS) -o test/test
+test/run:
+	$(CC) $(TEST_SRC) $(CGS_SRC) $(CFLAGS) $(INCLUDE_DIRS) -o test/run
 
-test: test/test clox
-	test/test
+test: test/run clox
+	test/run
 
 -include $(DEP)
