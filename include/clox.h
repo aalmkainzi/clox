@@ -27,7 +27,6 @@ typedef struct Opts
     bool ext;
 } Opts;
 
-// clang-format off
 typedef struct Ctx
 {
     Opts opts;
@@ -59,8 +58,15 @@ typedef struct Ctx
         unsigned int verified_outputs;
         bool failed_test;
     } test_data;
+
+    struct
+    {
+        const char *color_reset;
+        const char *red_begin;
+        const char *green_begin;
+        const char *cyan_begin;
+    } diag_data;
 } Ctx;
-// clang-format on
 
 #define curtok(ctx) (ctx)->tok.ref
 

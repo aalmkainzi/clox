@@ -16,20 +16,15 @@
     #define stderr_fileno STDERR_FILENO
 #endif
 
-static const char *error_color_reset = "";
-static const char *error_red_begin   = "";
-static const char *error_green_begin = "";
-static const char *error_cyan_begin  = "";
-
-void error_(CGS_DStr message)
+void error_(Ctx *ctx, CGS_DStr message)
 {
-    cgs_fprintfln(stderr, "%?error:%? %?", error_red_begin, error_color_reset, message);
+    cgs_fprintfln(stderr, "%?error:%? %?", ctx->diag_data.red_begin, ctx->diag_data.color_reset, message);
     cgs_dstr_deinit(&message);
 }
 
-void passed_(CGS_DStr message)
+void passed_(Ctx *ctx, CGS_DStr message)
 {
-    cgs_fprintfln(stderr, "%?passed%?: %?", error_green_begin, error_color_reset, message);
+    cgs_fprintfln(stderr, "%?passed%?: %?", ctx->diag_data.green_begin, ctx->diag_data.color_reset, message);
     cgs_dstr_deinit(&message);
 }
 
@@ -75,7 +70,7 @@ void error_at_(Ctx *ctx, CGS_StrView error_loc, CGS_DStr message)
         cgs_appendf(stderr, "%?:%?:%?: ", ctx->opts.file_name, lineno, offset);
     }
 
-    error_(message);
+    error_(ctx, message);
 
     cgs_appendf(&stderr_writer_and_len_counter, "%?| ", cgs_alignfmt(lineno, LEFT, 3));
     cgs_appendf(stderr, "%?\n", line);
@@ -83,10 +78,10 @@ void error_at_(Ctx *ctx, CGS_StrView error_loc, CGS_DStr message)
         stderr,
         "%?%?%?%?%?\n",
         cgs_alignfmt("| ", RIGHT, lineno_vertical_bar_length),
-        error_cyan_begin,
+        ctx->diag_data.cyan_begin,
         cgs_alignfmt("^", RIGHT, offset),
         cgs_repeatfmt("~", error_loc.len - 1),
-        error_color_reset
+        ctx->diag_data.color_reset
     );
 }
 
@@ -117,9 +112,9 @@ void init_error_system(Ctx *ctx)
     (void)ctx;
     if (isatty(stderr_fileno))
     {
-        error_color_reset = "\x1b[0m";
-        error_red_begin   = "\x1b[31m";
-        error_green_begin = "\x1b[32m";
-        error_cyan_begin  = "\x1b[36m";
+        ctx->diag_data.color_reset = "\x1b[0m";
+        ctx->diag_data.red_begin   = "\x1b[31m";
+        ctx->diag_data.green_begin = "\x1b[32m";
+        ctx->diag_data.cyan_begin  = "\x1b[36m";
     }
 }

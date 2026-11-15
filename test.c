@@ -181,12 +181,13 @@ bool verify_expected_output(Ctx *ctx, CGS_DStr output)
 {
     if (ctx->test_data.expected_outputs.size == ctx->test_data.verified_outputs)
     {
-        error("unexpected output '%?'", output);
+        error(ctx, "unexpected output '%?'", output);
         ctx->test_data.failed_test = true;
     }
     else if (!cgs_equal(output, ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs]))
     {
         error(
+            ctx,
             "expected output '%?', but got '%?'",
             ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs],
             output
@@ -196,7 +197,7 @@ bool verify_expected_output(Ctx *ctx, CGS_DStr output)
     }
     else
     {
-        passed("expected output '%?' has been printed", output);
+        passed(ctx, "expected output '%?' has been printed", output);
         ctx->test_data.verified_outputs++;
         return true;
     }
@@ -211,7 +212,7 @@ bool verify_expected_error(Ctx *ctx, CGS_StrView error_loc, CGS_StrView error_me
 
     if (expected_entry && StrViews_contains(&expected_entry->second, error_message))
     {
-        passed("error '%?' has occured", error_message);
+        passed(ctx, "error '%?' has occured", error_message);
         return true;
     }
 
@@ -226,7 +227,7 @@ void check_remaining_expected_output(Ctx *ctx)
         ctx->test_data.failed_test = true;
         for (unsigned int i = ctx->test_data.verified_outputs; i < ctx->test_data.expected_outputs.size; i++)
         {
-            error("expected output '%?' did not occur", ctx->test_data.expected_outputs.data[i]);
+            error(ctx, "expected output '%?' did not occur", ctx->test_data.expected_outputs.data[i]);
         }
     }
 }

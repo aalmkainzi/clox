@@ -80,17 +80,17 @@ GL_ITER _c_MEMB(_push)(Self *list)
         {
             if (list->pool)
             {
-                list->tail->next = list->pool;
+                list->tail->next       = list->pool;
                 list->tail->next->prev = list->tail;
-                list->tail = list->tail->next;
-                list->pool                    = list->pool->next;
-                list->tail->next              = NULL;
+                list->tail             = list->tail->next;
+                list->pool             = list->pool->next;
+                list->tail->next       = NULL;
             }
             else
             {
-                list->tail->next = _c_MEMB(_new_node)(list);
+                list->tail->next       = _c_MEMB(_new_node)(list);
                 list->tail->next->prev = list->tail;
-                list->tail =  list->tail->next;
+                list->tail             = list->tail->next;
             }
             list->next_free_slot_in_tail = 0;
         }
@@ -101,8 +101,8 @@ GL_ITER _c_MEMB(_push)(Self *list)
         if (list->pool)
         {
             list->head = list->tail = list->pool;
-            list->pool = list->pool->next;
-            list->head->next = NULL;
+            list->pool              = list->pool->next;
+            list->head->next        = NULL;
         }
         else
         {

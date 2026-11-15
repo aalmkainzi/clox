@@ -10,8 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int run_file(Opts opts);
-static int repl_loop(Opts opts);
+static int run_file(Ctx *ctx, Opts opts);
+static int repl_loop(Ctx *ctx, Opts opts);
 
 static void clox_init(Ctx *ctx);
 static void clox_deinit();
@@ -19,6 +19,9 @@ static void clox_deinit();
 int main(int argc, char **argv)
 {
     Opts opts = {};
+    Ctx *ctx = &(Ctx){};
+    clox_init(ctx);
+    
     for (int i = 1; i < argc; i++)
     {
         if (cgs_equal(argv[i], "-v"))
@@ -37,12 +40,12 @@ int main(int argc, char **argv)
         {
             if (argv[i][0] == '-')
             {
-                error("unsupported flag '%?'", argv[i]);
+                error(ctx, "unsupported flag '%?'", argv[i]);
                 return EXIT_FAILURE;
             }
             if (opts.file_name.chars)
             {
-                error("only one file");
+                error(ctx, "only one file");
                 return EXIT_FAILURE;
             }
             opts.file_name = cgs_zstrv(argv[i]);
@@ -55,13 +58,13 @@ int main(int argc, char **argv)
     int ret;
     if (opts.file_name.chars)
     {
-        ret = run_file(opts);
+        ret = run_file(ctx, opts);
     }
     else
     {
         opts.repl      = true;
         opts.file_name = cgs_zstrv("<repl>");
-        ret            = repl_loop(opts);
+        ret            = repl_loop(ctx, opts);
     }
     clox_deinit();
     return ret;
@@ -102,15 +105,15 @@ static void fill_ctx(Ctx *ctx, Opts opts, CGS_StrView src, CtxState *state)
     }
 }
 
-static int run(Opts opts, CGS_DStr *line);
+static int run(Ctx *ctx, Opts opts, CGS_DStr *line);
 
-static int run_file(Opts opts)
+static int run_file(Ctx *ctx, Opts opts)
 {
     FILE *f = fopen(opts.file_name.chars, "r");
 
     if (f == NULL)
     {
-        error("could not open file '%?': %?", opts.file_name, strerror(errno));
+        error(ctx, "could not open file '%?': %?", opts.file_name, strerror(errno));
         return EXIT_FAILURE;
     }
     CGS_DStr file_data = cgs_dstr_init();
@@ -118,11 +121,11 @@ static int run_file(Opts opts)
     CGS_Error err = cgs_append_fread_until(&file_data, f, EOF);
     if (err.ec != CGS_OK)
     {
-        error("could not read file %?: %?: %?\n", opts.file_name, err, strerror(errno));
+        error(ctx, "could not read file %?: %?: %?\n", opts.file_name, err, strerror(errno));
         return EXIT_FAILURE;
     }
 
-    int return_err = run(opts, &file_data);
+    int return_err = run(ctx ,opts, &file_data);
     cgs_dstr_deinit(&file_data);
     return return_err;
 }
@@ -170,14 +173,11 @@ static void run_repl_line(Ctx *ctx)
 #define i_realloc(p, old_n, new_n) NULL
 #include "stc/list.h"
 
-static int repl_loop(Opts opts)
+static int repl_loop(Ctx *ctx, Opts opts)
 {
-    Ctx *ctx = &(Ctx) {};
     fill_ctx(ctx, opts, (CGS_StrView) {}, &(CtxState) {});
 
     Lines lines = {.aux = ctx->parse_arena};
-
-    clox_init(ctx);
 
     enter_scope(ctx); // global scope
 
@@ -206,12 +206,9 @@ static int repl_loop(Opts opts)
     return EXIT_SUCCESS;
 }
 
-static int run(Opts opts, CGS_DStr *src)
+static int run(Ctx *ctx, Opts opts, CGS_DStr *src)
 {
-    Ctx *ctx = &(Ctx) {};
     fill_ctx(ctx, opts, cgs_strv(*src), &(CtxState) {});
-
-    clox_init(ctx);
 
     ctx->stmts = StmtList_init(ctx->parse_arena);
 
