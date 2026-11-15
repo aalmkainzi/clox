@@ -9,7 +9,6 @@
     #endif
 #endif
 
-
 #if defined(__SANITIZE_ADDRESS__)
     #include <sanitizer/asan_interface.h>
     #define POISON_MEM(p, n) ASAN_POISON_MEMORY_REGION((p), (n))
@@ -106,7 +105,7 @@ void *arena_calloc(Arena *arena, size_t n)
 
 void arena_reset(Arena *arena)
 {
-#if 0 && ARENA_DEBUG
+#if ARENA_DEBUG
     arena_free(arena);
 #else
     if (arena->tail)
@@ -154,7 +153,7 @@ void arena_rollback(Arena *arena, ArenaCheckpoint checkpoint)
         if (checkpoint.node)
         {
             poison_starting_from(checkpoint.node->next);
-            
+
             arena->tail->next     = arena->node_pool;
             arena->node_pool      = checkpoint.node->next;
             checkpoint.node->next = NULL;
@@ -163,7 +162,7 @@ void arena_rollback(Arena *arena, ArenaCheckpoint checkpoint)
         else
         {
             poison_starting_from(arena->head);
-            
+
             arena->tail->next = arena->node_pool;
             arena->node_pool  = arena->head;
             arena->head = arena->tail = NULL;
@@ -172,7 +171,7 @@ void arena_rollback(Arena *arena, ArenaCheckpoint checkpoint)
     else
     {
         unsigned char *poison_start = checkpoint.node->mem + checkpoint.offset + 1;
-        size_t poison_len = (checkpoint.node->mem + checkpoint.node->size) - poison_start;
+        size_t poison_len           = (checkpoint.node->mem + checkpoint.node->size) - poison_start;
         POISON_MEM(poison_start, poison_len);
     }
 

@@ -10,14 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct
-{
-    const char *file_name;
-    bool verbose;
-    bool test;
-    bool repl;
-} Opts;
-
 static int run_file(Opts opts);
 static int repl_loop(Opts opts);
 
@@ -26,12 +18,6 @@ static void clox_deinit();
 
 int main(int argc, char **argv)
 {
-    if (argc > 4)
-    {
-        cgs_fwriteln(stderr, "usage: clox [script] [options]");
-        exit(EXIT_FAILURE);
-    }
-
     Opts opts = {};
     for (int i = 1; i < argc; i++)
     {
@@ -43,6 +29,10 @@ int main(int argc, char **argv)
         {
             opts.test = true;
         }
+        else if (cgs_equal(argv[i], "-ext"))
+        {
+            opts.ext = true;
+        }
         else
         {
             if (argv[i][0] == '-')
@@ -50,12 +40,12 @@ int main(int argc, char **argv)
                 error("unsupported flag '%?'", argv[i]);
                 return EXIT_FAILURE;
             }
-            if (opts.file_name)
+            if (opts.file_name.chars)
             {
                 error("only one file");
                 return EXIT_FAILURE;
             }
-            opts.file_name = argv[i];
+            opts.file_name = cgs_zstrv(argv[i]);
         }
     }
 
@@ -63,14 +53,15 @@ int main(int argc, char **argv)
         cgs_printfln("verbose = %?", opts.verbose);
 
     int ret;
-    if (opts.file_name)
+    if (opts.file_name.chars)
     {
         ret = run_file(opts);
     }
     else
     {
-        opts.repl = true;
-        ret = repl_loop(opts);
+        opts.repl      = true;
+        opts.file_name = cgs_zstrv("<repl>");
+        ret            = repl_loop(opts);
     }
     clox_deinit();
     return ret;
@@ -90,8 +81,7 @@ static void fill_ctx(Ctx *ctx, Opts opts, CGS_StrView src, CtxState *state)
     state->parse_arena_allocator = arena_allocator(&state->parse_arena);
     state->eval_arena_allocator  = arena_allocator(&state->eval_arena);
 
-    ctx->verbose         = opts.verbose;
-    ctx->test            = opts.test;
+    ctx->opts            = opts;
     ctx->parse_arena     = &state->parse_arena;
     ctx->eval_arena      = &state->eval_arena;
     ctx->parse_allocator = (CGS_Allocator *)&state->parse_arena_allocator;
@@ -102,16 +92,12 @@ static void fill_ctx(Ctx *ctx, Opts opts, CGS_StrView src, CtxState *state)
 
     if (opts.repl)
     {
-        ctx->file_name = cgs_strv("<repl>");
-        ctx->repl      = true;
-
         ctx->linemap.count      = 1;
         ctx->linemap.offsets    = arena_alloc(ctx->parse_arena, sizeof(int));
         ctx->linemap.offsets[0] = 0;
     }
     else
     {
-        ctx->file_name = cgs_strv(opts.file_name);
         linemap_fill(&ctx->linemap, ctx->src);
     }
 }
@@ -120,7 +106,7 @@ static int run(Opts opts, CGS_DStr *line);
 
 static int run_file(Opts opts)
 {
-    FILE *f = fopen(opts.file_name, "r");
+    FILE *f = fopen(opts.file_name.chars, "r");
 
     if (f == NULL)
     {
@@ -164,13 +150,13 @@ static void run_repl_line(Ctx *ctx)
     if (ctx->error || tokens_empty(ctx))
         return;
 
-    if (ctx->verbose)
+    if (ctx->opts.verbose)
         print_tokens(ctx);
 
     ctx->stmts = StmtList_init(ctx->parse_arena);
     parse(ctx);
 
-    if (ctx->verbose)
+    if (ctx->opts.verbose)
         cgs_printfln("nb statements: %?", ctx->stmts.size);
 
     if (!ctx->error)
@@ -229,14 +215,14 @@ static int run(Opts opts, CGS_DStr *src)
 
     ctx->stmts = StmtList_init(ctx->parse_arena);
 
-    if (ctx->test)
+    if (ctx->opts.test)
         parse_tests(ctx);
 
     tokenize(ctx);
 
     if (ctx->error || tokens_empty(ctx))
         goto done;
-    if (ctx->verbose)
+    if (ctx->opts.verbose)
         print_tokens(ctx);
 
     parse(ctx);
@@ -256,12 +242,12 @@ done:
     arena_free(ctx->parse_arena);
     arena_free(ctx->eval_arena);
 
-    if (ctx->test)
+    if (ctx->opts.test)
     {
         check_remaining_expected_output(ctx);
 
         free_tests(ctx);
-        return ctx->failed_test ? EXIT_FAILURE : EXIT_SUCCESS;
+        return ctx->test_data.failed_test ? EXIT_FAILURE : EXIT_SUCCESS;
     }
 
     return ctx->error ? EXIT_FAILURE : EXIT_SUCCESS;

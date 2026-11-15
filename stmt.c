@@ -10,9 +10,16 @@
 #define i_implement
 #include "grow_list.h"
 
-static bool execute_stmt_list(Ctx *ctx, const StmtList *stmts);
+typedef enum : unsigned char
+{
+    ES_FAIL,
+    ES_OK,
+    ES_BREAK
+} ExecuteStmtResult;
 
-static bool execute_stmt(Ctx *ctx, const Stmt *stmt)
+static ExecuteStmtResult execute_stmt_list(Ctx *ctx, const StmtList *stmts);
+
+static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
 {
     switch (stmt->kind)
     {
@@ -24,10 +31,10 @@ static bool execute_stmt(Ctx *ctx, const Stmt *stmt)
             if (ctx->error)
             {
                 arena_rollback(ctx->eval_arena, before_eval);
-                return false;
+                return ES_FAIL;
             }
             cgs_writeln_tostr(val);
-            if (ctx->test && !ctx->failed_test)
+            if (ctx->opts.test && !ctx->test_data.failed_test)
             {
                 CGS_DStr as_str = cgs_asprintf("%?", val);
 
@@ -40,14 +47,16 @@ static bool execute_stmt(Ctx *ctx, const Stmt *stmt)
         break;
         case STMT_var:
         {
-            CGS_StrView name = stmt->data.var.name->lexeme;
-            Value val        = {};
+            CGS_StrView name            = stmt->data.var.name->lexeme;
+            Value val                   = {};
+            ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
             if (stmt->data.var.rhs)
             {
                 val = eval(ctx, stmt->data.var.rhs);
                 if (ctx->error)
                 {
-                    return false;
+                    arena_rollback(ctx->eval_arena, before_eval);
+                    return ES_FAIL;
                 }
             }
             else
@@ -56,6 +65,7 @@ static bool execute_stmt(Ctx *ctx, const Stmt *stmt)
             }
 
             val = var_value(val); // copies the val from the eval_arena to malloc heap
+            arena_rollback(ctx->eval_arena, before_eval);
 
             VarMap_value *v = VarMap_get_mut(&ctx->scope->vars, name);
             if (v)
@@ -74,15 +84,13 @@ static bool execute_stmt(Ctx *ctx, const Stmt *stmt)
         {
             ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
             Value val                   = eval(ctx, stmt->data.expr);
+            (void)val;
 
             if (ctx->error)
             {
                 arena_rollback(ctx->eval_arena, before_eval);
-                return false;
+                return ES_FAIL;
             }
-
-            if (ctx->repl)
-                cgs_writeln_tostr(val);
 
             arena_rollback(ctx->eval_arena, before_eval);
         }
@@ -90,9 +98,9 @@ static bool execute_stmt(Ctx *ctx, const Stmt *stmt)
         case STMT_scope:
         {
             enter_scope(ctx);
-            bool ret = execute_stmt_list(ctx, &stmt->data.scope_stmts);
+            ExecuteStmtResult result = execute_stmt_list(ctx, &stmt->data.scope_stmts);
             exit_scope(ctx);
-            return ret;
+            return result;
         }
         break;
         case STMT_if:
@@ -105,21 +113,23 @@ static bool execute_stmt(Ctx *ctx, const Stmt *stmt)
             if (ctx->error)
             {
                 arena_rollback(ctx->eval_arena, before_eval);
-                return false;
+                return ES_FAIL;
             }
 
-            bool ret = true;
-            if (is_truthy(cond))
+            bool truthy = is_truthy(cond);
+            arena_rollback(ctx->eval_arena, before_eval);
+
+            ExecuteStmtResult result = ES_OK;
+            if (truthy)
             {
-                ret = execute_stmt(ctx, if_stmt->if_branch);
+                result = execute_stmt(ctx, if_stmt->if_branch);
             }
             else if (if_stmt->else_branch)
             {
-                ret = execute_stmt(ctx, if_stmt->else_branch);
+                result = execute_stmt(ctx, if_stmt->else_branch);
             }
 
-            arena_rollback(ctx->eval_arena, before_eval);
-            return ret;
+            return result;
         }
         break;
         case STMT_while:
@@ -133,7 +143,7 @@ static bool execute_stmt(Ctx *ctx, const Stmt *stmt)
                 if (ctx->error)
                 {
                     arena_rollback(ctx->eval_arena, before_eval);
-                    return false;
+                    return ES_FAIL;
                 }
 
                 bool truthy = is_truthy(cond);
@@ -141,27 +151,36 @@ static bool execute_stmt(Ctx *ctx, const Stmt *stmt)
 
                 if (!truthy)
                     break;
-                if (!execute_stmt(ctx, while_stmt->body))
-                    return false;
+
+                ExecuteStmtResult result = execute_stmt(ctx, while_stmt->body);
+
+                if (result == ES_BREAK)
+                    return ES_OK;
+                if (result != ES_OK)
+                    return result;
             }
         }
         break;
+        case STMT_break:
+            return ES_BREAK;
+
         case STMT_none:
         default:
             unreachable();
-            return false;
+            return ES_FAIL;
     }
-    return true;
+    return ES_OK;
 }
 
-static bool execute_stmt_list(Ctx *ctx, const StmtList *stmts)
+static ExecuteStmtResult execute_stmt_list(Ctx *ctx, const StmtList *stmts)
 {
     for (c_each(it, StmtList, *stmts))
     {
-        if (!execute_stmt(ctx, it.ref))
-            return false;
+        ExecuteStmtResult result = execute_stmt(ctx, it.ref);
+        if (result == ES_FAIL || result == ES_BREAK)
+            return result;
     }
-    return true;
+    return ES_OK;
 }
 
 void execute_stmts(Ctx *ctx)

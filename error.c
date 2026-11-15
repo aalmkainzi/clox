@@ -42,7 +42,7 @@ void error_at_(Ctx *ctx, CGS_StrView error_loc, CGS_DStr message)
 
     int lineno = linemap_get_lineno(&ctx->linemap, error_loc.chars - ctx->src.chars);
 
-    if (ctx->test)
+    if (ctx->opts.test)
     {
         if (verify_expected_error(ctx, error_loc, cgs_strv(message)))
         {
@@ -70,9 +70,9 @@ void error_at_(Ctx *ctx, CGS_StrView error_loc, CGS_DStr message)
     unsigned int lineno_vertical_bar_length       = 0;
     CGS_ChainWriter stderr_writer_and_len_counter = cgs_writer(stderr, &lineno_vertical_bar_length);
 
-    if (!ctx->repl)
+    if (!ctx->opts.repl)
     {
-        cgs_appendf(stderr, "%?:%?:%?: ", ctx->file_name, lineno, offset);
+        cgs_appendf(stderr, "%?:%?:%?: ", ctx->opts.file_name, lineno, offset);
     }
 
     error_(message);

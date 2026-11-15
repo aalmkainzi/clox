@@ -47,6 +47,7 @@ macro(function, "fun"  )          \
 macro(var     , "var"  )          \
 macro(class   , "class")          \
 macro(print   , "print")          \
+macro(break   , "break")          \
 macro(nil     , "nil"  )
 
 #define LITERAL_TOKEN_LIST(macro) \

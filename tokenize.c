@@ -52,7 +52,11 @@ static Token scan_keyword(Ctx *ctx, const char *tok_start, bool *err)
     {
         ret.data.boolean = ret.kind == TK_true;
     }
-
+    // TODO should probably have an X macro list for ext keywords
+    else if (ret.kind == TK_break && !ctx->opts.ext)
+    {
+        ret = (Token) {.kind = TK_none};
+    }
     return ret;
 }
 

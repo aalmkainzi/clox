@@ -18,10 +18,19 @@ typedef struct Scope
     ArenaCheckpoint exit_checkpoint;
 } Scope;
 
+typedef struct
+{
+    CGS_ZStrView file_name;
+    bool verbose;
+    bool test;
+    bool repl;
+    bool ext;
+} Opts;
+
 // clang-format off
 typedef struct Ctx
 {
-    CGS_StrView file_name;
+    Opts opts;
     CGS_StrView src;
     LineMap linemap; // mapping from line number to file offset
 
@@ -36,18 +45,20 @@ typedef struct Ctx
     CGS_Allocator *parse_allocator;
     CGS_Allocator *eval_allocator;
 
+    bool error;
+
+    struct
+    {
+        bool in_loop;
+    } parser_state;
+
     struct
     {
         ExpectedErrors expected_errors;
         StrViews expected_outputs;
         unsigned int verified_outputs;
+        bool failed_test;
     } test_data;
-
-    bool verbose     : 1;
-    bool test        : 1;
-    bool failed_test : 1;
-    bool error       : 1;
-    bool repl        : 1;
 } Ctx;
 // clang-format on
 

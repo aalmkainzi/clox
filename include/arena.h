@@ -2,7 +2,6 @@
 #define ARENA_H
 
 #include "cgs/cgs.h"
-#include "stc/types.h"
 #include <stddef.h>
 
 typedef struct ArenaNode

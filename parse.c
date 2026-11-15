@@ -72,6 +72,22 @@ static Stmt parse_stmt(Ctx *ctx)
         case TK_for:
             stmt = parse_for_stmt(ctx);
             break;
+        case TK_break:
+            if (!ctx->parser_state.in_loop)
+            {
+                error_at_tok(ctx, *curtok(ctx), "break statement cannot appear outside a loop");
+                synchronize(ctx, TK_semicolon);
+                advance(ctx);
+                break;
+            }
+            stmt = (Stmt) {.kind = STMT_break, .begin = curtok(ctx)};
+            advance(ctx);
+            if (!skip_tok(ctx, TK_semicolon))
+            {
+                synchronize(ctx, TK_semicolon);
+                advance(ctx);
+            }
+            break;
         default:
             stmt = parse_expr_stmt(ctx);
             break;
@@ -171,8 +187,13 @@ static Stmt parse_while_stmt(Ctx *ctx)
         err = true;
     }
 
+    bool in_loop_prev         = ctx->parser_state.in_loop;
+    ctx->parser_state.in_loop = true;
+
     w->body  = arena_alloc(ctx->parse_arena, sizeof(Stmt));
     *w->body = parse_stmt(ctx);
+
+    ctx->parser_state.in_loop = in_loop_prev;
 
     if (w->body->kind == STMT_none)
     {
@@ -284,7 +305,13 @@ static Stmt parse_for_stmt(Ctx *ctx)
         .data.scope_stmts = StmtList_init(ctx->parse_arena),
     };
 
+    bool in_loop_prev         = ctx->parser_state.in_loop;
+    ctx->parser_state.in_loop = true;
+
     Stmt body_stmt = parse_stmt(ctx);
+
+    ctx->parser_state.in_loop = in_loop_prev;
+
     if (body_stmt.kind == STMT_none)
     {
         err = true;

@@ -28,6 +28,7 @@ static Value eval_unary(Ctx *ctx, Expr *expr);
 static Value eval_binary(Ctx *ctx, Expr *expr);
 
 static bool expect_number(Ctx *ctx, Value *obj);
+static bool expect_string(Ctx *ctx, Value *obj);
 
 static Value copy_value(Ctx *ctx, Value from);
 static Value error_value();
@@ -198,25 +199,34 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
         {
             if (left.type == T_str)
             {
-                switch (right.type)
+                if (ctx->opts.ext)
                 {
-                    case T_bool:
-                        cgs_append_tostr(&result.string, right.boolean);
+                    switch (right.type)
+                    {
+                        case T_bool:
+                            cgs_append_tostr(&result.string, right.boolean);
+                            break;
+                        case T_num:
+                            cgs_append_tostr(&result.string, right.number);
+                            break;
+                        case T_str:
+                            cgs_append(&result.string, right.string);
+                            break;
+                        case T_nil:
+                            cgs_append_tostr(&result.string, "nil");
+                            break;
+                        case T_none:
+                            unreachable();
+                    }
+                }
+                else
+                {
+                    if (!expect_string(ctx, &right))
                         break;
-                    case T_num:
-                        cgs_append_tostr(&result.string, right.number);
-                        break;
-                    case T_str:
-                        cgs_append_tostr(&result.string, right.string);
-                        break;
-                    case T_nil:
-                        cgs_append_tostr(&result.string, "nil");
-                        break;
-                    case T_none:
-                        unreachable();
+                    cgs_append(&result.string, right.string);
                 }
             }
-            else if (right.type == T_str)
+            else if (ctx->opts.ext && right.type == T_str)
             {
                 result.type = T_str;
                 switch (left.type)
@@ -405,6 +415,17 @@ static bool expect_number(Ctx *ctx, Value *obj)
     {
         obj->error = true;
         error_at_tok(ctx, obj->tok, "expected a number");
+        return false;
+    }
+    return true;
+}
+
+static bool expect_string(Ctx *ctx, Value *obj)
+{
+    if (obj->type != T_str)
+    {
+        obj->error = true;
+        error_at_tok(ctx, obj->tok, "expected a string");
         return false;
     }
     return true;

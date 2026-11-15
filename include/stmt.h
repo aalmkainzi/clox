@@ -19,6 +19,7 @@ typedef enum StmtKind : unsigned char
     STMT_scope,
     STMT_if,
     STMT_while,
+    STMT_break,
 } StmtKind;
 
 typedef struct StmtVar

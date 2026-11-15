@@ -3,6 +3,8 @@
 
 #define non_newline_whitespace " \f\r\t\v"
 
+// TODO first line should be flags, we need -ext specfic tests
+// expected-output could be the second line if command flags are the first line
 int parse_tests(Ctx *ctx)
 {
     ctx->test_data.expected_errors  = ExpectedErrors_init();
@@ -180,7 +182,7 @@ bool verify_expected_output(Ctx *ctx, CGS_DStr output)
     if (ctx->test_data.expected_outputs.size == ctx->test_data.verified_outputs)
     {
         error("unexpected output '%?'", output);
-        ctx->failed_test = true;
+        ctx->test_data.failed_test = true;
     }
     else if (!cgs_equal(output, ctx->test_data.expected_outputs.data[ctx->test_data.verified_outputs]))
     {
@@ -190,7 +192,7 @@ bool verify_expected_output(Ctx *ctx, CGS_DStr output)
             output
         );
 
-        ctx->failed_test = true;
+        ctx->test_data.failed_test = true;
     }
     else
     {
@@ -213,7 +215,7 @@ bool verify_expected_error(Ctx *ctx, CGS_StrView error_loc, CGS_StrView error_me
         return true;
     }
 
-    ctx->failed_test = true;
+    ctx->test_data.failed_test = true;
     return false;
 }
 
@@ -221,7 +223,7 @@ void check_remaining_expected_output(Ctx *ctx)
 {
     if (ctx->test_data.verified_outputs != ctx->test_data.expected_outputs.size)
     {
-        ctx->failed_test = true;
+        ctx->test_data.failed_test = true;
         for (unsigned int i = ctx->test_data.verified_outputs; i < ctx->test_data.expected_outputs.size; i++)
         {
             error("expected output '%?' did not occur", ctx->test_data.expected_outputs.data[i]);
