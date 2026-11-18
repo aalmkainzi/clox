@@ -73,14 +73,17 @@ void error_at_(Ctx *ctx, CGS_StrView error_loc, CGS_DStr message)
     error_(ctx, message);
 
     cgs_appendf(&stderr_writer_and_len_counter, "%?| ", cgs_alignfmt(lineno, LEFT, 3));
-    cgs_appendf(stderr, "%?\n", line);
-    cgs_appendf(
+    cgs_fwriteln(stderr, line);
+
+    const char *underline_char = error_loc.len == 1 ? "^" : "~";
+
+    cgs_fprintf(
         stderr,
         "%?%?%?%?%?\n",
         cgs_alignfmt("| ", RIGHT, lineno_vertical_bar_length),
         ctx->diag_data.cyan_begin,
-        cgs_alignfmt("^", RIGHT, offset),
-        cgs_repeatfmt("~", error_loc.len - 1),
+        cgs_repeatfmt((char)' ', offset - 1),
+        cgs_repeatfmt(underline_char, error_loc.len),
         ctx->diag_data.color_reset
     );
 }

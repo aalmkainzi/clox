@@ -117,7 +117,7 @@ Token expr_tok(Expr *expr)
         case EXPR_var:
             return expr->ident;
         case EXPR_call:
-            return expr->call.left_paren;
+            return expr->call.lparen;
     }
     unreachable();
 }
@@ -135,7 +135,7 @@ CGS_StrView expr_view(Expr *expr)
         case EXPR_var:
             return expr->ident.lexeme;
         case EXPR_call:
-            return range_view(expr->call.left_paren.lexeme, expr->call.right_paren.lexeme);
+            return range_view(expr->call.lparen.lexeme, expr->call.rparen.lexeme);
     }
     unreachable();
 }
