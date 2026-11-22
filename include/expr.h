@@ -5,6 +5,10 @@
 #include "cgs/cgs.h"
 #include "token.h"
 
+#define T StrViewList, CGS_StrView
+#define i_header
+#include "grow_list.h"
+
 typedef enum ExprKind : unsigned char
 {
     EXPR_unary,
@@ -16,10 +20,10 @@ typedef enum ExprKind : unsigned char
 
 typedef enum LiteralKind : unsigned char
 {
+    LIT_nil = 1,
     LIT_bool,
     LIT_num,
     LIT_str,
-    LIT_nil,
 } LiteralKind;
 
 typedef struct Literal
@@ -31,15 +35,43 @@ typedef struct Literal
 typedef enum TypeKind : unsigned char
 {
     T_none = 0,
+    T_nil,
     T_bool,
     T_num,
     T_str,
-    T_nil,
+    T_function,
 } TypeKind;
+
+typedef struct Type
+{
+    TypeKind kind;
+
+    union
+    {
+        int n_args; // for function types
+    };
+} Type;
+
+struct Ctx;
+struct ExprList;
+c_declare_vec(StrViews, CGS_StrView);
+
+typedef struct Function
+{
+    CGS_StrView name;
+    StrViewList args;
+
+    bool native;
+    union
+    {
+        const struct StmtList *call;
+        struct Value (*native_call)(struct Ctx *ctx, struct ExprList *args);
+    };
+} Function;
 
 typedef struct Value
 {
-    TypeKind type;
+    Type type;
     Token tok;
     bool var;
     bool error;
@@ -52,6 +84,7 @@ typedef struct Value
         CGS_DStr string;
         double number;
         bool boolean;
+        Function function;
     };
 } Value;
 
@@ -97,12 +130,12 @@ void rpn_print(CGS_Writer *sink, Expr *expr);
 
 struct Ctx;
 
-Expr *new_binary(struct Ctx *ctx, Expr *left, Expr *right, Token op);
-Expr *new_unary(struct Ctx *ctx, Expr *left, Token op);
-Expr *new_call(struct Ctx *ctx, Expr *left, ExprList args, Token lparen, Token rparen);
-Expr *new_grouping(struct Ctx *ctx, Expr *inside);
-Expr *new_literal(struct Ctx *ctx, Token tok);
-Expr *new_var(struct Ctx *ctx, Token tok);
+Expr *new_binary_expr(struct Ctx *ctx, Expr *left, Expr *right, Token op);
+Expr *new_unary_expr(struct Ctx *ctx, Expr *left, Token op);
+Expr *new_call_expr(struct Ctx *ctx, Expr *left, ExprList args, Token lparen, Token rparen);
+Expr *new_paren_expr(struct Ctx *ctx, Expr *inside);
+Expr *new_literal_expr(struct Ctx *ctx, Token tok);
+Expr *new_var_expr(struct Ctx *ctx, Token tok);
 Token expr_tok(Expr *expr);
 CGS_StrView expr_view(Expr *expr);
 

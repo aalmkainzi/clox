@@ -3,21 +3,13 @@
 #include "clox.h"
 #include "error.h"
 #include "expr.h"
+#include "native.h"
 #include "test.h"
 #include "var.h"
 
 #define T StmtList, Stmt
 #define i_implement
 #include "grow_list.h"
-
-typedef enum : unsigned char
-{
-    ES_FAIL,
-    ES_OK,
-    ES_BREAK
-} ExecuteStmtResult;
-
-static ExecuteStmtResult execute_stmt_list(Ctx *ctx, const StmtList *stmts);
 
 static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
 {
@@ -31,7 +23,7 @@ static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
             if (ctx->error)
             {
                 arena_rollback(ctx->eval_arena, before_eval);
-                return ES_FAIL;
+                return (ExecuteStmtResult) {.exit_kind = EXIT_FAIL};
             }
             cgs_writeln_tostr(val);
             if (ctx->opts.test && !ctx->test_data.failed_test)
@@ -56,12 +48,12 @@ static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
                 if (ctx->error)
                 {
                     arena_rollback(ctx->eval_arena, before_eval);
-                    return ES_FAIL;
+                    return (ExecuteStmtResult) {.exit_kind = EXIT_FAIL};
                 }
             }
             else
             {
-                val = (Value) {.type = T_nil};
+                val = (Value) {.type.kind = T_nil};
             }
 
             val = var_value(val); // copies the val from the eval_arena to malloc heap
@@ -80,6 +72,20 @@ static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
             }
         }
         break;
+        case STMT_fun:
+        {
+            Value val = {
+                .type = {
+                    .kind   = T_function,
+                    .n_args = stmt->data.function.args.size,
+                },
+            };
+            val.function.args = stmt->data.function.args;
+            val.function.name = stmt->data.function.name->lexeme;
+            val.function.call = &stmt->data.function.body;
+            // TODO push val to the VarMap of current scope
+        }
+        break;
         case STMT_expr:
         {
             ArenaCheckpoint before_eval = arena_checkpoint(ctx->eval_arena);
@@ -89,7 +95,7 @@ static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
             if (ctx->error)
             {
                 arena_rollback(ctx->eval_arena, before_eval);
-                return ES_FAIL;
+                return (ExecuteStmtResult) {.exit_kind = EXIT_FAIL};
             }
 
             arena_rollback(ctx->eval_arena, before_eval);
@@ -113,13 +119,13 @@ static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
             if (ctx->error)
             {
                 arena_rollback(ctx->eval_arena, before_eval);
-                return ES_FAIL;
+                return (ExecuteStmtResult) {.exit_kind = EXIT_FAIL};
             }
 
             bool truthy = is_truthy(cond);
             arena_rollback(ctx->eval_arena, before_eval);
 
-            ExecuteStmtResult result = ES_OK;
+            ExecuteStmtResult result = {.exit_kind = EXIT_NORMAL};
             if (truthy)
             {
                 result = execute_stmt(ctx, if_stmt->if_branch);
@@ -143,7 +149,7 @@ static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
                 if (ctx->error)
                 {
                     arena_rollback(ctx->eval_arena, before_eval);
-                    return ES_FAIL;
+                    return (ExecuteStmtResult) {.exit_kind = EXIT_FAIL};
                 }
 
                 bool truthy = is_truthy(cond);
@@ -154,22 +160,22 @@ static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
 
                 ExecuteStmtResult result = execute_stmt(ctx, while_stmt->body);
 
-                if (result == ES_BREAK)
-                    return ES_OK;
-                if (result != ES_OK)
+                if (result.exit_kind == EXIT_BREAK)
+                    return (ExecuteStmtResult) {.exit_kind = EXIT_NORMAL};
+                if (result.exit_kind != EXIT_NORMAL)
                     return result;
             }
         }
         break;
         case STMT_break:
-            return ES_BREAK;
+            return (ExecuteStmtResult) {.exit_kind = EXIT_BREAK};
 
         case STMT_none:
         default:
             unreachable();
-            return ES_FAIL;
+            return (ExecuteStmtResult) {.exit_kind = EXIT_FAIL};
     }
-    return ES_OK;
+    return (ExecuteStmtResult) {.exit_kind = EXIT_NORMAL};
 }
 
 static ExecuteStmtResult execute_stmt_list(Ctx *ctx, const StmtList *stmts)
@@ -177,14 +183,36 @@ static ExecuteStmtResult execute_stmt_list(Ctx *ctx, const StmtList *stmts)
     for (c_each(it, StmtList, *stmts))
     {
         ExecuteStmtResult result = execute_stmt(ctx, it.ref);
-        if (result == ES_FAIL || result == ES_BREAK)
+        if (result.exit_kind != EXIT_NORMAL)
             return result;
     }
-    return ES_OK;
+    return (ExecuteStmtResult){EXIT_NORMAL};
+}
+
+#define push_native_call(ctx, call) push_native_call_(ctx, cgs_strv(#call), call)
+
+static void push_native_call_(Ctx *ctx, CGS_StrView name, Value (*call)(Ctx *, ExprList *))
+{
+    VarMap_put(
+        &ctx->scope->vars,
+        name,
+        (Value) {
+            .var                  = true,
+            .type.kind            = T_function,
+            .function.native      = true,
+            .function.native_call = call,
+        }
+    );
+}
+
+static void push_native_calls(Ctx *ctx)
+{
+    push_native_call(ctx, clock_native);
 }
 
 void execute_stmts(Ctx *ctx)
 {
+    push_native_calls(ctx);
     execute_stmt_list(ctx, &ctx->stmts);
 }
 

@@ -10,6 +10,10 @@ typedef struct Stmt Stmt;
 #define i_header
 #include "grow_list.h"
 
+#define T StrViewList, CGS_StrView
+#define i_header
+#include "grow_list.h"
+
 typedef enum StmtKind : unsigned char
 {
     STMT_none = 0,
@@ -20,6 +24,7 @@ typedef enum StmtKind : unsigned char
     STMT_if,
     STMT_while,
     STMT_break,
+    STMT_fun,
 } StmtKind;
 
 typedef struct StmtVar
@@ -41,6 +46,13 @@ typedef struct StmtWhile
     Stmt *body;
 } StmtWhile;
 
+typedef struct StmtFunction
+{
+    Token *name;
+    StrViewList args;
+    StmtList body;
+} StmtFunction;
+
 struct Stmt
 {
     StmtKind kind;
@@ -52,14 +64,30 @@ struct Stmt
         Expr *expr;
         Expr *print_expr;
         StmtVar var;
+        StmtFunction function;
         StmtList scope_stmts;
         StmtIf if_stmt;
         StmtWhile while_stmt;
     } data;
 };
 
+typedef struct ExecuteStmtResult
+{
+    enum : unsigned char
+    {
+        EXIT_FAIL,
+        EXIT_NORMAL,
+        EXIT_BREAK,
+        EXIT_RETURN
+    } exit_kind;
+
+    Value value; // for EXIT_RETURN
+} ExecuteStmtResult;
+
 typedef struct Ctx Ctx;
+
 void execute_stmts(Ctx *ctx);
+ExecuteStmtResult execute_stmt_list(Ctx *ctx, const StmtList *list);
 
 void exit_scope(Ctx *ctx);
 void enter_scope(Ctx *ctx);

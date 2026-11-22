@@ -120,4 +120,11 @@ void init_error_system(Ctx *ctx)
         ctx->diag_data.green_begin = "\x1b[32m";
         ctx->diag_data.cyan_begin  = "\x1b[36m";
     }
+    else
+    {
+        ctx->diag_data.color_reset = "";
+        ctx->diag_data.red_begin   = "";
+        ctx->diag_data.green_begin = "";
+        ctx->diag_data.cyan_begin  = "";
+    }
 }

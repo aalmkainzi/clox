@@ -1,10 +1,6 @@
-#include "arena.h"
 #include "clox.h"
 #include "error.h"
-#include "expr.h"
-#include "stmt.h"
 #include "test.h"
-#include "token.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>

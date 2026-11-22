@@ -316,16 +316,46 @@ void tokenize(Ctx *ctx)
 
 // utils
 
+static CGS_StrView quoted_token_name_if_comma(TokenKind kind)
+{
+    if (kind == TK_comma)
+        return tok2str_single_quoted[kind];
+    return tok2str[kind];
+}
+
+static void unexpected_token_error(Ctx *ctx, TokenKind expected, TokenKind got)
+{
+    error_at_tok(
+        ctx,
+        *curtok(ctx),
+        "expected %?, but got %?",
+        quoted_token_name_if_comma(expected),
+        quoted_token_name_if_comma(got)
+    );
+}
+
 [[nodiscard("synchronize if this returns false")]]
 bool skip_tok(Ctx *ctx, TokenKind kind)
 {
     if (curtok(ctx)->kind != kind)
     {
-        error_at_tok(ctx, *curtok(ctx), "expected %?, but got %?", tok2str[kind], tok2str[curtok(ctx)->kind]);
+        unexpected_token_error(ctx, kind, curtok(ctx)->kind);
         return false;
     }
 
     advance(ctx);
+    return true;
+}
+
+[[nodiscard("synchronize if this returns false")]]
+bool expect_tok(Ctx *ctx, TokenKind kind)
+{
+    if (curtok(ctx)->kind != kind)
+    {
+        unexpected_token_error(ctx, kind, curtok(ctx)->kind);
+        return false;
+    }
+
     return true;
 }
 

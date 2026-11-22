@@ -80,10 +80,11 @@ void parse(Ctx *ctx);
 void free_tokens(TokenList *toks);
 
 [[nodiscard("syncronize if this returns false")]]
-bool skip_tok(Ctx *ctx, TokenKind kind); // skip `kind` token. reports error if current token is not `kind`
+bool expect_tok(Ctx *ctx, TokenKind kind); // error if curtok is not kind
+[[nodiscard("syncronize if this returns false")]]
+bool skip_tok(Ctx *ctx, TokenKind kind); // same as expect_tok, but also advances if it matches
 void advance(Ctx *ctx);
 bool check_any_(Ctx *ctx, TokenKind *kinds, int n_kinds);
-bool consume_any_(Ctx *ctx, TokenKind *kinds, int n_kinds);
 
 #define check_any(ctx, ...) \
     check_any_(ctx, (TokenKind[]) {__VA_ARGS__}, sizeof((TokenKind[]) {__VA_ARGS__}) / sizeof(TokenKind))

@@ -43,7 +43,7 @@ macro(and     , "and"  )          \
 macro(or      , "or"   )          \
 macro(true    , "true" )          \
 macro(false   , "false")          \
-macro(function, "fun"  )          \
+macro(fun     , "fun"  )          \
 macro(var     , "var"  )          \
 macro(class   , "class")          \
 macro(print   , "print")          \
@@ -89,9 +89,16 @@ typedef enum TokenKind : unsigned char
 
 static const CGS_StrView tok2str[] = {TOKEN_LIST(make_tok2str_entry)};
 
+#undef make_tok2str_entry
+
+#define make_tok2str_single_quoted_entry(kind, str) [TK_##kind] = (CGS_StrView) {.chars = "'" str "'", .len = sizeof(str) + 2 - 1},
+
+static const CGS_StrView tok2str_single_quoted[] = {TOKEN_LIST(make_tok2str_single_quoted_entry)};
+
+#undef make_tok2str_single_quoted_entry
+
 // clang-format off
 
-#undef make_tok2str_entry
 
 typedef union TokenData
 {

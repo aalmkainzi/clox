@@ -5,7 +5,7 @@
 #define i_implement
 #include "grow_list.h"
 
-Expr *new_binary(Ctx *ctx, Expr *left, Expr *right, Token op)
+Expr *new_binary_expr(Ctx *ctx, Expr *left, Expr *right, Token op)
 {
     Expr *ret         = arena_calloc(ctx->parse_arena, sizeof(Expr));
     ret->kind         = EXPR_binary;
@@ -16,7 +16,7 @@ Expr *new_binary(Ctx *ctx, Expr *left, Expr *right, Token op)
     return ret;
 }
 
-Expr *new_unary(Ctx *ctx, Expr *left, Token op)
+Expr *new_unary_expr(Ctx *ctx, Expr *left, Token op)
 {
     Expr *ret       = arena_calloc(ctx->parse_arena, sizeof(Expr));
     ret->kind       = EXPR_unary;
@@ -26,7 +26,7 @@ Expr *new_unary(Ctx *ctx, Expr *left, Token op)
     return ret;
 }
 
-Expr *new_call(Ctx *ctx, Expr *left, ExprList args, Token lparen, Token rparen)
+Expr *new_call_expr(Ctx *ctx, Expr *left, ExprList args, Token lparen, Token rparen)
 {
     Expr *ret        = arena_calloc(ctx->parse_arena, sizeof(Expr));
     ret->kind        = EXPR_call;
@@ -41,19 +41,19 @@ Expr *new_call(Ctx *ctx, Expr *left, ExprList args, Token lparen, Token rparen)
 static Expr *alloc_literal_expr(Ctx *ctx, LiteralKind litKind, Token tok)
 {
     constexpr TypeKind map[] = {
+        [LIT_nil]  = T_nil,
         [LIT_bool] = T_bool,
         [LIT_num]  = T_num,
         [LIT_str]  = T_str,
-        [LIT_nil]  = T_nil,
     };
 
-    TypeKind type = litKind + 1;
+    TypeKind type = (TypeKind)litKind;
     assert(type == map[litKind]);
 
-    Expr *ret       = arena_calloc(ctx->parse_arena, sizeof(Expr));
-    ret->kind       = EXPR_value;
-    ret->value.tok  = tok;
-    ret->value.type = type;
+    Expr *ret            = arena_calloc(ctx->parse_arena, sizeof(Expr));
+    ret->kind            = EXPR_value;
+    ret->value.tok       = tok;
+    ret->value.type.kind = type;
 
     switch (type)
     {
@@ -68,14 +68,14 @@ static Expr *alloc_literal_expr(Ctx *ctx, LiteralKind litKind, Token tok)
             break;
         case T_nil:
             break;
-        case T_none:
+        default:
             unreachable();
     }
 
     return ret;
 }
 
-Expr *new_literal(Ctx *ctx, Token tok)
+Expr *new_literal_expr(Ctx *ctx, Token tok)
 {
     switch (tok.kind)
     {
@@ -96,7 +96,7 @@ Expr *new_literal(Ctx *ctx, Token tok)
     }
 }
 
-Expr *new_var(Ctx *ctx, Token tok)
+Expr *new_var_expr(Ctx *ctx, Token tok)
 {
     Expr *ret  = arena_calloc(ctx->parse_arena, sizeof(Expr));
     ret->kind  = EXPR_var;
@@ -135,7 +135,7 @@ CGS_StrView expr_view(Expr *expr)
         case EXPR_var:
             return expr->ident.lexeme;
         case EXPR_call:
-            return range_view(expr->call.lparen.lexeme, expr->call.rparen.lexeme);
+            return range_view(expr_view(expr->call.left), expr->call.rparen.lexeme);
     }
     unreachable();
 }

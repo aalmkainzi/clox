@@ -6,6 +6,10 @@
 #include "token.h"
 #include "var.h"
 
+#define T StrViewList, CGS_StrView
+#define i_implement
+#include "grow_list.h"
+
 static Expr *expression(Ctx *ctx);
 static Expr *or_expr(Ctx *ctx);
 static Expr *and_expr(Ctx *ctx);
@@ -25,6 +29,7 @@ static Stmt parse_var_decl(Ctx *ctx);
 static Stmt parse_if_stmt(Ctx *ctx);
 static Stmt parse_while_stmt(Ctx *ctx);
 static Stmt parse_for_stmt(Ctx *ctx);
+static Stmt parse_function(Ctx *ctx);
 static Stmt parse_stmt(Ctx *ctx);
 void parse_stmts(Ctx *ctx);
 
@@ -89,10 +94,102 @@ static Stmt parse_stmt(Ctx *ctx)
                 advance(ctx);
             }
             break;
+        case TK_fun:
+            stmt = parse_function(ctx);
+            break;
         default:
             stmt = parse_expr_stmt(ctx);
             break;
     }
+    return stmt;
+}
+
+static Stmt parse_function_like(Ctx *ctx)
+{
+    // TODO make a grow_list for CGS_StrView, call StrViewList
+    Stmt stmt = {.kind = STMT_fun, .begin = curtok(ctx), .data.function.args = StrViewList_init(ctx->parse_arena)};
+
+    ArenaCheckpoint checkpoint = arena_checkpoint(ctx->parse_arena);
+
+    stmt.data.function.name = curtok(ctx);
+
+    if (!skip_tok(ctx, TK_ident))
+    {
+        synchronize(ctx, TK_rcurly);
+        return (Stmt) {};
+    }
+
+    if (!skip_tok(ctx, TK_lparen))
+        return (Stmt) {};
+
+    bool first = true;
+    while (curtok(ctx)->kind != TK_rparen)
+    {
+        if (first)
+        {
+            first = false;
+        }
+        else
+        {
+            if (!skip_tok(ctx, TK_comma))
+            {
+                synchronize(ctx, TK_rcurly);
+                return (Stmt) {};
+            }
+        }
+
+        Token *arg_name = curtok(ctx);
+
+        *StrViewList_push(&stmt.data.function.args).ref = arg_name->lexeme;
+
+        if (!skip_tok(ctx, TK_ident))
+        {
+            synchronize(ctx, TK_rcurly);
+            arena_rollback(ctx->parse_arena, checkpoint);
+            return (Stmt) {};
+        }
+    }
+
+    if (stmt.data.function.args.size > 255)
+    {
+        error_at(ctx, range_view(stmt.begin->lexeme, curtok(ctx)->lexeme), "maximum argument count is 255");
+    }
+    advance(ctx);
+
+    if (curtok(ctx)->kind == TK_semicolon)
+    {
+        error_at_tok(ctx, *curtok(ctx), "functions don't need forward declarations. This is not C");
+        advance(ctx);
+
+        arena_rollback(ctx->parse_arena, checkpoint);
+        return (Stmt) {};
+    }
+
+    if (!expect_tok(ctx, TK_lcurly))
+    {
+        arena_rollback(ctx->parse_arena, checkpoint);
+        return (Stmt) {};
+    }
+
+    Stmt body = parse_scope_stmt(ctx);
+
+    if (body.kind == STMT_none)
+    {
+        arena_rollback(ctx->parse_arena, checkpoint);
+        return (Stmt) {};
+    }
+
+    stmt.data.function.body = body.data.scope_stmts;
+    return stmt;
+}
+
+static Stmt parse_function(Ctx *ctx)
+{
+    Token *begin = curtok(ctx);
+    advance(ctx);
+    Stmt stmt = parse_function_like(ctx);
+    if (stmt.kind != STMT_none)
+        stmt.begin = begin;
     return stmt;
 }
 
@@ -274,7 +371,7 @@ static Stmt parse_for_stmt(Ctx *ctx)
     {
         w->cond        = arena_alloc(ctx->parse_arena, sizeof(Expr));
         w->cond->kind  = EXPR_value;
-        w->cond->value = (Value) {.type = T_bool, .boolean = true};
+        w->cond->value = (Value) {.type.kind = T_bool, .boolean = true};
         advance(ctx);
     }
 
@@ -444,7 +541,7 @@ static Expr *assignment(Ctx *ctx)
         Token *op = curtok(ctx);
         advance(ctx);
         Expr *right = expression(ctx);
-        return new_binary(ctx, left, right, *op);
+        return new_binary_expr(ctx, left, right, *op);
     }
 
     return left;
@@ -460,7 +557,7 @@ static Expr *or_expr(Ctx *ctx)
         advance(ctx);
         Expr *right = and_expr(ctx);
 
-        expr = new_binary(ctx, expr, right, *op);
+        expr = new_binary_expr(ctx, expr, right, *op);
     }
 
     return expr;
@@ -476,7 +573,7 @@ static Expr *and_expr(Ctx *ctx)
         advance(ctx);
         Expr *right = equality(ctx);
 
-        expr = new_binary(ctx, expr, right, *op);
+        expr = new_binary_expr(ctx, expr, right, *op);
     }
 
     return expr;
@@ -492,7 +589,7 @@ static Expr *equality(Ctx *ctx)
         advance(ctx);
         Expr *right = comparison(ctx);
 
-        expr = new_binary(ctx, expr, right, *op);
+        expr = new_binary_expr(ctx, expr, right, *op);
     }
 
     return expr;
@@ -508,7 +605,7 @@ static Expr *comparison(Ctx *ctx)
         advance(ctx);
         Expr *right = additive(ctx);
 
-        expr = new_binary(ctx, expr, right, *op);
+        expr = new_binary_expr(ctx, expr, right, *op);
     }
 
     return expr;
@@ -524,7 +621,7 @@ static Expr *additive(Ctx *ctx)
         advance(ctx);
         Expr *right = multitive(ctx);
 
-        expr = new_binary(ctx, expr, right, *op);
+        expr = new_binary_expr(ctx, expr, right, *op);
     }
 
     return expr;
@@ -540,7 +637,7 @@ static Expr *multitive(Ctx *ctx)
         advance(ctx);
         Expr *right = unary(ctx);
 
-        expr = new_binary(ctx, expr, right, *op);
+        expr = new_binary_expr(ctx, expr, right, *op);
     }
 
     return expr;
@@ -553,7 +650,7 @@ static Expr *unary(Ctx *ctx)
         Token *op = curtok(ctx);
         advance(ctx);
         Expr *exp = unary(ctx);
-        Expr *new = new_unary(ctx, exp, *op);
+        Expr *new = new_unary_expr(ctx, exp, *op);
         return new;
     }
     else
@@ -564,15 +661,13 @@ static Expr *unary(Ctx *ctx)
 
 static Expr *call(Ctx *ctx)
 {
-    Expr *left = primary(ctx);
+    Expr *expr = primary(ctx);
 
     if (curtok(ctx)->kind == TK_lparen)
     {
         Token *lparen = curtok(ctx);
         advance(ctx);
         ExprList args = ExprList_init(ctx->parse_arena);
-        // thinking about it, aren't the Exprs already ordered correctly in the arena's memory.
-        // could we utilize that property instead of storing a list of pointers to each one?
 
         bool first = true;
         while (curtok(ctx)->kind != TK_rparen)
@@ -594,11 +689,16 @@ static Expr *call(Ctx *ctx)
             Expr *arg                 = expression(ctx);
             *ExprList_push(&args).ref = arg;
         }
-        Expr *call_expr = new_call(ctx, left, args, *lparen, *curtok(ctx));
+        expr = new_call_expr(ctx, expr, args, *lparen, *curtok(ctx));
         advance(ctx);
-        return call_expr;
+
+        if (args.size > 255)
+        {
+            error_at(ctx, expr_view(expr), "maximum argument count is 255");
+        }
     }
-    return left;
+
+    return expr;
 }
 
 static Expr *primary(Ctx *ctx)
@@ -617,21 +717,17 @@ static Expr *primary(Ctx *ctx)
 
     if (curtok(ctx)->kind == TK_ident)
     {
-        expr = new_var(ctx, *curtok(ctx));
+        expr = new_var_expr(ctx, *curtok(ctx));
     }
     else
     {
-        expr = new_literal(ctx, *curtok(ctx));
+        expr = new_literal_expr(ctx, *curtok(ctx));
 
         if (expr == NULL)
         {
             error_at_tok(ctx, *curtok(ctx), "expected expression, but got %?", tok2str[curtok(ctx)->kind]);
 
             synchronize(ctx, TK_semicolon);
-            // while (curtok(ctx)->kind != TK_semicolon && curtok(ctx)->kind != TK_eof)
-            // {
-            //     advance(ctx);
-            // }
             return NULL;
         }
     }
@@ -640,6 +736,7 @@ static Expr *primary(Ctx *ctx)
     return expr;
 }
 
+// TODO synchronize should be bracket aware
 static void synchronize(Ctx *ctx, TokenKind to)
 {
     while (curtok(ctx)->kind != to && curtok(ctx)->kind != TK_eof)
