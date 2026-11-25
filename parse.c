@@ -79,6 +79,7 @@ static Stmt parse_stmt(Ctx *ctx)
             stmt = parse_for_stmt(ctx);
             break;
         case TK_break:
+        {
             if (!ctx->parser_state.in_loop)
             {
                 error_at_tok(ctx, *curtok(ctx), "break statement cannot appear outside a loop");
@@ -93,7 +94,30 @@ static Stmt parse_stmt(Ctx *ctx)
                 synchronize(ctx, TK_semicolon);
                 advance(ctx);
             }
-            break;
+        }
+        break;
+        case TK_return:
+        {
+            Token *begin = curtok(ctx);
+            advance(ctx);
+            Expr *return_expr = expression(ctx);
+
+            if (!skip_tok(ctx, TK_semicolon))
+            {
+                synchronize(ctx, TK_semicolon);
+                break;
+            }
+
+            if (return_expr != NULL)
+            {
+                stmt = (Stmt) {
+                    .kind             = STMT_return,
+                    .begin            = begin,
+                    .data.return_expr = return_expr,
+                };
+            }
+        }
+        break;
         case TK_fun:
             stmt = parse_function(ctx);
             break;
@@ -479,7 +503,6 @@ static Stmt parse_expr_stmt(Ctx *ctx)
     Stmt stmt = {.kind = STMT_expr, .begin = curtok(ctx)};
 
     stmt.data.expr = expression(ctx);
-    stmt.end       = curtok(ctx);
 
     if (stmt.data.expr == NULL)
     {
@@ -509,7 +532,6 @@ static Stmt print_stmt(Ctx *ctx)
     advance(ctx);
 
     stmt.data.print_expr = expression(ctx);
-    stmt.end             = curtok(ctx);
 
     if (!skip_tok(ctx, TK_semicolon))
     {

@@ -95,7 +95,11 @@ static Value eval_call(Ctx *ctx, Expr *expr)
     if (func_val.type.function.n_args != expr->call.args.size)
     {
         error_at(
-            ctx, expr_view(expr), "expected %? arguments, got %?", func_val.type.function.n_args, expr->call.args.size
+            ctx,
+            expr_view(expr),
+            "expected %? arguments, got %?",
+            func_val.type.function.n_args,
+            expr->call.args.size
         );
         return error_value();
     }
@@ -127,12 +131,23 @@ static Value eval_call(Ctx *ctx, Expr *expr)
 
         ExecuteStmtResult res = execute_stmt_list(ctx, func_val.function.body);
 
-        exit_scope(ctx);
+        Value return_value = {.type.kind = T_nil};
 
+        // if the function returns, move that return value into heap,
+        // exit_scope to rollback arena, then put it back in the current scope's arena
         if (res.exit_kind == EXIT_RETURN)
-            return res.value;
+        {
+            res.value = var_value(res.value);
+            exit_scope(ctx);
+            return_value = copy_value(ctx, res.value);
+            free_var_value(res.value);
+        }
         else
-            return (Value) {.type.kind = T_nil};
+        {
+            exit_scope(ctx);
+        }
+
+        return return_value;
     }
 }
 

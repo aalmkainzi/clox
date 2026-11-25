@@ -66,10 +66,11 @@ static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
         case STMT_fun:
         {
             Value val = {
-                .type = {
-                    .kind   = T_function,
-                    .function.n_args = stmt->data.function.args.size,
-                },
+                .type =
+                    {
+                        .kind            = T_function,
+                        .function.n_args = stmt->data.function.args.size,
+                    },
                 .function = {
                     .args = stmt->data.function.args,
                     .name = stmt->data.function.name->lexeme,
@@ -162,7 +163,12 @@ static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
         break;
         case STMT_break:
             return (ExecuteStmtResult) {.exit_kind = EXIT_BREAK};
-
+        case STMT_return:
+            Value return_val = eval(ctx, stmt->data.return_expr);
+            return (ExecuteStmtResult) {
+                .exit_kind = EXIT_RETURN,
+                .value     = return_val,
+            };
         case STMT_none:
         default:
             unreachable();
@@ -244,7 +250,7 @@ void enter_scope(Ctx *ctx)
 
 static void push_var(Ctx *ctx, CGS_StrView name, Value val)
 {
-    val = var_value(val); // copies the val from the eval_arena to malloc heap
+    val             = var_value(val); // copies the val from the eval_arena to malloc heap
     VarMap_value *v = VarMap_get_mut(&ctx->scope->vars, name);
     if (v)
     {

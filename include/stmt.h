@@ -24,6 +24,7 @@ typedef enum StmtKind : unsigned char
     STMT_if,
     STMT_while,
     STMT_break,
+    STMT_return,
     STMT_fun,
 } StmtKind;
 
@@ -55,10 +56,9 @@ typedef struct StmtFunction
 
 struct Stmt
 {
-    StmtKind kind;
     Token *begin;
-    Token *end;
 
+    StmtKind kind;
     union
     {
         Expr *expr;
@@ -68,6 +68,7 @@ struct Stmt
         StmtList scope_stmts;
         StmtIf if_stmt;
         StmtWhile while_stmt;
+        Expr *return_expr;
     } data;
 };
 
