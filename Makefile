@@ -29,7 +29,7 @@ build/obj/%.o: %.c | build/obj
 build/obj:
 	mkdir -p $@
 
-test/run:
+test/run: $(TEST_SRC)
 	$(CC) $(TEST_SRC) $(CGS_SRC) $(CFLAGS) $(INCLUDE_DIRS) -o test/run
 
 test: test/run clox

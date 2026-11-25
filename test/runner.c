@@ -9,6 +9,7 @@
 #define nob_isatty isatty
 #define nob_fileno fileno
 
+bool run_dir_tests(Nob_Walk_Entry entry);
 bool run_test_on_entry(Nob_Walk_Entry entry);
 
 char *red_begin   = "";
@@ -24,9 +25,24 @@ int main()
         color_reset = "\x1b[0m";
     }
 
-    nob_walk_dir("test/tests", run_test_on_entry);
+    nob_walk_dir("test/tests", run_dir_tests);
 
     cgs_printfln("%?all tests pass%?\n", green_begin, color_reset);
+}
+
+bool run_dir_tests(Nob_Walk_Entry entry)
+{
+    if (entry.type != NOB_FILE_DIRECTORY || entry.level == 0)
+        return true;
+
+    char *dir_path = nob_temp_strdup(entry.path);
+    char *dir_name = nob_temp_file_name(entry.path);
+
+    cgs_printfln("Running %? tests:", dir_name);
+
+    bool ok = nob_walk_dir(dir_path, run_test_on_entry, .data = dir_name);
+
+    return ok;
 }
 
 bool run_test_on_entry(Nob_Walk_Entry entry)
@@ -51,7 +67,7 @@ bool run_test_on_entry(Nob_Walk_Entry entry)
             color_reset,
             nob_temp_file_name(entry.path)
         );
-        exit(EXIT_FAILURE);
+        return false;
     }
 
     return true;
