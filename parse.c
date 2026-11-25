@@ -106,7 +106,6 @@ static Stmt parse_stmt(Ctx *ctx)
 
 static Stmt parse_function_like(Ctx *ctx)
 {
-    // TODO make a grow_list for CGS_StrView, call StrViewList
     Stmt stmt = {.kind = STMT_fun, .begin = curtok(ctx), .data.function.args = StrViewList_init(ctx->parse_arena)};
 
     ArenaCheckpoint checkpoint = arena_checkpoint(ctx->parse_arena);
@@ -154,6 +153,7 @@ static Stmt parse_function_like(Ctx *ctx)
     {
         error_at(ctx, range_view(stmt.begin->lexeme, curtok(ctx)->lexeme), "maximum argument count is 255");
     }
+
     advance(ctx);
 
     if (curtok(ctx)->kind == TK_semicolon)

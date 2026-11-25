@@ -11,6 +11,9 @@
 #define i_implement
 #include "grow_list.h"
 
+// pushes a var to the current scope
+static void push_var(Ctx *ctx, CGS_StrView name, Value val);
+
 static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
 {
     switch (stmt->kind)
@@ -56,20 +59,8 @@ static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
                 val = (Value) {.type.kind = T_nil};
             }
 
-            val = var_value(val); // copies the val from the eval_arena to malloc heap
+            push_var(ctx, name, val);
             arena_rollback(ctx->eval_arena, before_eval);
-
-            VarMap_value *v = VarMap_get_mut(&ctx->scope->vars, name);
-            if (v)
-            {
-                free_var_value(v->second);
-                v->second = val;
-            }
-            else
-            {
-                VarMap_result res = VarMap_insert(&ctx->scope->vars, name, val);
-                assert(res.inserted); // we already confirmed !v, so there's no way insertion fails
-            }
         }
         break;
         case STMT_fun:
@@ -77,13 +68,15 @@ static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
             Value val = {
                 .type = {
                     .kind   = T_function,
-                    .n_args = stmt->data.function.args.size,
+                    .function.n_args = stmt->data.function.args.size,
                 },
+                .function = {
+                    .args = stmt->data.function.args,
+                    .name = stmt->data.function.name->lexeme,
+                    .body = &stmt->data.function.body,
+                }
             };
-            val.function.args = stmt->data.function.args;
-            val.function.name = stmt->data.function.name->lexeme;
-            val.function.call = &stmt->data.function.body;
-            // TODO push val to the VarMap of current scope
+            push_var(ctx, val.function.name, val);
         }
         break;
         case STMT_expr:
@@ -178,7 +171,7 @@ static ExecuteStmtResult execute_stmt(Ctx *ctx, const Stmt *stmt)
     return (ExecuteStmtResult) {.exit_kind = EXIT_NORMAL};
 }
 
-static ExecuteStmtResult execute_stmt_list(Ctx *ctx, const StmtList *stmts)
+ExecuteStmtResult execute_stmt_list(Ctx *ctx, const StmtList *stmts)
 {
     for (c_each(it, StmtList, *stmts))
     {
@@ -186,7 +179,7 @@ static ExecuteStmtResult execute_stmt_list(Ctx *ctx, const StmtList *stmts)
         if (result.exit_kind != EXIT_NORMAL)
             return result;
     }
-    return (ExecuteStmtResult){EXIT_NORMAL};
+    return (ExecuteStmtResult) {.exit_kind = EXIT_NORMAL};
 }
 
 #define push_native_call(ctx, call) push_native_call_(ctx, cgs_strv(#call), call)
@@ -247,4 +240,20 @@ void enter_scope(Ctx *ctx)
 
     init_scope(ctx, ctx->scope);
     ctx->scope->up = up;
+}
+
+static void push_var(Ctx *ctx, CGS_StrView name, Value val)
+{
+    val = var_value(val); // copies the val from the eval_arena to malloc heap
+    VarMap_value *v = VarMap_get_mut(&ctx->scope->vars, name);
+    if (v)
+    {
+        free_var_value(v->second);
+        v->second = val;
+    }
+    else
+    {
+        VarMap_result res = VarMap_insert(&ctx->scope->vars, name, val);
+        assert(res.inserted); // we already confirmed !v, so there's no way insertion fails
+    }
 }

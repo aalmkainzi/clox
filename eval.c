@@ -92,10 +92,10 @@ static Value eval_call(Ctx *ctx, Expr *expr)
     if (!expect_function(ctx, &func_val))
         return error_value();
 
-    if (func_val.type.n_args != expr->call.args.size)
+    if (func_val.type.function.n_args != expr->call.args.size)
     {
         error_at(
-            ctx, expr_view(expr), "expected %? arguments, got %?", func_val.type.n_args, expr->call.args.size
+            ctx, expr_view(expr), "expected %? arguments, got %?", func_val.type.function.n_args, expr->call.args.size
         );
         return error_value();
     }
@@ -110,7 +110,7 @@ static Value eval_call(Ctx *ctx, Expr *expr)
 
         ArenaCheckpoint checkpoint = arena_checkpoint(ctx->eval_arena);
 
-        int arg_counter = 0;
+        StrViewList_iter name_it = StrViewList_begin(&func_val.function.args);
         for (c_each(arg_it, ExprList, expr->call.args))
         {
             Value arg_val;
@@ -118,13 +118,14 @@ static Value eval_call(Ctx *ctx, Expr *expr)
             arg_val = var_value(arg_val);
 
             // pushing the arg value mapped to the arg name to the scope
-            VarMap_put(&ctx->scope->vars, func_val.function.args.data[arg_counter++], arg_val);
+            VarMap_put(&ctx->scope->vars, *name_it.ref, arg_val);
+            StrViewList_next(&name_it);
         }
 
         // free all the intermediate values evaluated when going through each arg
         arena_rollback(ctx->eval_arena, checkpoint);
 
-        ExecuteStmtResult res = execute_stmt_list(ctx, func_val.function.call);
+        ExecuteStmtResult res = execute_stmt_list(ctx, func_val.function.body);
 
         exit_scope(ctx);
 

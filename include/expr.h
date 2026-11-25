@@ -48,7 +48,10 @@ typedef struct Type
 
     union
     {
-        int n_args; // for function types
+        struct
+        {
+            unsigned int n_args;
+        } function;
     };
 } Type;
 
@@ -64,7 +67,7 @@ typedef struct Function
     bool native;
     union
     {
-        const struct StmtList *call;
+        const struct StmtList *body;
         struct Value (*native_call)(struct Ctx *ctx, struct ExprList *args);
     };
 } Function;
