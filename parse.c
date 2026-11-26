@@ -8,6 +8,7 @@
 
 #define T StrViewList, CGS_StrView
 #define i_implement
+#define i_body
 #include "grow_list.h"
 
 static Expr *expression(Ctx *ctx);
@@ -403,9 +404,11 @@ static Stmt parse_for_stmt(Ctx *ctx)
     }
     else
     {
-        w->cond        = arena_alloc(ctx->parse_arena, sizeof(Expr));
-        w->cond->kind  = EXPR_value;
-        w->cond->value = (Value) {.type.kind = T_bool, .boolean = true};
+        w->cond            = arena_alloc(ctx->parse_arena, sizeof(Expr));
+        w->cond->kind      = EXPR_value;
+        w->cond->value.v   = (Value) {.type.kind = T_bool, .boolean = true};
+        w->cond->value.tok = *curtok(ctx);
+
         advance(ctx);
     }
 

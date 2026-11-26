@@ -9,6 +9,10 @@
 #define i_header
 #include "grow_list.h"
 
+#define T ExprList, struct Expr *
+#define i_header
+#include "grow_list.h"
+
 typedef enum ExprKind : unsigned char
 {
     EXPR_unary,
@@ -56,7 +60,6 @@ typedef struct Type
 } Type;
 
 typedef struct Ctx Ctx;
-typedef struct ExprList ExprList;
 
 typedef struct Function
 {
@@ -64,6 +67,7 @@ typedef struct Function
     StrViewList args;
 
     bool native;
+
     union
     {
         const struct StmtList *body;
@@ -74,12 +78,10 @@ typedef struct Function
 typedef struct Value
 {
     Type type;
-    Token tok;
+    CGS_StrView view;
+
     bool var;
     bool error;
-
-    // only not null in case of `.var = true`, and it represents the scope in which the var is declared
-    // struct Scope *scope;
 
     union
     {
@@ -89,10 +91,6 @@ typedef struct Value
         Function function;
     };
 } Value;
-
-#define T ExprList, struct Expr *
-#define i_header
-#include "grow_list.h"
 
 typedef struct Expr
 {
@@ -113,7 +111,11 @@ typedef struct Expr
             struct Expr *right;
         } binary;
 
-        Value value;
+        struct
+        {
+            Value v;
+            Token tok;
+        } value;
 
         Token ident;
 

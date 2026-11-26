@@ -16,7 +16,7 @@
         Value _v = eval(ctx, expr);  \
         if (_v.error)                \
             return _v;               \
-        *val_ptr = _v;               \
+        *(val_ptr) = _v;             \
     } while (0)
 
 static Value eval_unary(Ctx *ctx, Expr *expr);
@@ -36,7 +36,7 @@ Value eval(Ctx *ctx, Expr *expr)
             return eval_binary(ctx, expr);
 
         case EXPR_value:
-            return copy_value(ctx, expr->value);
+            return copy_value(ctx, expr->value.v);
 
         case EXPR_var:
         {
@@ -52,7 +52,7 @@ Value eval(Ctx *ctx, Expr *expr)
                 return error_value();
             }
             Value var_val = copy_value(ctx, var_entry->second);
-            var_val.tok   = expr->ident;
+            var_val.view  = expr->ident.lexeme;
             assert(!var_val.var);
             return var_val;
         }
@@ -99,8 +99,8 @@ static Value eval_call(Ctx *ctx, Expr *expr)
 
     if (func_val.function.native)
     {
-        Value v      = func_val.function.native_call(ctx, &expr->call.args);
-        v.tok.lexeme = expr_view(expr);
+        Value v = func_val.function.native_call(ctx, &expr->call.args);
+        v.view  = expr_view(expr);
         return v;
     }
     else
@@ -142,7 +142,7 @@ static Value eval_call(Ctx *ctx, Expr *expr)
             exit_scope(ctx);
         }
 
-        return_value.tok.lexeme = expr_view(expr);
+        return_value.view = expr_view(expr);
         return return_value;
     }
 }
@@ -205,8 +205,8 @@ static Value eval_binary_logical(Ctx *ctx, Expr *expr)
                 Value right;
                 eval_or_throw(&right, expr->binary.right);
 
-                result            = copy_value(ctx, right);
-                result.tok.lexeme = range_view(left.tok.lexeme, right.tok.lexeme);
+                result      = copy_value(ctx, right);
+                result.view = range_view(left.view, right.view);
             }
         }
         break;
@@ -223,8 +223,8 @@ static Value eval_binary_logical(Ctx *ctx, Expr *expr)
                 Value right;
                 eval_or_throw(&right, expr->binary.right);
 
-                result            = copy_value(ctx, right);
-                result.tok.lexeme = range_view(left.tok.lexeme, right.tok.lexeme);
+                result      = copy_value(ctx, right);
+                result.view = range_view(left.view, right.view);
             }
         }
         break;
@@ -249,8 +249,8 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
     eval_or_throw(&right, expr->binary.right);
 
     Value result = copy_value(ctx, left);
-    if (left.tok.lexeme.chars && right.tok.lexeme.chars)
-        result.tok.lexeme = range_view(left.tok.lexeme, right.tok.lexeme);
+    if (left.view.chars && right.view.chars)
+        result.view = range_view(left.view, right.view);
 
     switch (expr->binary.op.kind)
     {
@@ -284,7 +284,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
                             cgs_append_tostr(&result.string, "nil");
                             break;
                         default:
-                            error_at_tok(ctx, left.tok, "type cannot be added to string");
+                            error_at(ctx, left.view, "type cannot be added to string");
                             return error_value();
                         case T_none:
                             unreachable();
@@ -316,7 +316,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
                         result.string = cgs_asprintf(ctx->eval_allocator, "%?%?", "nil", right.string);
                         break;
                     default:
-                        error_at_tok(ctx, left.tok, "type cannot be added to string");
+                        error_at(ctx, left.view, "type cannot be added to string");
                         return error_value();
                     case T_none:
                         unreachable();
@@ -327,7 +327,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
                 if (!expect_number(ctx, &left) || !expect_number(ctx, &right))
                     return error_value();
 
-                result.tok.lexeme = range_view(left.tok.lexeme, right.tok.lexeme);
+                result.view = range_view(left.view, right.view);
                 result.number += right.number;
             }
         }
@@ -349,7 +349,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
 
             if (right.number == 0)
             {
-                error_at_tok(ctx, right.tok, "division by zero");
+                error_at(ctx, right.view, "division by zero");
                 result.number = INFINITY;
             }
             else
@@ -404,7 +404,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
             if (left.type.kind == T_str)
             {
                 Value str_equality_result = {
-                    .tok       = result.tok,
+                    .view      = result.view,
                     .type.kind = T_bool,
                     .boolean   = right.type.kind == T_str && cgs_equal(left.string, right.string)
                 };
@@ -433,7 +433,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
             if (left.type.kind == T_str)
             {
                 Value str_equality_result = {
-                    .tok       = result.tok,
+                    .view      = result.view,
                     .type.kind = T_bool,
                     .boolean   = right.type.kind != T_str || !cgs_equal(left.string, right.string)
                 };
@@ -488,7 +488,7 @@ bool expect_number(Ctx *ctx, Value *obj)
     if (obj->type.kind != T_num)
     {
         obj->error = true;
-        error_at_tok(ctx, obj->tok, "expected a number");
+        error_at(ctx, obj->view, "expected a number");
         return false;
     }
     return true;
@@ -499,7 +499,7 @@ bool expect_string(Ctx *ctx, Value *obj)
     if (obj->type.kind != T_str)
     {
         obj->error = true;
-        error_at_tok(ctx, obj->tok, "expected a string");
+        error_at(ctx, obj->view, "expected a string");
         return false;
     }
     return true;
@@ -510,7 +510,7 @@ bool expect_function(Ctx *ctx, Value *obj)
     if (obj->type.kind != T_function)
     {
         obj->error = true;
-        error_at_tok(ctx, obj->tok, "expected a function");
+        error_at(ctx, obj->view, "expected a function");
         return false;
     }
     return true;

@@ -17,6 +17,8 @@
 #define GL_ITER _c_MEMB(_iter)
 #define GL_NODE _c_MEMB(_node)
 
+#ifndef i_body
+
 typedef struct GL_NODE GL_NODE;
 
 typedef i_key _m_value;
@@ -37,6 +39,8 @@ typedef struct GL_ITER
     GL_NODE *node;
     unsigned int next_free_slot_in_tail; // this is needed to know when to stop
 } GL_ITER;
+
+#endif
 
 Self _c_MEMB(_init)(Arena *arena);
 GL_ITER _c_MEMB(_push)(Self *list);
