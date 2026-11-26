@@ -13,6 +13,12 @@
 #define i_header
 #include "grow_list.h"
 
+#define i_header
+#define T ValueList, struct Value
+#include "grow_list.h"
+
+typedef struct Ctx Ctx;
+
 typedef enum ExprKind : unsigned char
 {
     EXPR_unary,
@@ -59,8 +65,6 @@ typedef struct Type
     };
 } Type;
 
-typedef struct Ctx Ctx;
-
 typedef struct Function
 {
     CGS_StrView name;
@@ -71,7 +75,7 @@ typedef struct Function
     union
     {
         const struct StmtList *body;
-        struct Value (*native_call)(struct Ctx *ctx, struct ExprList *args);
+        struct Value (*native_call)(struct Ctx *ctx, ValueList *args);
     };
 } Function;
 

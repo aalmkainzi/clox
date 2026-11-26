@@ -99,8 +99,19 @@ static Value eval_call(Ctx *ctx, Expr *expr)
 
     if (func_val.function.native)
     {
-        Value v = func_val.function.native_call(ctx, &expr->call.args);
+        ArenaCheckpoint before_args = arena_checkpoint(ctx->eval_arena);
+        ValueList args_vals = ValueList_init(ctx->eval_arena);
+
+        for (c_each(it, ExprList, expr->call.args))
+        {
+            *ValueList_push(&args_vals).ref = eval(ctx, *it.ref);
+        }
+
+        Value v = func_val.function.native_call(ctx, &args_vals);
         v.view  = expr_view(expr);
+
+        arena_rollback(ctx->eval_arena, before_args);
+
         return v;
     }
     else

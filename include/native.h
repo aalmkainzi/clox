@@ -3,7 +3,11 @@
 
 #include "expr.h"
 
-Value native_clock(struct Ctx *ctx, ExprList *args);
-Value native_sin(struct Ctx *ctx, ExprList *args);
+#define i_header
+#define T ValueList, Value
+#include "grow_list.h"
+
+Value native_clock(struct Ctx *ctx, ValueList *args);
+Value native_sin(struct Ctx *ctx, ValueList *args);
 
 #endif

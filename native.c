@@ -3,7 +3,12 @@
 #include <math.h>
 #include <time.h>
 
-Value native_clock(Ctx *ctx, ExprList *args)
+#define i_implement
+#define i_body
+#define T ValueList, Value
+#include "grow_list.h"
+
+Value native_clock(Ctx *ctx, ValueList *args)
 {
     (void)ctx;
     (void)args;
@@ -13,10 +18,9 @@ Value native_clock(Ctx *ctx, ExprList *args)
     };
 }
 
-Value native_sin(Ctx *ctx, ExprList *args)
+Value native_sin(Ctx *ctx, ValueList *args)
 {
-    Expr *expr = *ExprList_begin(args).ref;
-    Value v    = eval(ctx, expr);
+    Value v = *ValueList_begin(args).ref;
     if (!expect_number(ctx, &v))
     {
         return error_value();
