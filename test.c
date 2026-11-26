@@ -154,6 +154,16 @@ int parse_tests(Ctx *ctx)
                 return EXIT_FAILURE;
             }
 
+            // find the last }}
+            // for cases like:
+            // expected-error{{expected ), but got }}}
+            while (
+                comment_walk.chars[found_message_end.val + 1] == '}' &&
+                comment_walk.chars[found_message_end.val + 2] == '}')
+            {
+                found_message_end.val++;
+            }
+
             CGS_StrView msg = cgs_strv(comment_walk, 2, found_message_end.val);
 
             int lineno = linemap_get_lineno(&ctx->linemap, msg.chars - ctx->src.chars);

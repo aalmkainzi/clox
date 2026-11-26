@@ -2,7 +2,7 @@
 #include "clox.h"
 #include <time.h>
 
-Value clock_native(Ctx *ctx, ExprList *args)
+Value native_clock(Ctx *ctx, ExprList *args)
 {
     (void)ctx;
     (void)args;

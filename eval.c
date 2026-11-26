@@ -106,7 +106,9 @@ static Value eval_call(Ctx *ctx, Expr *expr)
 
     if (func_val.function.native)
     {
-        return func_val.function.native_call(ctx, &expr->call.args);
+        Value v      = func_val.function.native_call(ctx, &expr->call.args);
+        v.tok.lexeme = expr_view(expr);
+        return v;
     }
     else
     {
@@ -147,6 +149,7 @@ static Value eval_call(Ctx *ctx, Expr *expr)
             exit_scope(ctx);
         }
 
+        return_value.tok.lexeme = expr_view(expr);
         return return_value;
     }
 }
@@ -261,7 +264,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
         case TK_minus:
         {
             if (!expect_number(ctx, &left) || !expect_number(ctx, &right))
-                break;
+                return error_value();
 
             result.number -= right.number;
         }
@@ -297,7 +300,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
                 else
                 {
                     if (!expect_string(ctx, &right))
-                        break;
+                        return error_value();
                     cgs_append(&result.string, right.string);
                 }
             }
@@ -328,8 +331,8 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
             }
             else
             {
-                if (!expect_number(ctx, &right) || !expect_number(ctx, &left))
-                    break;
+                if (!expect_number(ctx, &left) || !expect_number(ctx, &right))
+                    return error_value();
 
                 result.tok.lexeme = range_view(left.tok.lexeme, right.tok.lexeme);
                 result.number += right.number;
@@ -340,7 +343,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
         case TK_star:
         {
             if (!expect_number(ctx, &left) || !expect_number(ctx, &right))
-                break;
+                return error_value();
 
             result.number *= right.number;
         }
@@ -349,7 +352,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
         case TK_slash:
         {
             if (!expect_number(ctx, &left) || !expect_number(ctx, &right))
-                break;
+                return error_value();
 
             if (right.number == 0)
             {
@@ -366,7 +369,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
         case TK_gt:
         {
             if (!expect_number(ctx, &left) || !expect_number(ctx, &right))
-                break;
+                return error_value();
 
             result.type.kind = T_bool;
             result.boolean   = left.number > right.number;
@@ -376,7 +379,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
         case TK_lt:
         {
             if (!expect_number(ctx, &left) || !expect_number(ctx, &right))
-                break;
+                return error_value();
 
             result.type.kind = T_bool;
             result.boolean   = left.number < right.number;
@@ -386,7 +389,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
         case TK_gte:
         {
             if (!expect_number(ctx, &left) || !expect_number(ctx, &right))
-                break;
+                return error_value();
 
             result.type.kind = T_bool;
             result.boolean   = left.number >= right.number;
@@ -396,7 +399,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
         case TK_lte:
         {
             if (!expect_number(ctx, &left) || !expect_number(ctx, &right))
-                break;
+                return error_value();
 
             result.type.kind = T_bool;
             result.boolean   = left.number <= right.number;
@@ -545,7 +548,7 @@ CGS_Error stringify_value(CGS_Writer *writer, Value val, CGS_StrView fmt_arg)
         case T_bool:
             return cgs_append_tostr(writer, val.boolean);
         case T_function:
-            return cgs_appendf(writer, "<fn %?>", val.function.name);
+            return cgs_appendf(writer, "<%?fn %?>", val.function.native ? "native " : "", val.function.name);
         case T_nil:
             return cgs_append(writer, "nil");
         default:

@@ -34,8 +34,9 @@ void arena_init(Arena *arena)
 
 static ArenaNode *new_node(Arena *arena, size_t n)
 {
-    arena->offset_in_last_arena = 0;
+    arena->bytes_used_in_last_node = 0;
 
+    // TODO clean this up
     ArenaNode *prev = NULL;
     ArenaNode *node = arena->node_pool;
     while (node && node->size < n)
@@ -81,17 +82,17 @@ void *arena_alloc(Arena *arena, size_t n)
     {
         arena->head = arena->tail = new_node(arena, n);
     }
-    else if (arena->tail->size - arena->offset_in_last_arena < n)
+    else if (arena->tail->size - arena->bytes_used_in_last_node < n)
     {
         arena->tail = arena->tail->next = new_node(arena, n);
     }
 
-    UNPOISON_MEM(arena->tail->mem + arena->offset_in_last_arena, n);
+    UNPOISON_MEM(arena->tail->mem + arena->bytes_used_in_last_node, n);
 
-    void *ret = arena->tail->mem + arena->offset_in_last_arena;
-    arena->offset_in_last_arena += n;
+    void *ret = arena->tail->mem + arena->bytes_used_in_last_node;
+    arena->bytes_used_in_last_node += n;
 
-    arena->offset_in_last_arena = (arena->offset_in_last_arena + 7) & ~(size_t)7;
+    arena->bytes_used_in_last_node = (arena->bytes_used_in_last_node + 7) & ~(size_t)7;
 
     return ret;
 }
@@ -142,15 +143,15 @@ ArenaCheckpoint arena_checkpoint(Arena *arena)
 {
     return (ArenaCheckpoint) {
         .node   = arena->tail,
-        .offset = arena->offset_in_last_arena,
+        .used = arena->bytes_used_in_last_node,
     };
 }
 
 void arena_rollback(Arena *arena, ArenaCheckpoint checkpoint)
 {
-    if (arena->tail != checkpoint.node)
+    if (checkpoint.node)
     {
-        if (checkpoint.node)
+        if (arena->tail != checkpoint.node)
         {
             poison_starting_from(checkpoint.node->next);
 
@@ -159,23 +160,22 @@ void arena_rollback(Arena *arena, ArenaCheckpoint checkpoint)
             checkpoint.node->next = NULL;
             arena->tail           = checkpoint.node;
         }
-        else
+        if (checkpoint.used != checkpoint.node->size)
         {
-            poison_starting_from(arena->head);
-
-            arena->tail->next = arena->node_pool;
-            arena->node_pool  = arena->head;
-            arena->head = arena->tail = NULL;
+            size_t poison_len = checkpoint.node->size - checkpoint.used;
+            POISON_MEM(checkpoint.node->mem + checkpoint.used, poison_len);
         }
     }
     else
     {
-        unsigned char *poison_start = checkpoint.node->mem + checkpoint.offset + 1;
-        size_t poison_len           = (checkpoint.node->mem + checkpoint.node->size) - poison_start;
-        POISON_MEM(poison_start, poison_len);
+        poison_starting_from(arena->head);
+
+        arena->tail->next = arena->node_pool;
+        arena->node_pool  = arena->head;
+        arena->head = arena->tail = NULL;
     }
 
-    arena->offset_in_last_arena = checkpoint.offset;
+    arena->bytes_used_in_last_node = checkpoint.used;
 }
 
 CGS_Allocation arena_alloc_callback(CGS_Allocator *a, size_t alignment, size_t n)

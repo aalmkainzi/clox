@@ -13,7 +13,7 @@ typedef struct ArenaNode
 
 typedef struct Arena
 {
-    size_t offset_in_last_arena;
+    size_t bytes_used_in_last_node;
     ArenaNode *head;
     ArenaNode *tail;
     ArenaNode *node_pool;
@@ -22,7 +22,7 @@ typedef struct Arena
 typedef struct ArenaCheckpoint
 {
     ArenaNode *node;
-    size_t offset;
+    size_t used;
 } ArenaCheckpoint;
 
 typedef struct ArenaAllocator

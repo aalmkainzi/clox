@@ -105,6 +105,7 @@ static Stmt parse_stmt(Ctx *ctx)
             if (!skip_tok(ctx, TK_semicolon))
             {
                 synchronize(ctx, TK_semicolon);
+                advance(ctx);
                 break;
             }
 
@@ -139,11 +140,16 @@ static Stmt parse_function_like(Ctx *ctx)
     if (!skip_tok(ctx, TK_ident))
     {
         synchronize(ctx, TK_rcurly);
+        advance(ctx);
         return (Stmt) {};
     }
 
     if (!skip_tok(ctx, TK_lparen))
+    {
+        synchronize(ctx, TK_rcurly);
+        advance(ctx);
         return (Stmt) {};
+    }
 
     bool first = true;
     while (curtok(ctx)->kind != TK_rparen)
@@ -157,6 +163,7 @@ static Stmt parse_function_like(Ctx *ctx)
             if (!skip_tok(ctx, TK_comma))
             {
                 synchronize(ctx, TK_rcurly);
+                advance(ctx);
                 return (Stmt) {};
             }
         }
@@ -168,6 +175,7 @@ static Stmt parse_function_like(Ctx *ctx)
         if (!skip_tok(ctx, TK_ident))
         {
             synchronize(ctx, TK_rcurly);
+            advance(ctx);
             arena_rollback(ctx->parse_arena, checkpoint);
             return (Stmt) {};
         }
@@ -191,6 +199,8 @@ static Stmt parse_function_like(Ctx *ctx)
 
     if (!expect_tok(ctx, TK_lcurly))
     {
+        synchronize(ctx, TK_rcurly);
+        advance(ctx);
         arena_rollback(ctx->parse_arena, checkpoint);
         return (Stmt) {};
     }
@@ -499,24 +509,14 @@ static Stmt parse_expr_stmt(Ctx *ctx)
 {
     ArenaCheckpoint checkpoint = arena_checkpoint(ctx->parse_arena);
 
-    bool err  = false;
     Stmt stmt = {.kind = STMT_expr, .begin = curtok(ctx)};
 
     stmt.data.expr = expression(ctx);
 
-    if (stmt.data.expr == NULL)
+    if (stmt.data.expr == NULL || !skip_tok(ctx, TK_semicolon))
     {
-        err = true;
-    }
-
-    if (!skip_tok(ctx, TK_semicolon))
-    {
-        err = true;
+        synchronize(ctx, TK_semicolon);
         advance(ctx);
-    }
-
-    if (err)
-    {
         arena_rollback(ctx->parse_arena, checkpoint);
         return (Stmt) {};
     }
@@ -685,7 +685,7 @@ static Expr *call(Ctx *ctx)
 {
     Expr *expr = primary(ctx);
 
-    if (curtok(ctx)->kind == TK_lparen)
+    while (curtok(ctx)->kind == TK_lparen)
     {
         Token *lparen = curtok(ctx);
         advance(ctx);
@@ -703,7 +703,6 @@ static Expr *call(Ctx *ctx)
                 if (!skip_tok(ctx, TK_comma))
                 {
                     synchronize(ctx, TK_semicolon);
-                    advance(ctx);
                     return NULL;
                 }
             }

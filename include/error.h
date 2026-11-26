@@ -10,7 +10,7 @@ void error_(Ctx *ctx, CGS_DStr messsage);
 
 void passed_(Ctx *ctx, CGS_DStr messsage);
 
-#ifdef NDEBUG
+#ifndef NDEBUG
     #define error_at(ctx, loc, msg, ...) \
         error_at_(ctx, cgs_strv(loc), cgs_asprintf("%?:%?: " msg, __FILE__, __LINE__, __VA_ARGS__))
 #else

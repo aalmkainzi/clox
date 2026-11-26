@@ -3,6 +3,6 @@
 
 #include "expr.h"
 
-Value clock_native(struct Ctx *ctx, ExprList *args);
+Value native_clock(struct Ctx *ctx, ExprList *args);
 
 #endif

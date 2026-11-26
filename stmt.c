@@ -188,7 +188,7 @@ ExecuteStmtResult execute_stmt_list(Ctx *ctx, const StmtList *stmts)
     return (ExecuteStmtResult) {.exit_kind = EXIT_NORMAL};
 }
 
-#define push_native_call(ctx, call) push_native_call_(ctx, cgs_strv(#call), call)
+#define push_native_call(ctx, call) push_native_call_(ctx, cgs_strv(#call), native_##call)
 
 static void push_native_call_(Ctx *ctx, CGS_StrView name, Value (*call)(Ctx *, ExprList *))
 {
@@ -198,6 +198,7 @@ static void push_native_call_(Ctx *ctx, CGS_StrView name, Value (*call)(Ctx *, E
         (Value) {
             .var                  = true,
             .type.kind            = T_function,
+            .function.name        = name,
             .function.native      = true,
             .function.native_call = call,
         }
@@ -206,7 +207,7 @@ static void push_native_call_(Ctx *ctx, CGS_StrView name, Value (*call)(Ctx *, E
 
 static void push_native_calls(Ctx *ctx)
 {
-    push_native_call(ctx, clock_native);
+    push_native_call(ctx, clock);
 }
 
 void execute_stmts(Ctx *ctx)
