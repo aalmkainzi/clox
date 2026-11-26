@@ -1,0 +1,10 @@
+fun f
+{ // expected-error{{expected (, but got {}}
+}
+
+fun f(var a) // expected-error{{expected identifier, but got var}}
+{
+}
+
+fun f()
+} // expected-error{{expected {, but got }}}

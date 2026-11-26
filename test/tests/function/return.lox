@@ -1,0 +1,24 @@
+// expected-output{{"2", "3"}}
+
+fun foo()
+{
+    return 1;
+}
+
+print foo() + foo();
+
+fun get_fun()
+{
+    fun bar()
+    {
+        return 1;
+    }
+    return bar;
+}
+
+fun bar()
+{
+    return 2;
+}
+
+print get_fun()() + bar();
