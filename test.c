@@ -157,9 +157,8 @@ int parse_tests(Ctx *ctx)
             // find the last }}
             // for cases like:
             // expected-error{{expected ), but got }}}
-            while (
-                comment_walk.chars[found_message_end.val + 1] == '}' &&
-                comment_walk.chars[found_message_end.val + 2] == '}')
+            while (comment_walk.chars[found_message_end.val + 1] == '}' &&
+                   comment_walk.chars[found_message_end.val + 2] == '}')
             {
                 found_message_end.val++;
             }

@@ -23,13 +23,6 @@ static Value eval_unary(Ctx *ctx, Expr *expr);
 static Value eval_binary(Ctx *ctx, Expr *expr);
 static Value eval_call(Ctx *ctx, Expr *expr);
 
-static bool expect_number(Ctx *ctx, Value *obj);
-static bool expect_string(Ctx *ctx, Value *obj);
-static bool expect_function(Ctx *ctx, Value *obj);
-
-static Value copy_value(Ctx *ctx, Value from);
-static Value error_value();
-
 static VarMap_entry *find_var(Scope *scope, CGS_StrView name);
 
 Value eval(Ctx *ctx, Expr *expr)
@@ -490,7 +483,7 @@ static Value eval_binary(Ctx *ctx, Expr *expr)
     return result;
 }
 
-static bool expect_number(Ctx *ctx, Value *obj)
+bool expect_number(Ctx *ctx, Value *obj)
 {
     if (obj->type.kind != T_num)
     {
@@ -501,7 +494,7 @@ static bool expect_number(Ctx *ctx, Value *obj)
     return true;
 }
 
-static bool expect_string(Ctx *ctx, Value *obj)
+bool expect_string(Ctx *ctx, Value *obj)
 {
     if (obj->type.kind != T_str)
     {
@@ -512,7 +505,7 @@ static bool expect_string(Ctx *ctx, Value *obj)
     return true;
 }
 
-static bool expect_function(Ctx *ctx, Value *obj)
+bool expect_function(Ctx *ctx, Value *obj)
 {
     if (obj->type.kind != T_function)
     {
@@ -534,6 +527,41 @@ bool is_truthy(Value obj)
         return false;
     }
     return true;
+}
+
+void free_var_value(Value v)
+{
+    assert(v.var);
+    if (v.type.kind == T_str)
+    {
+        cgs_dstr_deinit(&v.string);
+    }
+}
+
+Value copy_value(Ctx *ctx, Value from)
+{
+    Value ret = from;
+    if (from.type.kind == T_str)
+        ret.string = cgs_dup(ret.string, ctx->eval_allocator);
+    ret.var = false;
+    return ret;
+}
+
+Value var_value(Value val)
+{
+    val.var = true;
+    if (val.type.kind == T_str)
+    {
+        Value v  = val;
+        v.string = cgs_dstr_init_from(val.string);
+        return v;
+    }
+    return val;
+}
+
+Value error_value()
+{
+    return (Value) {.error = true};
 }
 
 CGS_Error stringify_value(CGS_Writer *writer, Value val, CGS_StrView fmt_arg)
@@ -572,39 +600,4 @@ CGS_Error stringify_literal(CGS_Writer *writer, Literal lit, CGS_StrView fmt_arg
         default:
             unreachable();
     }
-}
-
-void free_var_value(Value v)
-{
-    assert(v.var);
-    if (v.type.kind == T_str)
-    {
-        cgs_dstr_deinit(&v.string);
-    }
-}
-
-static Value copy_value(Ctx *ctx, Value from)
-{
-    Value ret = from;
-    if (from.type.kind == T_str)
-        ret.string = cgs_dup(ret.string, ctx->eval_allocator);
-    ret.var = false;
-    return ret;
-}
-
-Value var_value(Value val)
-{
-    val.var = true;
-    if (val.type.kind == T_str)
-    {
-        Value v  = val;
-        v.string = cgs_dstr_init_from(val.string);
-        return v;
-    }
-    return val;
-}
-
-static Value error_value()
-{
-    return (Value) {.error = true};
 }

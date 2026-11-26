@@ -142,7 +142,7 @@ void arena_free(Arena *arena)
 ArenaCheckpoint arena_checkpoint(Arena *arena)
 {
     return (ArenaCheckpoint) {
-        .node   = arena->tail,
+        .node = arena->tail,
         .used = arena->bytes_used_in_last_node,
     };
 }

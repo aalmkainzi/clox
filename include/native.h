@@ -4,5 +4,6 @@
 #include "expr.h"
 
 Value native_clock(struct Ctx *ctx, ExprList *args);
+Value native_sin(struct Ctx *ctx, ExprList *args);
 
 #endif

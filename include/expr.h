@@ -55,9 +55,8 @@ typedef struct Type
     };
 } Type;
 
-struct Ctx;
-struct ExprList;
-c_declare_vec(StrViews, CGS_StrView);
+typedef struct Ctx Ctx;
+typedef struct ExprList ExprList;
 
 typedef struct Function
 {
@@ -131,33 +130,28 @@ typedef struct Expr
 void pretty_print(CGS_Writer *sink, Expr *expr);
 void rpn_print(CGS_Writer *sink, Expr *expr);
 
-struct Ctx;
-
-Expr *new_binary_expr(struct Ctx *ctx, Expr *left, Expr *right, Token op);
-Expr *new_unary_expr(struct Ctx *ctx, Expr *left, Token op);
-Expr *new_call_expr(struct Ctx *ctx, Expr *left, ExprList args, Token lparen, Token rparen);
-Expr *new_paren_expr(struct Ctx *ctx, Expr *inside);
-Expr *new_literal_expr(struct Ctx *ctx, Token tok);
-Expr *new_var_expr(struct Ctx *ctx, Token tok);
+Expr *new_binary_expr(Ctx *ctx, Expr *left, Expr *right, Token op);
+Expr *new_unary_expr(Ctx *ctx, Expr *left, Token op);
+Expr *new_call_expr(Ctx *ctx, Expr *left, ExprList args, Token lparen, Token rparen);
+Expr *new_paren_expr(Ctx *ctx, Expr *inside);
+Expr *new_literal_expr(Ctx *ctx, Token tok);
+Expr *new_var_expr(Ctx *ctx, Token tok);
 Token expr_tok(Expr *expr);
 CGS_StrView expr_view(Expr *expr);
 
-Value eval(struct Ctx *ctx, Expr *expr);
+Value eval(Ctx *ctx, Expr *expr);
 bool is_truthy(Value obj);
-
-void free_var_value(Value v);
 
 // the returned Value's lifetime doesn't end with current scope, but an explicit free_var_value call
 Value var_value(Value val);
+void free_var_value(Value v);
 
-#define scoped_eval_(id, name, expr)                                                                              \
-    for (bool c_JOIN(b1_, id) = true, c_JOIN(b2_, id) = true; c_JOIN(b1_, id) && c_JOIN(b2_, id);)                \
-        for (ArenaCheckpoint c_JOIN(eval_lifetime_cp_, id) = arena_checkpoint(&ctx->eval_arena); c_JOIN(b2_, id); \
-             arena_rollback(&ctx->eval_arena, c_JOIN(eval_lifetime_cp_, id)), c_JOIN(b2_, id) = false)            \
-            for (name = eval(ctx, expr); c_JOIN(b1_, id); c_JOIN(b1_, id) = false)
+bool expect_number(Ctx *ctx, Value *obj);
+bool expect_string(Ctx *ctx, Value *obj);
+bool expect_function(Ctx *ctx, Value *obj);
 
-// checkpoint is created before the next statement, and restore after it
-#define scoped_eval(name, expr) scoped_eval_(__COUNTER__, name, expr)
+Value copy_value(Ctx *ctx, Value from);
+Value error_value();
 
 CGS_Error stringify_value(CGS_Writer *writer, Value val, CGS_StrView fmt_arg);
 CGS_Error stringify_literal(CGS_Writer *writer, Literal lit, CGS_StrView fmt_arg);
