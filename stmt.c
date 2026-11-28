@@ -190,7 +190,6 @@ ExecuteStmtResult execute_stmt_list(Ctx *ctx, const StmtList *stmts)
 
 #define push_native_call(ctx, call, n_args) push_native_call_(ctx, cgs_strv(#call), native_##call, n_args)
 
-// TODO native calls should take a Value list not an ExprList
 static void push_native_call_(Ctx *ctx, CGS_StrView name, Value (*call)(Ctx *, ValueList *), unsigned int n_args)
 {
     VarMap_put(
